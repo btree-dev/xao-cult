@@ -19,9 +19,9 @@ const Wallets: NextPage = () => {
       </Head>
 
     <main className={styles.main}>
-      <WalletButton wallet="rainbow" className={styles.bigButton} />
-      <WalletButton wallet="metamask" className={styles.bigButton} />
-      <WalletButton wallet="coinbase" className={styles.bigButton} />
+      <WalletButton wallet="rainbow" />
+      <WalletButton wallet="metamask" />
+      <WalletButton wallet="coinbase" />
       <div className={styles.gradientLine} />
       <div className={styles.linkDiv}>
         <Link href="/">

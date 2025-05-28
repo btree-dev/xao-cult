@@ -23,7 +23,7 @@ const Wallets: NextPage = () => {
       <WalletButton wallet="metamask" />
       <WalletButton wallet="coinbase" />
       <div className={styles.gradientLine} />
-      <div className={styles.linkDiv}>
+      <div className={styles.itemContainer}>
         <Link href="/">
         <Image
           alt="XAO Monster"

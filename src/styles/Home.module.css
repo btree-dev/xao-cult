@@ -18,17 +18,21 @@
   align-items: center;
 }
 
-.linkDiv {    
+.itemContainer {    
     width: 100%;
-    width: -moz-available;          /* WebKit-based browsers will ignore this. */
-    width: -webkit-fill-available;  /* Mozilla-based browsers will ignore this. */
-    width: stretch;
+    max-width: 100vw;
 }
 
-.linkDiv a {
+.itemContainer a {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.hintText {
+  font-size: 0.9rem;
+  margin-left: 25px;
+  align-self: flex-start;
 }
 
 .footer {
@@ -133,9 +137,18 @@
   background-repeat: no-repeat;
 }
 
+.rowContainer {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
 .gradientLine {
-  margin-top: 24px;
-  height: 2px;
+  margin-left: 24px;
+  margin-right: 24px;
+  height: 1px;
   width: 100%;
   border-radius: 2px;
   background: var(--main-gradient);

@@ -12,6 +12,11 @@ body {
   color: #ffffff;
 }
 
+/* Space for sticky navbar - only when logged in */
+body.with-navbar {
+  padding-top: 60px;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -19,5 +24,12 @@ a {
 
 * {
   box-sizing: border-box;
+}
+
+/* Responsive navbar spacing */
+@media (max-width: 480px) {
+  body.with-navbar {
+    padding-top: 56px; /* Smaller navbar height on mobile */
+  }
 }
 

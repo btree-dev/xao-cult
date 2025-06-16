@@ -4,11 +4,78 @@ import Image from 'next/image'
 import Link from 'next/link'
 import styles from '../styles/Home.module.css';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useRouter } from 'next/router';
+import { useEffect, useState } from 'react';
+import { useAccount } from 'wagmi';
+import { supabase } from '../lib/supabase';
+import { formatWalletEmail } from '../lib/utils';
 
 const Home: NextPage = () => {
+  const router = useRouter();
+  const { address, isConnected } = useAccount();
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  
+  // Check if wallet is connected and redirect to profile creation
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        setCheckingAuth(true);
+        
+        // Check if there's a Supabase session
+        const { data: sessionData } = await supabase.auth.getSession();
+        
+        if (sessionData.session) {
+          // We have a session, check if there's a profile
+          const { data: profileData, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', sessionData.session.user.id)
+            .single();
+          
+          if (error || !profileData) {
+            // No profile yet, redirect to profile creation
+            router.push('/create-profile');
+          } else {
+            // Profile exists, redirect to dashboard
+            router.push('/dashboard');
+          }
+          return;
+        }
+        
+        // If wallet is connected but no session, redirect to registration
+        if (isConnected && address) {
+          // First, redirect to registration page instead of create-profile
+          router.push('/register');
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    
+    checkSession();
+  }, [isConnected, address, router]);
+  
+  const handleWalletConnect = () => {
+    // The actual connection happens in ConnectButton.Custom
+    // After connection, the useEffect above will handle redirection
+  };
+  
+  if (checkingAuth) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.background} />
+        <div className={styles.loadingContainer}>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className={styles.container}>
-      <div className={styles.background} /> {/* Add this line */}
+      <div className={styles.background} />
       <Head>
         <title>XAO Cult</title>
         <meta
@@ -46,7 +113,14 @@ const Home: NextPage = () => {
                   {(() => {
                     if (!mounted || !account || !chain) {
                       return (
-                        <button onClick={openConnectModal} type="button" className={styles.bigButton}>
+                        <button 
+                          onClick={() => {
+                            openConnectModal();
+                            handleWalletConnect();
+                          }} 
+                          type="button" 
+                          className={styles.bigButton}
+                        >
                           <Image
                             src="/MetaMask-icon-fox.svg"
                             alt="Wallet Icon"
@@ -132,12 +206,15 @@ const Home: NextPage = () => {
         <div className={styles.hintText}>
           OR
         </div>
-        <button className={styles.bigButton}>
-          <span role="img" aria-label="passkey" className={styles.passkeyIcon}>
+        <button 
+          className={styles.bigButton}
+          onClick={() => router.push('/email-signin')}
+        >
+          <span role="img" aria-label="email" className={styles.passkeyIcon}>
             ✉️
           </span>
           Sign in with Email
-        </button>   
+        </button>
       </main>
     </div>
   );

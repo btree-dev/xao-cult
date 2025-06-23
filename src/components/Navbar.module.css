@@ -3,7 +3,9 @@
   top: 0;
   left: 0;
   right: 0;
-  background: transparent;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-bottom: none;
   z-index: 1000;
   height: 60px;
@@ -49,6 +51,10 @@
   font-size: 18px;
   font-weight: 600;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
 }
 
 .navButton {
@@ -136,6 +142,11 @@
     width: 36px;
     height: 36px;
   }
+  
+  .pageTitle {
+    font-size: 16px;
+    max-width: 120px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -149,6 +160,11 @@
   
   .navSection {
     gap: 8px;
+    flex: 0 1 auto;
+  }
+  
+  .centerSection {
+    flex: 1;
   }
   
   .navButton {
@@ -169,6 +185,11 @@
   
   .avatarPlaceholder {
     font-size: 14px;
+  }
+  
+  .pageTitle {
+    font-size: 15px;
+    max-width: 100px;
   }
 }
 
@@ -194,6 +215,8 @@
   min-width: 300px;
   text-align: center;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  width: 90%;
+  max-width: 320px;
 }
 
 .logoutConfirmBox h3 {
@@ -248,7 +271,19 @@
 
 @media (max-width: 480px) {
   .logoutConfirmBox {
-    margin: 0 16px;
+    padding: 20px;
     min-width: auto;
+    width: 85%;
+  }
+  
+  .logoutButtons {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .cancelButton,
+  .confirmButton {
+    width: 100%;
+    padding: 10px;
   }
 } 

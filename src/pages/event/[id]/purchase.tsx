@@ -34,7 +34,10 @@ const TicketPurchase: NextPage = () => {
             time: '06:30PM',
             location: 'Wembley Stadium, London',
             image: 'https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-            ticketPrice: 50.00
+            ticketPrice: 50.00,
+            artist: 'rivo',
+            tag: 'Les Déferlantes 2025',
+            profilePic: '/rivo-profile-pic.svg'
           };
         } else if (id === 'xao-event-1') {
           mockEvent = {
@@ -44,7 +47,10 @@ const TicketPurchase: NextPage = () => {
             time: '08:00PM',
             location: 'O2 Arena, London',
             image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 65.00
+            ticketPrice: 65.00,
+            artist: 'xao',
+            tag: 'Les Déferlantes 2025',
+            profilePic: '/xao-profile.svg'
           };
         } else if (id === 'edm-event-1') {
           mockEvent = {
@@ -54,7 +60,10 @@ const TicketPurchase: NextPage = () => {
             time: '09:00PM',
             location: 'Alexandra Palace, London',
             image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 45.00
+            ticketPrice: 45.00,
+            artist: 'neonblk',
+            tag: 'Les Déferlantes 2025',
+            profilePic: '/rivo-profile-pic.svg'
           };
         } else {
           // Default event if ID doesn't match
@@ -65,7 +74,10 @@ const TicketPurchase: NextPage = () => {
             time: '06:30PM',
             location: 'Wembley Stadium, London',
             image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 50.00
+            ticketPrice: 50.00,
+            artist: 'rivo',
+            tag: 'Les Déferlantes 2025',
+            profilePic: '/rivo-profile-pic.svg'
           };
         }
         
@@ -86,6 +98,10 @@ const TicketPurchase: NextPage = () => {
 
   const addTicket = () => {
     setTicketCount(prev => prev + 1);
+  };
+
+  const subtractTicket = () => {
+    setTicketCount(prev => prev > 1 ? prev - 1 : 1);
   };
 
   if (loading || !event) {
@@ -112,14 +128,27 @@ const TicketPurchase: NextPage = () => {
 
       <Navbar showBackButton={true} pageTitle="Ticket Purchase" />
 
-      <div 
-        className={styles.eventImageContainer}
-        style={{ 
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.7)), url('${event.image}')` 
-        }}
-      >
-        <div className={styles.eventImageOverlay}>
-          <h1 className={styles.eventTitle}>{event.title}</h1>
+      <div className={styles.feedItem} style={{ marginTop: '20px', marginBottom: '20px', pointerEvents: 'none' }}>
+        <div className={styles.feedHeader}>
+          <div className={styles.feedAuthor}>
+            <div className={styles.authorAvatar}>
+              <Image src={event.profilePic || '/xao-profile.svg'} alt={event.artist || 'Artist'} width={32} height={32} />
+            </div>
+            <div className={styles.authorName}>@{event.artist || 'artist'}</div>
+            <div className={styles.headerTag}>{event.tag || 'Event'}</div>
+          </div>
+        </div>
+        <div className={styles.feedContent}>
+          <Image 
+            src={event.image} 
+            alt={`${event.title} Content`} 
+            width={430} 
+            height={764} 
+            className={styles.feedImage}
+          />
+          <div className={styles.feedContentOverlay}>
+            <h1 className={styles.feedEventTitle}>{event.title}</h1>
+          </div>
         </div>
       </div>
 
@@ -140,9 +169,11 @@ const TicketPurchase: NextPage = () => {
         </div>
 
         <div className={styles.additionalTicketsSection}>
-          <button className={styles.addTicketButton} onClick={addTicket}>
-            Add another ticket
-          </button>
+          <div className={styles.ticketCounter}>
+            <button className={styles.ticketCounterButton} onClick={subtractTicket}>-</button>
+            <span className={styles.ticketCounterValue}>{ticketCount}</span>
+            <button className={styles.ticketCounterButton} onClick={addTicket}>+</button>
+          </div>
         </div>
 
         <div className={styles.paymentMethodSection}>
@@ -161,31 +192,25 @@ const TicketPurchase: NextPage = () => {
               </div>
               <span className={styles.paymentOptionName}>Wallet</span>
             </div>
-          </div>
-        </div>
-
-        <div className={styles.cashSaleSection}>
-          <div className={styles.cashSaleOption}>
-            <div className={styles.cashSaleIcon}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+            
+            <div 
+              className={`${styles.paymentOption} ${paymentMethod === 'cash' ? styles.paymentSelected : ''}`}
+              onClick={() => setPaymentMethod('cash')}
+            >
+              <div className={styles.paymentOptionIcon}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <span className={styles.paymentOptionName}>Cash Sale</span>
             </div>
-            <span className={styles.cashSaleText}>Cash Sale</span>
-          </div>
-        </div>
-
-        <div className={styles.ticketSummarySection}>
-          <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel}>Total:</span>
-            <span className={styles.summaryValue}>${totalPrice.toFixed(2)}</span>
           </div>
         </div>
       </div>
 
-      <div className={styles.confirmPurchaseContainer}>
-        <button className={styles.confirmPurchaseButton} onClick={handleConfirmPurchase}>
-          Confirm Purchase
+      <div className={styles.buyTicketContainer}>
+        <button className={styles.buyTicketButton} onClick={handleConfirmPurchase}>
+          Buy Ticket ${totalPrice.toFixed(2)}
         </button>
       </div>
     </div>

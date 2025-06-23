@@ -4,18 +4,17 @@
 # https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
 
 trigger:
-- master
+- master  # Update to 'main' or wherever you want to trigger from
 
 variables:
-
   # Azure Resource Manager connection created during pipeline creation
   azureSubscription: '1307114c-b810-4d73-a507-db5d3d5436c0'
 
   # Web app name
-  webAppName: ''
+  webAppName: 'XAO-App'
 
   # Environment name
-  environmentName: ''
+  environmentName: 'XaoFirstEnv'
 
   # Agent VM image name
   vmImageName: 'ubuntu-latest'
@@ -30,8 +29,18 @@ stages:
       vmImage: $(vmImageName)
 
     steps:
+    - task: NodeTool@0
+      displayName: 'Use Node.js 20.x'
+      inputs:
+        versionSpec: '20.x'
+
+    - script: |
+        npm install
+        npm run build
+      displayName: 'Install dependencies & build Next.js'
+
     - task: ArchiveFiles@2
-      displayName: 'Archive files'
+      displayName: 'Archive built files'
       inputs:
         rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
         includeRootFolder: false
@@ -57,7 +66,7 @@ stages:
         deploy:
           steps:
           - task: AzureRmWebAppDeployment@4
-            displayName: 'Azure App Service Deploy: '
+            displayName: 'Deploy to Azure Web App'
             inputs:
               azureSubscription: $(azureSubscription)
               appType: webAppLinux

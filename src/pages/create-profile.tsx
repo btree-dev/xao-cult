@@ -1,6 +1,6 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import styles from '../styles/Home.module.css';
@@ -8,19 +8,101 @@ import { supabase } from '../lib/supabase';
 import { useAccount, useSignMessage } from 'wagmi';
 import { formatWalletEmail } from '../lib/utils';
 
+// Genre hierarchy data structure
+const genreHierarchy = {
+  'Rock': {
+    subgenres: ['Metal', 'Punk', 'Alternative', 'Indie', 'Classic Rock', 'Prog Rock'],
+    'Metal': ['Thrash', 'Death Metal', 'Black Metal', 'Doom', 'Heavy Metal', 'Power Metal'],
+    'Punk': ['Hardcore', 'Pop Punk', 'Post-Punk', 'Crust Punk', 'Anarcho-Punk'],
+    'Alternative': ['Grunge', 'Post-Rock', 'Shoegaze', 'Emo', 'Math Rock'],
+    'Indie': ['Indie Pop', 'Indie Folk', 'Dream Pop', 'Lo-Fi'],
+    'Classic Rock': ['Psychedelic Rock', 'Southern Rock', 'Garage Rock', 'Surf Rock'],
+    'Prog Rock': ['Symphonic Rock', 'Art Rock', 'Space Rock', 'Krautrock']
+  },
+  'Pop': {
+    subgenres: ['Synth Pop', 'Dance Pop', 'Electropop', 'K-Pop', 'J-Pop', 'American Pop'],
+    'Synth Pop': ['Chillwave', 'Future Pop', 'Synthwave', 'Hyperpop'],
+    'Dance Pop': ['Disco', 'Eurodance', 'Bubblegum Pop', 'Teen Pop'],
+    'Electropop': ['Indietronica', 'Electroclash', 'Glitch Pop'],
+    'K-Pop': ['K-Rock', 'K-Hip Hop', 'K-Ballad'],
+    'J-Pop': ['J-Rock', 'City Pop', 'Shibuya-kei'],
+    'American Pop': ['Country Pop', 'Pop Rock', 'Power Pop']
+  },
+  'Hip Hop': {
+    subgenres: ['Trap', 'Boom Bap', 'Conscious', 'Gangsta', 'Alternative Hip Hop', 'Drill'],
+    'Trap': ['Mumble Rap', 'Cloud Rap', 'Phonk', 'Drill'],
+    'Boom Bap': ['Jazz Rap', 'East Coast', 'Golden Age'],
+    'Conscious': ['Political Hip Hop', 'Spiritual Hip Hop', 'Lyrical Hip Hop'],
+    'Gangsta': ['G-Funk', 'Mafioso', 'West Coast', 'Horrorcore'],
+    'Alternative Hip Hop': ['Abstract Hip Hop', 'Experimental Hip Hop', 'Trip Hop'],
+    'Drill': ['UK Drill', 'Chicago Drill', 'Brooklyn Drill']
+  },
+  'Electronic': {
+    subgenres: ['Techno', 'House', 'Drum & Bass', 'Ambient', 'Dubstep', 'Trance'],
+    'Techno': ['Detroit Techno', 'Minimal', 'Hard Techno', 'Acid Techno'],
+    'House': ['Deep House', 'Tech House', 'Progressive House', 'Acid House', 'Chicago House'],
+    'Drum & Bass': ['Jungle', 'Liquid', 'Neurofunk', 'Jump Up'],
+    'Ambient': ['Dark Ambient', 'Drone', 'Space Music', 'New Age'],
+    'Dubstep': ['Brostep', 'Future Garage', 'Riddim', 'Deep Dubstep'],
+    'Trance': ['Psytrance', 'Goa Trance', 'Uplifting Trance', 'Tech Trance']
+  },
+  'Jazz': {
+    subgenres: ['Bebop', 'Smooth Jazz', 'Fusion', 'Free Jazz', 'Modal Jazz', 'Cool Jazz'],
+    'Bebop': ['Hard Bop', 'Post-Bop', 'Neo-Bop'],
+    'Smooth Jazz': ['Jazz Funk', 'Crossover Jazz', 'Nu Jazz'],
+    'Fusion': ['Jazz Rock', 'Jazz Funk', 'World Fusion'],
+    'Free Jazz': ['Avant-garde Jazz', 'Spiritual Jazz', 'Experimental Jazz'],
+    'Modal Jazz': ['Cool Jazz', 'Third Stream', 'Chamber Jazz'],
+    'Cool Jazz': ['West Coast Jazz', 'ECM Style', 'Contemporary Jazz']
+  },
+  'Classical': {
+    subgenres: ['Baroque', 'Romantic', 'Contemporary', 'Minimalist', 'Opera', 'Chamber Music'],
+    'Baroque': ['Early Baroque', 'High Baroque', 'Late Baroque'],
+    'Romantic': ['Early Romantic', 'Late Romantic', 'Nationalist'],
+    'Contemporary': ['Modernist', 'Post-Modernist', 'Experimental'],
+    'Minimalist': ['Holy Minimalism', 'Post-Minimalism', 'Totalism'],
+    'Opera': ['Grand Opera', 'Comic Opera', 'Operetta', 'Modern Opera'],
+    'Chamber Music': ['String Quartet', 'Piano Trio', 'Wind Ensemble']
+  }
+};
+
 const CreateProfile: NextPage = () => {
   const [username, setUsername] = useState('');
   const [location, setLocation] = useState('');
   const [radius, setRadius] = useState('50 Miles');
-  const [genre1, setGenre1] = useState('Rock');
-  const [genre2, setGenre2] = useState('Punk');
-  const [genre3, setGenre3] = useState('Hardcore');
+  const [genres1, setGenres1] = useState<string[]>([]);
+  const [genres2, setGenres2] = useState<string[]>([]);
+  const [genres3, setGenres3] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [profilePicture, setProfilePicture] = useState<File | null>(null);
+  const [profilePictureURL, setProfilePictureURL] = useState<string | null>(null);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameCheckLoading, setUsernameCheckLoading] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
+
+  // Computed genre options based on selections
+  const availableGenres2 = genres1.length > 0 
+    ? genres1.flatMap(genre => genreHierarchy[genre as keyof typeof genreHierarchy]?.subgenres || [])
+    : [];
+  
+  const availableGenres3 = genres2.length > 0 
+    ? genres2.flatMap(genre2 => {
+        for (const genre1 of genres1) {
+          const hierarchy = genreHierarchy[genre1 as keyof typeof genreHierarchy];
+          if (hierarchy && hierarchy[genre2 as keyof typeof hierarchy]) {
+            return hierarchy[genre2 as keyof typeof hierarchy];
+          }
+        }
+        return [];
+      })
+    : [];
 
   // Get the current user when the component mounts
   const [user, setUser] = useState<any>(null);
@@ -33,6 +115,63 @@ const CreateProfile: NextPage = () => {
         
         if (data.user) {
           setUser(data.user);
+          
+          // Check if user already has a profile
+          const { data: profileData, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
+          
+          if (profileData && !error) {
+            // Set editing mode
+            setIsEditingProfile(true);
+            
+            // Pre-fill form with existing data
+            setUsername(profileData.username || '');
+            setLocation(profileData.location || '');
+            setRadius(profileData.radius ? `${profileData.radius} Miles` : '50 Miles');
+            
+            // Set profile picture URL if it exists
+            if (profileData.profile_picture_url) {
+              setProfilePictureURL(profileData.profile_picture_url);
+            }
+            
+            // Handle genres if they exist
+            if (profileData.genres && profileData.genres.length > 0) {
+              // Find main genres that exist in our hierarchy
+              const mainGenres = profileData.genres.filter((genre: string) => 
+                Object.keys(genreHierarchy).includes(genre)
+              );
+              
+              if (mainGenres.length > 0) {
+                setGenres1(mainGenres);
+                
+                // Find subgenres
+                const availableSubgenres = mainGenres.flatMap(
+                  (genre: string) => genreHierarchy[genre as keyof typeof genreHierarchy]?.subgenres || []
+                );
+                
+                const userSubgenres = profileData.genres.filter((genre: string) => 
+                  availableSubgenres.includes(genre)
+                );
+                
+                if (userSubgenres.length > 0) {
+                  setGenres2(userSubgenres);
+                  
+                  // Find sub-subgenres
+                  const subSubgenres = profileData.genres.filter((genre: string) => 
+                    !mainGenres.includes(genre) && !userSubgenres.includes(genre)
+                  );
+                  
+                  if (subSubgenres.length > 0) {
+                    setGenres3(subSubgenres);
+                  }
+                }
+              }
+            }
+          }
+          
           return;
         }
         
@@ -47,6 +186,57 @@ const CreateProfile: NextPage = () => {
     
     getUser();
   }, [isConnected, address, router]);
+
+  // Check if username exists with debounce
+  useEffect(() => {
+    if (!username) {
+      setUsernameError(null);
+      setUsernameAvailable(null);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setUsernameCheckLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('username', username);
+
+        if (error) {
+          console.error('Error checking username:', error);
+          setUsernameError(null);
+          setUsernameAvailable(null);
+        } else if (data && data.length === 0) {
+          // No match found, username is available
+          setUsernameAvailable(true);
+          setUsernameError(null);
+        } else {
+          // Username exists
+          setUsernameAvailable(false);
+          setUsernameError('Username already taken');
+        }
+      } catch (error) {
+        console.error('Error checking username:', error);
+      } finally {
+        setUsernameCheckLoading(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [username]);
+
+  const handleProfilePictureClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setProfilePicture(file);
+      setProfilePictureURL(URL.createObjectURL(file));
+    }
+  };
 
   const handleCreateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,20 +262,89 @@ const CreateProfile: NextPage = () => {
     }
 
     try {
-      // Create a profile in the database
-      const { error } = await supabase
+      // Check if a profile already exists for this user
+      const { data: existingProfile } = await supabase
         .from('profiles')
-        .insert({
-          id: user.id,
-          username,
-          location,
-          radius: radius.split(' ')[0], // Extract the number part
-          genres: [genre1, genre2, genre3].filter(Boolean),
-          created_at: new Date(),
-        });
+        .select('id')
+        .eq('id', user.id)
+        .single();
+      
+      let profilePictureUrl = null;
 
-      if (error) throw error;
-      router.push('/dashboard');
+      // Upload profile picture if one is selected
+      if (profilePicture) {
+        try {
+          const fileExt = profilePicture.name.split('.').pop();
+          const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+          const filePath = `profile-pictures/${fileName}`;
+
+          const { error: uploadError, data } = await supabase.storage
+            .from('profile-pictures')
+            .upload(filePath, profilePicture);
+
+          if (uploadError) {
+            console.error('Error uploading profile picture:', uploadError);
+            // Continue without the profile picture
+          } else {
+            // Get the public URL
+            const { data: urlData } = await supabase.storage
+              .from('profile-pictures')
+              .getPublicUrl(filePath);
+
+            profilePictureUrl = urlData.publicUrl;
+          }
+        } catch (uploadError) {
+          console.error('Error uploading profile picture:', uploadError);
+          // Continue without the profile picture
+        }
+      }
+
+      // Create profile data object with required fields
+      const profileData: any = {
+        username,
+        location,
+        radius: radius.split(' ')[0], // Extract the number part
+        genres: [...genres1, ...genres2, ...genres3].filter(Boolean),
+      };
+
+      // Only add profile_picture_url if we successfully uploaded an image
+      if (profilePictureUrl) {
+        profileData.profile_picture_url = profilePictureUrl;
+      }
+
+      let error;
+
+      if (existingProfile) {
+        // Update existing profile
+        const response = await supabase
+          .from('profiles')
+          .update(profileData)
+          .eq('id', user.id);
+        
+        error = response.error;
+      } else {
+        // Create new profile
+        const response = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            created_at: new Date(),
+            ...profileData
+          });
+        
+        error = response.error;
+      }
+
+      if (error) {
+        // Check if this is a duplicate username error
+        if (error.message && error.message.includes('duplicate key value violates unique constraint "profiles_username_key"')) {
+          setError('Username already taken. Please choose a different username.');
+        } else {
+          throw error;
+        }
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       setError(error.message);
     } finally {
@@ -93,13 +352,58 @@ const CreateProfile: NextPage = () => {
     }
   };
 
+  // Handle multi-select changes
+  const handleGenre1Change = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const options = e.target.options;
+    const selectedValues: string[] = [];
+    
+    for (let i = 0; i < options.length; i++) {
+      if (options[i].selected) {
+        selectedValues.push(options[i].value);
+      }
+    }
+    
+    setGenres1(selectedValues);
+    // Reset dependent selections
+    setGenres2([]);
+    setGenres3([]);
+  };
+
+  const handleGenre2Change = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const options = e.target.options;
+    const selectedValues: string[] = [];
+    
+    for (let i = 0; i < options.length; i++) {
+      if (options[i].selected) {
+        selectedValues.push(options[i].value);
+      }
+    }
+    
+    setGenres2(selectedValues);
+    // Reset dependent selection
+    setGenres3([]);
+  };
+
+  const handleGenre3Change = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const options = e.target.options;
+    const selectedValues: string[] = [];
+    
+    for (let i = 0; i < options.length; i++) {
+      if (options[i].selected) {
+        selectedValues.push(options[i].value);
+      }
+    }
+    
+    setGenres3(selectedValues);
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.background} />
       <Head>
-        <title>Create Profile - XAO Cult</title>
+        <title>{isEditingProfile ? 'Edit Profile' : 'Create Profile'} - XAO Cult</title>
         <meta
-          content="Create your profile - XAO Cult"
+          content={isEditingProfile ? 'Edit your profile - XAO Cult' : 'Create your profile - XAO Cult'}
           name="description"
         />
         <link href="/favicon.ico" rel="icon" />
@@ -112,7 +416,7 @@ const CreateProfile: NextPage = () => {
               <path d="M15 18L9 12L15 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
-          <h1 className={styles.pageTitle}>Create Profile</h1>
+          <h1 className={styles.pageTitle}>{isEditingProfile ? 'Edit Profile' : 'Create Profile'}</h1>
         </div>
         
         {!user && (
@@ -130,11 +434,41 @@ const CreateProfile: NextPage = () => {
         {user && (
           <>
             <div className={styles.profileImageContainer}>
-              <div className={styles.profileImage}>
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M16 20C20.4183 20 24 16.4183 24 12C24 7.58172 20.4183 4 16 4C11.5817 4 8 7.58172 8 12C8 16.4183 11.5817 20 16 20Z" fill="#FCA974"/>
-                </svg>
+              <div 
+                className={styles.profileImage} 
+                onClick={handleProfilePictureClick}
+                style={{ cursor: 'pointer' }}
+              >
+                {profilePictureURL ? (
+                  <Image 
+                    src={profilePictureURL} 
+                    alt="Profile" 
+                    width={80} 
+                    height={80} 
+                    style={{ borderRadius: '50%', objectFit: 'cover' }}
+                  />
+                ) : user.user_metadata?.avatar_url ? (
+                  <Image 
+                    src={user.user_metadata.avatar_url} 
+                    alt="Profile" 
+                    width={80} 
+                    height={80} 
+                    style={{ borderRadius: '50%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div className={styles.avatarPlaceholder}>
+                    {username ? username.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                )}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                />
               </div>
+              <div className={styles.uploadText}>Tap to upload profile picture</div>
             </div>
 
             <form onSubmit={handleCreateProfile} className={styles.formContainer}>
@@ -145,9 +479,12 @@ const CreateProfile: NextPage = () => {
                   placeholder="Username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className={styles.formInput}
+                  className={`${styles.formInput} ${usernameError ? styles.inputError : ''} ${usernameAvailable ? styles.inputSuccess : ''}`}
                   required
                 />
+                {usernameCheckLoading && <div className={styles.inputFeedback}>Checking...</div>}
+                {usernameError && <div className={styles.inputError}>{usernameError}</div>}
+                {usernameAvailable && <div className={styles.inputSuccess}>Username available</div>}
               </div>
               
               <div className={styles.formRow}>
@@ -190,50 +527,51 @@ const CreateProfile: NextPage = () => {
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Genre 1</label>
                 <select
-                  value={genre1}
-                  onChange={(e) => setGenre1(e.target.value)}
-                  className={styles.selectInput}
+                  multiple
+                  value={genres1}
+                  onChange={handleGenre1Change}
+                  className={styles.multiSelectInput}
                   required
                 >
-                  <option value="Rock">Rock</option>
-                  <option value="Pop">Pop</option>
-                  <option value="Hip Hop">Hip Hop</option>
-                  <option value="Electronic">Electronic</option>
-                  <option value="Jazz">Jazz</option>
-                  <option value="Classical">Classical</option>
+                  {Object.keys(genreHierarchy).map((genre) => (
+                    <option key={genre} value={genre}>{genre}</option>
+                  ))}
                 </select>
+                <div className={styles.selectHint}>Hold Ctrl/Cmd to select multiple</div>
               </div>
               
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Genre 2 / Sub Genre</label>
                 <select
-                  value={genre2}
-                  onChange={(e) => setGenre2(e.target.value)}
-                  className={styles.selectInput}
+                  multiple
+                  value={genres2}
+                  onChange={handleGenre2Change}
+                  className={styles.multiSelectInput}
+                  disabled={genres1.length === 0}
                 >
-                  <option value="Punk">Punk</option>
-                  <option value="Metal">Metal</option>
-                  <option value="Indie">Indie</option>
-                  <option value="Alternative">Alternative</option>
-                  <option value="Folk">Folk</option>
-                  <option value="Blues">Blues</option>
+                  {availableGenres2.map((genre) => (
+                    <option key={genre} value={genre}>{genre}</option>
+                  ))}
                 </select>
+                {genres1.length > 0 && <div className={styles.selectHint}>Hold Ctrl/Cmd to select multiple</div>}
+                {genres1.length === 0 && <div className={styles.selectHint}>Select Genre 1 first</div>}
               </div>
               
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Genre 3 / Sub / Sub Sub Genre</label>
                 <select
-                  value={genre3}
-                  onChange={(e) => setGenre3(e.target.value)}
-                  className={styles.selectInput}
+                  multiple
+                  value={genres3}
+                  onChange={handleGenre3Change}
+                  className={styles.multiSelectInput}
+                  disabled={genres2.length === 0}
                 >
-                  <option value="Hardcore">Hardcore</option>
-                  <option value="Thrash">Thrash</option>
-                  <option value="Death Metal">Death Metal</option>
-                  <option value="Black Metal">Black Metal</option>
-                  <option value="Grindcore">Grindcore</option>
-                  <option value="Doom">Doom</option>
+                  {availableGenres3.map((genre) => (
+                    <option key={genre} value={genre}>{genre}</option>
+                  ))}
                 </select>
+                {genres2.length > 0 && <div className={styles.selectHint}>Hold Ctrl/Cmd to select multiple</div>}
+                {genres2.length === 0 && <div className={styles.selectHint}>Select Genre 2 first</div>}
               </div>
 
               <div className={styles.formGroup}>
@@ -257,9 +595,9 @@ const CreateProfile: NextPage = () => {
               <button 
                 type="submit" 
                 className={styles.bigButton}
-                disabled={loading}
+                disabled={loading || Boolean(username && usernameAvailable === false)}
               >
-                {loading ? 'Creating Profile...' : 'Confirm'}
+                {loading ? (isEditingProfile ? 'Updating Profile...' : 'Creating Profile...') : 'Confirm'}
               </button>
             </form>
           </>

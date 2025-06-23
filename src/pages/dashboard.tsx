@@ -135,7 +135,10 @@ const Dashboard: NextPage = () => {
         <link href="/favicon.ico" rel="icon" />
       </Head>
 
-      <Navbar userProfile={{ username: profile?.username, avatar: '/xao-profile.svg' }} />
+      <Navbar userProfile={{ 
+        username: profile?.username, 
+        avatar: profile?.profile_picture_url || '/xao-profile.svg' 
+      }} />
 
       {showLogoutConfirm && (
         <div className={styles.logoutConfirmOverlay}>

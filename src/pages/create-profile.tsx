@@ -66,13 +66,16 @@ const genreHierarchy = {
   }
 };
 
+// Main genre list for the pill buttons
+const mainGenres = [
+  'Punk', 'Metal', 'Classical', 'Hip Hop', 'Electronic', 'Jazz', 'Rock', 'Pop'
+];
+
 const CreateProfile: NextPage = () => {
   const [username, setUsername] = useState('');
   const [location, setLocation] = useState('');
   const [radius, setRadius] = useState('50 Miles');
-  const [genres1, setGenres1] = useState<string[]>([]);
-  const [genres2, setGenres2] = useState<string[]>([]);
-  const [genres3, setGenres3] = useState<string[]>([]);
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
@@ -81,32 +84,55 @@ const CreateProfile: NextPage = () => {
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [usernameCheckLoading, setUsernameCheckLoading] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [isGenreDropdownOpen, setIsGenreDropdownOpen] = useState(false);
+  const [availableSubgenres, setAvailableSubgenres] = useState<string[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const genreDropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
 
-  // Computed genre options based on selections
-  const availableGenres2 = genres1.length > 0 
-    ? genres1.flatMap(genre => genreHierarchy[genre as keyof typeof genreHierarchy]?.subgenres || [])
-    : [];
-  
-  const availableGenres3 = genres2.length > 0 
-    ? genres2.flatMap(genre2 => {
-        for (const genre1 of genres1) {
-          const hierarchy = genreHierarchy[genre1 as keyof typeof genreHierarchy];
-          if (hierarchy && hierarchy[genre2 as keyof typeof hierarchy]) {
-            return hierarchy[genre2 as keyof typeof hierarchy];
-          }
-        }
-        return [];
-      })
-    : [];
-
   // Get the current user when the component mounts
   const [user, setUser] = useState<any>(null);
   
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (genreDropdownRef.current && !genreDropdownRef.current.contains(event.target as Node)) {
+        setIsGenreDropdownOpen(false);
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+  
+  // Update available subgenres when selected genres change
+  useEffect(() => {
+    if (selectedGenres.length > 0) {
+      const subgenres = selectedGenres.flatMap(genre => {
+        const mainGenreKey = Object.keys(genreHierarchy).find(key => 
+          key === genre || genreHierarchy[key as keyof typeof genreHierarchy]?.subgenres?.includes(genre)
+        );
+        
+        if (mainGenreKey) {
+          return genreHierarchy[mainGenreKey as keyof typeof genreHierarchy]?.subgenres || [];
+        }
+        return [];
+      });
+      
+      // Remove duplicates and already selected genres
+      const uniqueSubgenres = Array.from(new Set(subgenres)).filter(sg => !selectedGenres.includes(sg));
+      setAvailableSubgenres(uniqueSubgenres);
+    } else {
+      setAvailableSubgenres([]);
+    }
+  }, [selectedGenres]);
+
   useEffect(() => {
     const getUser = async () => {
       try {
@@ -139,36 +165,7 @@ const CreateProfile: NextPage = () => {
             
             // Handle genres if they exist
             if (profileData.genres && profileData.genres.length > 0) {
-              // Find main genres that exist in our hierarchy
-              const mainGenres = profileData.genres.filter((genre: string) => 
-                Object.keys(genreHierarchy).includes(genre)
-              );
-              
-              if (mainGenres.length > 0) {
-                setGenres1(mainGenres);
-                
-                // Find subgenres
-                const availableSubgenres = mainGenres.flatMap(
-                  (genre: string) => genreHierarchy[genre as keyof typeof genreHierarchy]?.subgenres || []
-                );
-                
-                const userSubgenres = profileData.genres.filter((genre: string) => 
-                  availableSubgenres.includes(genre)
-                );
-                
-                if (userSubgenres.length > 0) {
-                  setGenres2(userSubgenres);
-                  
-                  // Find sub-subgenres
-                  const subSubgenres = profileData.genres.filter((genre: string) => 
-                    !mainGenres.includes(genre) && !userSubgenres.includes(genre)
-                  );
-                  
-                  if (subSubgenres.length > 0) {
-                    setGenres3(subSubgenres);
-                  }
-                }
-              }
+              setSelectedGenres(profileData.genres);
             }
           }
           
@@ -238,6 +235,27 @@ const CreateProfile: NextPage = () => {
     }
   };
 
+  const toggleGenre = (genre: string) => {
+    setSelectedGenres(prev => {
+      if (prev.includes(genre)) {
+        return prev.filter(g => g !== genre);
+      } else {
+        return [...prev, genre];
+      }
+    });
+  };
+  
+  const toggleGenreDropdown = () => {
+    setIsGenreDropdownOpen(!isGenreDropdownOpen);
+  };
+  
+  const selectSubgenre = (subgenre: string) => {
+    if (!selectedGenres.includes(subgenre)) {
+      setSelectedGenres(prev => [...prev, subgenre]);
+    }
+    setIsGenreDropdownOpen(false);
+  };
+
   const handleCreateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -304,7 +322,7 @@ const CreateProfile: NextPage = () => {
         username,
         location,
         radius: radius.split(' ')[0], // Extract the number part
-        genres: [...genres1, ...genres2, ...genres3].filter(Boolean),
+        genres: selectedGenres,
       };
 
       // Only add profile_picture_url if we successfully uploaded an image
@@ -352,56 +370,11 @@ const CreateProfile: NextPage = () => {
     }
   };
 
-  // Handle multi-select changes
-  const handleGenre1Change = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const options = e.target.options;
-    const selectedValues: string[] = [];
-    
-    for (let i = 0; i < options.length; i++) {
-      if (options[i].selected) {
-        selectedValues.push(options[i].value);
-      }
-    }
-    
-    setGenres1(selectedValues);
-    // Reset dependent selections
-    setGenres2([]);
-    setGenres3([]);
-  };
-
-  const handleGenre2Change = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const options = e.target.options;
-    const selectedValues: string[] = [];
-    
-    for (let i = 0; i < options.length; i++) {
-      if (options[i].selected) {
-        selectedValues.push(options[i].value);
-      }
-    }
-    
-    setGenres2(selectedValues);
-    // Reset dependent selection
-    setGenres3([]);
-  };
-
-  const handleGenre3Change = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const options = e.target.options;
-    const selectedValues: string[] = [];
-    
-    for (let i = 0; i < options.length; i++) {
-      if (options[i].selected) {
-        selectedValues.push(options[i].value);
-      }
-    }
-    
-    setGenres3(selectedValues);
-  };
-
   return (
     <div className={styles.container}>
       <div className={styles.background} />
       <Head>
-        <title>{isEditingProfile ? 'Edit Profile' : 'Create Profile'} - XAO Cult</title>
+        <title>{`${isEditingProfile ? 'Edit' : 'Create'} Profile - XAO Cult`}</title>
         <meta
           content={isEditingProfile ? 'Edit your profile - XAO Cult' : 'Create your profile - XAO Cult'}
           name="description"
@@ -435,9 +408,8 @@ const CreateProfile: NextPage = () => {
           <>
             <div className={styles.profileImageContainer}>
               <div 
-                className={styles.profileImage} 
+                className={styles.profileImageUpload} 
                 onClick={handleProfilePictureClick}
-                style={{ cursor: 'pointer' }}
               >
                 {profilePictureURL ? (
                   <Image 
@@ -445,19 +417,15 @@ const CreateProfile: NextPage = () => {
                     alt="Profile" 
                     width={80} 
                     height={80} 
-                    style={{ borderRadius: '50%', objectFit: 'cover' }}
-                  />
-                ) : user.user_metadata?.avatar_url ? (
-                  <Image 
-                    src={user.user_metadata.avatar_url} 
-                    alt="Profile" 
-                    width={80} 
-                    height={80} 
-                    style={{ borderRadius: '50%', objectFit: 'cover' }}
+                    className={styles.profileImagePreview}
                   />
                 ) : (
-                  <div className={styles.avatarPlaceholder}>
-                    {username ? username.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase() || 'U'}
+                  <div className={styles.imageUploadIcon}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M8.5 10C9.32843 10 10 9.32843 10 8.5C10 7.67157 9.32843 7 8.5 7C7.67157 7 7 7.67157 7 8.5C7 9.32843 7.67157 10 8.5 10Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M21 15L16 10L5 21" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
                   </div>
                 )}
                 <input
@@ -468,7 +436,6 @@ const CreateProfile: NextPage = () => {
                   style={{ display: 'none' }}
                 />
               </div>
-              <div className={styles.uploadText}>Tap to upload profile picture</div>
             </div>
 
             <form onSubmit={handleCreateProfile} className={styles.formContainer}>
@@ -510,68 +477,73 @@ const CreateProfile: NextPage = () => {
                 
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Radius</label>
-                  <select
-                    value={radius}
-                    onChange={(e) => setRadius(e.target.value)}
-                    className={styles.selectInput}
-                    required
-                  >
-                    <option value="25 Miles">25 Miles</option>
-                    <option value="50 Miles">50 Miles</option>
-                    <option value="100 Miles">100 Miles</option>
-                    <option value="Anywhere">Anywhere</option>
-                  </select>
+                  <div className={styles.selectWrapper}>
+                    <select
+                      value={radius}
+                      onChange={(e) => setRadius(e.target.value)}
+                      className={styles.selectInput}
+                      required
+                    >
+                      <option value="25 Miles">25 Miles</option>
+                      <option value="50 Miles">50 Miles</option>
+                      <option value="100 Miles">100 Miles</option>
+                      <option value="Anywhere">Anywhere</option>
+                    </select>
+                    <svg className={styles.selectArrow} width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 6L8 10L12 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
                 </div>
               </div>
               
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Genre 1</label>
-                <select
-                  multiple
-                  value={genres1}
-                  onChange={handleGenre1Change}
-                  className={styles.multiSelectInput}
-                  required
-                >
-                  {Object.keys(genreHierarchy).map((genre) => (
-                    <option key={genre} value={genre}>{genre}</option>
+                <label className={styles.formLabel}>Genre</label>
+                <div className={styles.genrePillsContainer}>
+                  {mainGenres.map((genre) => (
+                    <button
+                      key={genre}
+                      type="button"
+                      className={`${styles.genrePill} ${selectedGenres.includes(genre) ? styles.genrePillSelected : ''}`}
+                      onClick={() => toggleGenre(genre)}
+                    >
+                      {genre}
+                    </button>
                   ))}
-                </select>
-                <div className={styles.selectHint}>Hold Ctrl/Cmd to select multiple</div>
+                </div>
               </div>
               
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Genre 2 / Sub Genre</label>
-                <select
-                  multiple
-                  value={genres2}
-                  onChange={handleGenre2Change}
-                  className={styles.multiSelectInput}
-                  disabled={genres1.length === 0}
+                <div 
+                  className={`${styles.customDropdown} ${isGenreDropdownOpen ? styles.open : ''}`}
+                  ref={genreDropdownRef}
                 >
-                  {availableGenres2.map((genre) => (
-                    <option key={genre} value={genre}>{genre}</option>
-                  ))}
-                </select>
-                {genres1.length > 0 && <div className={styles.selectHint}>Hold Ctrl/Cmd to select multiple</div>}
-                {genres1.length === 0 && <div className={styles.selectHint}>Select Genre 1 first</div>}
-              </div>
-              
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Genre 3 / Sub / Sub Sub Genre</label>
-                <select
-                  multiple
-                  value={genres3}
-                  onChange={handleGenre3Change}
-                  className={styles.multiSelectInput}
-                  disabled={genres2.length === 0}
-                >
-                  {availableGenres3.map((genre) => (
-                    <option key={genre} value={genre}>{genre}</option>
-                  ))}
-                </select>
-                {genres2.length > 0 && <div className={styles.selectHint}>Hold Ctrl/Cmd to select multiple</div>}
-                {genres2.length === 0 && <div className={styles.selectHint}>Select Genre 2 first</div>}
+                  <div 
+                    className={styles.customDropdownSelected}
+                    onClick={toggleGenreDropdown}
+                  >
+                    <span>{selectedGenre || 'Select Subgenre'}</span>
+                    <svg className={`${styles.selectArrow} ${isGenreDropdownOpen ? styles.rotated : ''}`} width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 6L8 10L12 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <div className={styles.customDropdownOptions}>
+                    {availableSubgenres.length > 0 ? (
+                      availableSubgenres.map((subgenre) => (
+                        <div 
+                          key={subgenre} 
+                          className={`${styles.customDropdownOption} ${selectedGenres.includes(subgenre) ? styles.selected : ''}`}
+                          onClick={() => selectSubgenre(subgenre)}
+                        >
+                          {subgenre}
+                        </div>
+                      ))
+                    ) : (
+                      <div className={styles.customDropdownOption}>
+                        {selectedGenres.length > 0 ? 'No additional subgenres available' : 'Select a genre first'}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className={styles.formGroup}>
@@ -594,7 +566,7 @@ const CreateProfile: NextPage = () => {
 
               <button 
                 type="submit" 
-                className={styles.bigButton}
+                className={styles.confirmButton}
                 disabled={loading || Boolean(username && usernameAvailable === false)}
               >
                 {loading ? (isEditingProfile ? 'Updating Profile...' : 'Creating Profile...') : 'Confirm'}

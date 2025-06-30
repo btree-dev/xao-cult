@@ -10,6 +10,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
   color: #ffffff;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 /* Space for sticky navbar - only when logged in */
@@ -24,6 +26,7 @@ a {
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Responsive navbar spacing */
@@ -31,5 +34,40 @@ a {
   body.with-navbar {
     padding-top: 56px; /* Smaller navbar height on mobile */
   }
+}
+
+/* Improve button and interactive element touch targets on mobile */
+@media (max-width: 768px) {
+  button, 
+  a, 
+  .navButton, 
+  .ticketActionButton, 
+  .actionButton {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  input, select, textarea {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+}
+
+/* Fix iOS 100vh issue */
+.eventDetailsContainer,
+.ticketPurchaseContainer,
+.confirmationContainer,
+.ticketsContainer,
+.ticketDetailContainer,
+.dashboardContainer {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Add safe area insets for modern mobile browsers */
+.buyTicketContainer,
+.confirmPurchaseContainer,
+.confirmButtonContainer {
+  padding-bottom: env(safe-area-inset-bottom, 15px);
 }
 

@@ -104,36 +104,64 @@ const PurchaseConfirmation: NextPage = () => {
       <Navbar showBackButton={true} pageTitle="Confirm Purchase" />
 
       <div 
-        className={styles.eventImageContainer}
+        className={styles.confirmOverlayContainer}
         style={{ 
-          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.7)), url('${event.image}')`,
-          height: '200px',
-          marginBottom: '20px'
+          position: 'fixed',
+          top: '60px',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundImage: `url('${event.image}')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          zIndex: 1
         }}
       >
-      </div>
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '20px',
+            zIndex: 2
+          }}
+        >
+          <h1 className={styles.feedEventTitle} style={{ marginBottom: '20px' }}>{event.title}</h1>
+          
+          <div className={styles.confirmationContent} style={{ 
+            background: 'transparent',
+            width: '100%',
+            maxWidth: '400px',
+            marginBottom: '20px'
+          }}>
+            <div className={styles.confirmationEventInfo}>
+              <div className={styles.ticketTypeInfo}>
+                <span className={styles.ticketTypeName}>General Admission</span>
+                <span className={styles.ticketTypeVersion}>v2</span>
+              </div>
+            </div>
 
-      <div className={styles.confirmationContent}>
-        <div className={styles.confirmationEventInfo}>
-          <h1 className={styles.confirmationEventTitle}>{event.title}</h1>
-          <div className={styles.ticketTypeInfo}>
-            <span className={styles.ticketTypeName}>General Admission</span>
-            <span className={styles.ticketTypeVersion}>v2</span>
+            <div className={styles.confirmationSummary}>
+              <div className={styles.summaryRow}>
+                <span className={styles.summaryLabel}>Total:</span>
+                <span className={styles.summaryValue}>${event.ticketPrice.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className={styles.confirmButtonContainer} style={{ position: 'relative', bottom: 'auto' }}>
+            <button className={styles.confirmButton} onClick={handleBackToDashboard}>
+              Confirm Purchase
+            </button>
           </div>
         </div>
-
-        <div className={styles.confirmationSummary}>
-          <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel}>Total:</span>
-            <span className={styles.summaryValue}>${event.ticketPrice.toFixed(2)}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.confirmButtonContainer}>
-        <button className={styles.confirmButton} onClick={handleBackToDashboard}>
-          Confirm Purchase
-        </button>
       </div>
     </div>
   );

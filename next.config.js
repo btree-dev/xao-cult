@@ -6,7 +6,12 @@ const nextConfig = {
     return config;
   },
   images: {
-    domains: ['images.unsplash.com', 'unsplash.com'],
+    domains: [
+      'images.unsplash.com', 
+      'unsplash.com', 
+      'api.qrserver.com',
+      'rpudlgqqgutfumiihqhb.supabase.co'
+    ],
   },
 };
 

@@ -1,0 +1,143 @@
+.container {
+  min-height: 100vh;
+  background: url('/084251a867b139499f23448c34c1f6f13ca835ec.png') no-repeat center center;
+  background-size: cover;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+}
+
+.swapCard {
+  width: 100%;
+  max-width: 420px;
+  padding: 1.5rem 1rem;
+  color: white;
+  position: relative;
+}
+
+.title {
+  text-align: center;
+  font-size: 24px;
+  margin-bottom: 1.5rem;
+}
+
+.inputGroup {
+  margin-bottom: 1.2rem;
+  position: relative;
+}
+
+.label {
+  font-size: 14px;
+  margin-bottom: 0.25rem;
+  display: block;
+  padding-left: 0.25rem;
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  border-radius: 20px;
+  padding: 0.5rem 0.75rem;
+  background: black;
+  border: 2px solid transparent;
+  background-image: 
+    linear-gradient(black, black), 
+    linear-gradient(to right, #ff9900, #e100ff);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 18px;
+}
+
+.input:disabled {
+  color: white; /* Force white text */
+  -webkit-text-fill-color: white;
+}
+
+.tokenSelect {
+  background: transparent;
+  color: white;
+  border: none;
+  font-size: 16px;
+  margin-left: 1rem;
+}
+
+.swapDivider {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.swapSvg {
+  width: 50px;
+  height: 50px;
+  position: absolute;
+  background: linear-gradient(to right, #ff9900, #e100ff);
+  border-radius: 50%;
+  box-shadow: 0 0 8px #e100ff88;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+}
+
+.priceInfo {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  margin-top: 0.75rem;
+  color: #ccc;
+  padding: 0 0.2rem;
+}
+
+.priceLabel {
+  text-align: left;
+}
+
+.priceValue {
+  color: #f72585;
+  text-align: right;
+}
+
+.swapButton {
+  width: 100%;
+  background: linear-gradient(to right, #ff9900, #e100ff);
+  border: none;
+  color: white;
+  padding: 0.9rem;
+  font-size: 16px;
+  border-radius: 30px;
+  margin-top: 1rem;
+  cursor: pointer;
+}
+
+.assetsTitle {
+  text-align: center;
+  margin-top: 1.8rem;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.assetRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0.4rem;
+  font-size: 16px;
+}
+
+.separator {
+  height: 2px;
+  background: linear-gradient(to right, #ff9900, #e100ff);
+  margin: 0 0.4rem;
+  border-radius: 2px;
+}

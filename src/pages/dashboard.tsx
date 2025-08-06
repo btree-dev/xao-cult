@@ -6,6 +6,7 @@ import Image from 'next/image';
 import styles from '../styles/Home.module.css';
 import { supabase } from '../lib/supabase';
 import Navbar from '../components/Navbar';
+import Layout from '../components/Layout';
 
 const Dashboard: NextPage = () => {
   const [user, setUser] = useState<any>(null);
@@ -127,6 +128,7 @@ const Dashboard: NextPage = () => {
   }
 
   return (
+    <Layout>
     <div className={styles.dashboardContainer}>
       <div className={styles.background} />
       <Head>
@@ -248,6 +250,7 @@ const Dashboard: NextPage = () => {
         ))}
       </div>
     </div>
+    </Layout>
   );
 };
 

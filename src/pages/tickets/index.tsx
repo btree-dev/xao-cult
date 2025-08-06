@@ -103,6 +103,7 @@ const TicketsPage: NextPage = () => {
 
   const handleTicketClick = (ticketId: string) => {
     router.push(`/tickets/${ticketId}`);
+    // router.push('/swap-token/swap-token');
   };
 
   if (loading) {

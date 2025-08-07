@@ -3,17 +3,16 @@
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(to right, #FFA500, #DA70D6);
-  padding: 12px 16px;
+  background: linear-gradient(to right, #ff9900, #e100ff);
+  padding: 2px 16px;
   border-radius: 30px;
   box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
 
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: clamp(10px, 4vw, 20px); /* dynamic gap that shrinks on smaller screens */
-
-  width: clamp(180px, 60vw, 240px); /* ✅ min 180px, max 240px */
+  gap: clamp(4px, 4vw, 10px); 
+  width: clamp(120px, 60vw, 200px);
   z-index: 1000;
 }
 
@@ -39,7 +38,7 @@
 }
 
 .floatingNav img {
-  width: clamp(18px, 6vw, 24px); /* ✅ icon scales with screen size */
-  height: clamp(18px, 6vw, 24px);
+  width: clamp(20px, 6vw, 24px); 
+  height: clamp(20px, 6vw, 24px);
   object-fit: contain;
 }

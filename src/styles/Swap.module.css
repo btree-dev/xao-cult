@@ -50,10 +50,14 @@
 
 .input {
   flex: 1;
+  min-width: 0; 
   background: transparent;
   border: none;
   color: white;
-  font-size: 18px;
+  font-size: clamp(14px, 2.5vw, 18px); 
+  overflow: hidden; 
+  text-overflow: ellipsis; 
+  white-space: nowrap; 
 }
 
 .input:disabled {

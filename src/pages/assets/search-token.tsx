@@ -36,12 +36,11 @@ const SelectToken = () => {
             <h2 className={styles.title}>Search Token</h2>
 
             <input
-                className={styles.search}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={search === '' ? '🔍 Search token' : ''}
-            />
-            
+                    className={styles.search}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder={search === '' ? 'Search token' : ''}
+                />
 
             <div className={styles.tokenList}>
                 {filtered.map((token) => (

@@ -1,8 +1,10 @@
 .container {
-  padding: 16px;
-  background: url('/084251a867b139499f23448c34c1f6f13ca835ec.png');
   min-height: 100vh;
+  background: url('/084251a867b139499f23448c34c1f6f13ca835ec.png') no-repeat center center;
   background-size: cover;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
 }
 
 .heading {

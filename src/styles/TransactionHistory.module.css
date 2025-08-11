@@ -1,0 +1,95 @@
+.container {
+  padding: 16px;
+  background: url('/084251a867b139499f23448c34c1f6f13ca835ec.png');
+  min-height: 100vh;
+  background-size: cover;
+}
+
+.heading {
+  text-align: center;
+  font-size: 1.4rem;
+  margin-bottom: 16px;
+}
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tabButton {
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: transparent;
+  border: 2px solid transparent;
+  background-image: linear-gradient(#000, #000),
+    linear-gradient(90deg, #ff9900, #ff00cc); /* multi-color border */
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: white;
+  cursor: pointer;
+}
+
+.activeTab {
+  background: linear-gradient(90deg, #ff9900, #ff00cc);
+  border: none;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: black;
+  border-radius: 30px;
+  padding: 12px;
+  border: 2px solid transparent;
+  background-image: linear-gradient(#000, #000),
+    linear-gradient(90deg, #ff9900, #ff00cc); /* multi-color border */
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.cardLeft {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.type {
+  font-weight: bold;
+}
+
+.amount {
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+.cardRight {
+  text-align: right;
+}
+
+.date {
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+.success {
+  color: #00ff99;
+}
+
+.sent {
+  color: #00aaff;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: 24px;
+  }
+}

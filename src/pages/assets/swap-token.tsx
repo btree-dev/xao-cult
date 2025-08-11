@@ -32,7 +32,7 @@ const Swap: NextPage = () => {
   }, []);
 
   const handleOpenTokenSearch = (type: 'pay' | 'get') => {
-    router.push(`/swap-token/select-token?type=${type}`);
+    router.push(`/assets/search-token?type=${type}`);
   };
 
   return (
@@ -47,7 +47,6 @@ const Swap: NextPage = () => {
         <div className={styles.swapCard}>
           <h1 className={styles.title}>Swap Tokens</h1>
 
-          {/* You Pay Section */}
           <div className={styles.inputGroup}>
             <label className={styles.label}>You pay</label>
             <div className={styles.inputRow}>

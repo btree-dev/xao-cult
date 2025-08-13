@@ -33,10 +33,6 @@
   white-space: nowrap;
 }
 
-.floatingNav button:hover {
-  transform: scale(1.15);
-}
-
 .floatingNav img {
   width: clamp(20px, 6vw, 24px); 
   height: clamp(20px, 6vw, 24px);

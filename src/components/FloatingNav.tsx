@@ -1,26 +1,62 @@
-import React from 'react';
-import styles from '../styles/FloatingNav.module.css';
 import { useRouter } from 'next/router';
+import styles from '../styles/FloatingNav.module.css';
 
 const FloatingNav = () => {
   const router = useRouter();
 
+  const navItems = [
+    {
+      id: 'home',
+      title: 'Home',
+      routes: ['/dashboard1'],
+      icon: '/floating-nav/home.svg',
+      iconSelected: '/floating-nav/home-selected.svg',
+    },
+    {
+      id: 'swap',
+      title: 'Swap',
+      routes: ['/dashboard'], 
+      icon: '/floating-nav/swap.svg',
+      iconSelected: '/floating-nav/swap-selected.svg',
+    },
+    {
+      id: 'chat',
+      title: 'Chat',
+      routes: ['/assets/transaction-history'],
+      icon: '/floating-nav/chat.svg',
+      iconSelected: '/floating-nav/chat-selected.svg',
+    },
+    {
+      id: 'stats',
+      title: 'Stats',
+      routes: ['/assets/swap-token', '/assets/search-token'], 
+      icon: '/floating-nav/stats.svg',
+      iconSelected: '/floating-nav/stats-selected.svg',
+    },
+  ];
+
+  const isActive = (routes) => {
+    return routes.some((route) => router.pathname === route);
+  };
+
   return (
     <div className={styles.floatingNav}>
-      <button onClick={() => router.push('../dashboard')} title="Home">
-        <img src="/floating-nav/home.svg" alt="Home" />
-      </button>
-      <button onClick={() => router.push('../dashboard')} title="Swap">
-        <img src="/floating-nav/swap.svg" alt="Swap" />
-      </button>
-      <button onClick={() => router.push('../assets/transaction-history')} title="Chat">
-        <img src="/floating-nav/chat.svg" alt="Chat" />
-      </button>
-      <button onClick={() => router.push('../assets/swap-token')} title="Stats">
-        <img src="/floating-nav/stats.svg" alt="Stats" />
-      </button>
+      {navItems.map((item) => (
+        <button
+          key={item.id}
+          onClick={() => router.push(item.routes[0])}
+          title={item.title}
+          className={isActive(item.routes) ? styles.activeButton : ''}
+        >
+          <img
+            src={isActive(item.routes) ? item.iconSelected : item.icon}
+            alt={item.title}
+          />
+        </button>
+      ))}
     </div>
   );
 };
 
 export default FloatingNav;
+

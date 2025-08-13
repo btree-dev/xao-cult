@@ -35,7 +35,7 @@ const FloatingNav = () => {
     },
   ];
 
-  const isActive = (routes) => {
+  const isActive = (routes: string[]): boolean => {
     return routes.some((route) => router.pathname === route);
   };
 

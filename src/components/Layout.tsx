@@ -1,5 +1,4 @@
 import React, { ReactNode } from 'react';
-import Navbar from './Navbar';
 import FloatingNav from './FloatingNav';
 
 type LayoutProps = {
@@ -9,7 +8,6 @@ type LayoutProps = {
 const Layout = ({ children }: LayoutProps) => {
   return (
     <>
-      <Navbar />
       <main>{children}</main>
       <FloatingNav />
     </>

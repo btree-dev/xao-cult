@@ -1,0 +1,37 @@
+.statsNav {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 15px 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 100; /* keep above tickets */
+}
+
+.statsNav button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.statsNav img {
+  width: 32px;
+  height: 32px;
+  max-width: 8vw;
+  max-height: 8vw;
+  object-fit: contain;
+}
+
+.activeButton img {
+  filter: drop-shadow(0px 0px 4px #00f);
+}
+
+.ticketsTitle {
+  margin-top: 60px; /* push below fixed nav */
+  text-align: center;
+  font-size: 20px;
+  font-weight: 600;
+}

@@ -27,7 +27,7 @@ const SelectToken = () => {
             localStorage.setItem('selectedGetToken', JSON.stringify(token));
         }
 
-        router.push('/assets/swap-token');
+        router.push('/stats/swap-token');
     };
 
     return (

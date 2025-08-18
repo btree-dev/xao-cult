@@ -26,7 +26,7 @@
   margin-bottom: 20px;
   display: flex;
   background-image:
-    url('/stats/search_magnifying_icon.svg'),
+    url('/stats-nav/search_magnifying_icon.svg'),
     linear-gradient(black, black),
     linear-gradient(to right, #ff9900, #e100ff);
   background-repeat: no-repeat, no-repeat, no-repeat;

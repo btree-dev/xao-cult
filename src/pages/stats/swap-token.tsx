@@ -1,10 +1,10 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useEffect, useState } from 'react';
-import Navbar from '../../components/Navbar';
 import styles from '../../styles/Swap.module.css';
 import Layout from '../../components/Layout';
 import { useRouter } from 'next/router';
+import StatsNav from '../../components/StatsNav';
 
 const Swap: NextPage = () => {
   const [payAmount, setPayAmount] = useState('4900');
@@ -32,18 +32,19 @@ const Swap: NextPage = () => {
   }, []);
 
   const handleOpenTokenSearch = (type: 'pay' | 'get') => {
-    router.push(`/assets/search-token?type=${type}`);
+    router.push(`/stats/search-token?type=${type}`);
   };
 
   return (
     <Layout>
+    
       <div className={styles.container}>
+        <StatsNav/>
+        
         <Head>
           <title>Swap Tokens</title>
         </Head>
-
-        <Navbar />
-
+         <div className={styles.centeredContent}>
         <div className={styles.swapCard}>
           <h1 className={styles.title}>Swap Tokens</h1>
 
@@ -111,8 +112,10 @@ const Swap: NextPage = () => {
             <span>0.80</span>
           </div>
         </div>
+        </div>
       </div>
     </Layout>
+  
   );
 };
 

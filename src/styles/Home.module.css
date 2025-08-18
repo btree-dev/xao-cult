@@ -2350,3 +2350,21 @@
 .rotated {
   transform: translateY(-50%) rotate(0deg) !important;
 }
+
+.ticketsPage {
+  position: relative;
+  min-height: 100vh;
+}
+
+.ticketsTitle {
+  margin-top: 70px; 
+  text-align: center;
+  font-size: 20px;
+  font-weight: 600;
+  color: white;
+}
+
+.ticketsGrid {
+  margin-top: 16px;
+  padding: 0 12px;
+}

@@ -29,7 +29,7 @@ const FloatingNav = () => {
     {
       id: 'stats',
       title: 'Stats',
-      routes: ['/assets/swap-token', '/assets/search-token'], 
+      routes: ['/stats/swap-token', '/stats/search-token', '/stats/transaction-history', '/stats/tickets'], 
       icon: '/floating-nav/stats.svg',
       iconSelected: '/floating-nav/stats-selected.svg',
     },

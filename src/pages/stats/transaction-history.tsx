@@ -2,6 +2,7 @@ import { useState } from "react";
 import styles from "../../styles/TransactionHistory.module.css";
 import Image, { StaticImageData } from "next/image";
 import Layout from '../../components/Layout';
+import StatsNav from '../../components/StatsNav';
 
 import swapIcon from "../../../public/swap-currency.svg";
 import transferIcon from "../../../public/transfer-history/transfer.svg";
@@ -32,7 +33,9 @@ export default function TransactionHistory() {
 
   return (
     <Layout>
+      
     <div className={styles.container}>
+      <StatsNav/>
       <h2 className={styles.heading}>Transaction History</h2>
 
       <div className={styles.tabs}>

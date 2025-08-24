@@ -29,7 +29,7 @@ const FloatingNav = () => {
     {
       id: 'stats',
       title: 'Stats',
-      routes: ['/stats/swap-token', '/stats/search-token', '/stats/transaction-history', '/stats/tickets'], 
+      routes: ['/stats/tickets?tab=unredeemed', '/stats/swap-token', '/stats/search-token', '/stats/transaction-history', '/stats/tickets'], 
       icon: '/floating-nav/stats.svg',
       iconSelected: '/floating-nav/stats-selected.svg',
     },
@@ -44,7 +44,7 @@ const FloatingNav = () => {
       {navItems.map((item) => (
         <button
           key={item.id}
-          onClick={() => router.push(item.routes[0])}
+          onClick={() => router.replace(item.routes[0])}
           title={item.title}
           className={isActive(item.routes) ? styles.activeButton : ''}
         >

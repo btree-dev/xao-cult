@@ -135,8 +135,9 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
             </div>
 
             {/* Right side icons */}
+            {/* REMOVED : As tickets moved to the stats */}
             <div className={styles.navSection}>
-              <button 
+              {/* <button 
                 className={styles.navButton} 
                 title="Tickets" 
                 aria-label="Tickets"
@@ -148,7 +149,7 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
                   <path d="M6 8v.01M6 16v.01" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   <path d="M2 12h20" stroke="white" strokeWidth="2" strokeLinecap="round"/>
                 </svg>
-              </button>
+              </button> */}
               
               <button className={styles.navButton} title="Calendar" aria-label="Calendar">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

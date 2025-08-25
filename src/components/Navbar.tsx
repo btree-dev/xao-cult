@@ -3,6 +3,8 @@ import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import styles from './Navbar.module.css';
+import { disconnect } from '@wagmi/core';
+import { config } from '../wagmi';
 
 interface NavbarProps {
   userProfile?: {
@@ -29,6 +31,7 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    await disconnect(config);
     setShowLogoutConfirm(false);
     router.push('/');
   };

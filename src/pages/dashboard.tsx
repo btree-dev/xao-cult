@@ -7,6 +7,8 @@ import styles from '../styles/Home.module.css';
 import { supabase } from '../lib/supabase';
 import Navbar from '../components/Navbar';
 import Layout from '../components/Layout';
+import { disconnect } from '@wagmi/core';
+import { config } from '../wagmi';
 
 const Dashboard: NextPage = () => {
   const [user, setUser] = useState<any>(null);
@@ -109,6 +111,7 @@ const Dashboard: NextPage = () => {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    await disconnect(config);
     router.push('/');
   };
 

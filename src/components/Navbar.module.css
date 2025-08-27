@@ -143,11 +143,11 @@
     height: 36px;
   }
   
-  .pageTitle {
-    font-size: 16px;
-    max-width: 120px;
-  }
-}
+.pageTitle {
+  white-space: pre-line;   /* ⬅️ allows "\n" to render as a line break */
+  text-align: center;
+  line-height: 1.2;        /* ⬅️ optional: tighter spacing between lines */
+}}
 
 @media (max-width: 480px) {
   .navbar {

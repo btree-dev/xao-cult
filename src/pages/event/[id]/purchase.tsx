@@ -1,3 +1,4 @@
+// pages/event/[id]/purchase.tsx
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useState, useEffect } from 'react';
@@ -11,22 +12,52 @@ const TicketPurchase: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState('wallet');
-  const [ticketTypes, setTicketTypes] = useState<any[]>([
-    { id: 'general', name: 'General Admission', price: 50, selected: false, count: 0 },
-    { id: 'premium', name: 'Premium', price: 80, selected: false, count: 0 },
-    { id: 'vip', name: 'VIP', price: 120, selected: false, count: 0 }
-  ]);
-
+  const [ticketTypes, setTicketTypes] = useState<any[]>([]);
   const router = useRouter();
   const { id } = router.query;
 
+  // ✅ Initial ticketTypes defaults
+  const defaultTicketTypes = [
+    { id: 'general', name: 'General Admission', price: 50, selected: false, count: 0 },
+    { id: 'premium', name: 'Premium', price: 80, selected: false, count: 0 },
+    { id: 'vip', name: 'VIP', price: 120, selected: false, count: 0 }
+  ];
+
+  // ✅ Restore state (runs only once after id is ready)
+  useEffect(() => {
+    if (!id) return;
+
+
+    const savedState = sessionStorage.getItem(`purchaseState-${id}`);
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        setTicketTypes(parsed.ticketTypes || defaultTicketTypes);
+        setPaymentMethod(parsed.paymentMethod || 'wallet');
+        return;
+      } catch (e) {
+        console.error("Error parsing saved purchase state", e);
+      }
+    }
+    // if nothing saved → load defaults
+    setTicketTypes(defaultTicketTypes);
+  }, [id]);
+
+  // ✅ Persist state whenever tickets or payment changes
+  useEffect(() => {
+    if (!id || ticketTypes.length === 0) return;
+    sessionStorage.setItem(
+      `purchaseState-${id}`,
+      JSON.stringify({ ticketTypes, paymentMethod })
+    );
+  }, [ticketTypes, paymentMethod, id]);
+
+  // ✅ Fetch mock event
   useEffect(() => {
     const fetchEvent = async () => {
       if (!id) return;
       setLoading(true);
       try {
-        // In a real app, this would fetch the event from the database
-        // For now, we'll use mock data based on the event ID
         let mockEvent;
 
         if (id === 'rivo-event-1') {
@@ -37,7 +68,7 @@ const TicketPurchase: NextPage = () => {
             time: '06:30PM',
             location: 'Wembley Stadium, London',
             image:
-              'https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+              'https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop',
             ticketPrice: 50.0,
             artist: 'rivo',
             tag: 'Les Déferlantes 2025',
@@ -51,7 +82,7 @@ const TicketPurchase: NextPage = () => {
             time: '08:00PM',
             location: 'O2 Arena, London',
             image:
-              'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
+              'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80',
             ticketPrice: 65.0,
             artist: 'xao',
             tag: 'Les Déferlantes 2025',
@@ -65,7 +96,7 @@ const TicketPurchase: NextPage = () => {
             time: '09:00PM',
             location: 'Alexandra Palace, London',
             image:
-              'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
+              'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1740&q=80',
             ticketPrice: 45.0,
             artist: 'neonblk',
             tag: 'Les Déferlantes 2025',
@@ -79,7 +110,7 @@ const TicketPurchase: NextPage = () => {
             time: '06:30PM',
             location: 'Wembley Stadium, London',
             image:
-              'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
+              'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80',
             ticketPrice: 50.0,
             artist: 'rivo',
             tag: 'Les Déferlantes 2025',
@@ -99,7 +130,21 @@ const TicketPurchase: NextPage = () => {
   }, [id]);
 
   const handleConfirmPurchase = () => {
-    router.push(`/event/${id}/confirm`);
+    const selectedTickets = ticketTypes.filter((t) => t.selected);
+    if (selectedTickets.length === 0) return;
+
+    const ticketsQuery = selectedTickets.map((t) => ({
+      type: t.name,
+      count: t.count,
+      price: t.price,
+    }));
+
+    router.push({
+      pathname: `/event/${id}/confirm`,
+      query: {
+        tickets: JSON.stringify(ticketsQuery),
+      },
+    });
   };
 
   const toggleTicketType = (ticketId: string) => {
@@ -125,13 +170,11 @@ const TicketPurchase: NextPage = () => {
   };
 
   const totalPrice = ticketTypes.reduce((acc, t) => {
-    if (t.selected) {
-      return acc + t.price * t.count;
-    }
+    if (t.selected) return acc + t.price * t.count;
     return acc;
   }, 0);
 
-  if (loading || !event) {
+  if (loading || !event || ticketTypes.length === 0) {
     return (
       <div className={styles.container}>
         <div className={styles.background} />
@@ -229,27 +272,14 @@ const TicketPurchase: NextPage = () => {
           <h2 className={styles.sectionTitle}>Pay With</h2>
           <div className={styles.paymentMethodSelector}>
             <div
-              className={`${styles.paymentOption} ${paymentMethod === 'wallet' ? styles.paymentSelected : ''
-                }`}
+              className={`${styles.paymentOption} ${
+                paymentMethod === 'wallet' ? styles.paymentSelected : ''
+              }`}
               onClick={() => setPaymentMethod('wallet')}
             >
               <div className={styles.paymentOptionIcon}>
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <rect
-                    x="2"
-                    y="4"
-                    width="20"
-                    height="16"
-                    rx="2"
-                    stroke="white"
-                    strokeWidth="2"
-                  />
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <rect x="2" y="4" width="20" height="16" rx="2" stroke="white" strokeWidth="2" />
                   <path d="M16 14H16.01" stroke="white" strokeWidth="2" strokeLinecap="round" />
                   <path d="M2 10H22" stroke="white" strokeWidth="2" />
                 </svg>
@@ -258,18 +288,13 @@ const TicketPurchase: NextPage = () => {
             </div>
 
             <div
-              className={`${styles.paymentOption} ${paymentMethod === 'cash' ? styles.paymentSelected : ''
-                }`}
+              className={`${styles.paymentOption} ${
+                paymentMethod === 'cash' ? styles.paymentSelected : ''
+              }`}
               onClick={() => setPaymentMethod('cash')}
             >
               <div className={styles.paymentOptionIcon}>
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                   <path
                     d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"
                     stroke="white"

@@ -1,81 +1,15 @@
-import type { NextPage } from 'next';
-import Head from 'next/head';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
-import styles from '../../../styles/Home.module.css';
-import Navbar from '../../../components/Navbar';
+// pages/event/[id]/ticket-confirmation.tsx
+import type { NextPage } from "next";
+import Head from "next/head";
+import { useRouter } from "next/router";
+import styles from "../../../styles/Home.module.css";
+import Navbar from "../../../components/Navbar";
 
 const TicketConfirmation: NextPage = () => {
-  const [loading, setLoading] = useState(true);
-  const [event, setEvent] = useState<any>(null);
   const router = useRouter();
-  const { id } = router.query;
+  const { id:eventId, event, date, image, time, location, tickets } = router.query;
 
-  useEffect(() => {
-    const fetchEvent = async () => {
-      if (!id) return;
-
-      setLoading(true);
-      try {
-        let mockEvent;
-        if (id === 'rivo-event-1') {
-          mockEvent = {
-            id,
-            title: 'Rivo Open Air',
-            date: '5th December',
-            time: '06:30PM',
-            location: 'Wembley Stadium, London',
-            image: 'https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop',
-            ticketPrice: 50.0,
-          };
-        } else if (id === 'xao-event-1') {
-          mockEvent = {
-            id,
-            title: 'XAO Festival',
-            date: '15th December',
-            time: '08:00PM',
-            location: 'O2 Arena, London',
-            image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 65.0,
-          };
-        } else if (id === 'edm-event-1') {
-          mockEvent = {
-            id,
-            title: 'Electric Dreams',
-            date: '20th January',
-            time: '09:00PM',
-            location: 'Alexandra Palace, London',
-            image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 45.0,
-          };
-        } else {
-          mockEvent = {
-            id,
-            title: 'Rivo Open Air',
-            date: '5th December',
-            time: '06:30PM',
-            location: 'Wembley Stadium, London',
-            image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 50.0,
-          };
-        }
-
-        setEvent(mockEvent);
-      } catch (error) {
-        console.error('Error fetching event:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEvent();
-  }, [id]);
-
-  const handleSeeInAsset = () => {
-    router.push('/stats/tickets?tab=unredeemed');
-  };
-
-  if (loading || !event) {
+  if (!router.isReady) {
     return (
       <div className={styles.container}>
         <div className={styles.background} />
@@ -86,87 +20,199 @@ const TicketConfirmation: NextPage = () => {
     );
   }
 
+  // ✅ Parse tickets array passed from confirm.tsx
+  const parsedTickets =
+    typeof tickets === "string" ? JSON.parse(tickets) : [];
+
+    const handleSeeInAsset = () => {
+    sessionStorage.removeItem(`purchaseState-${eventId}`);
+    router.push('/stats/tickets?tab=unredeemed');
+  };
+
   return (
     <div className={styles.confirmationContainer}>
       <div className={styles.background} />
       <Head>
-        <title>Purchase Confirmation - XAO Cult</title>
-        <meta content="Purchase Confirmation - XAO Cult" name="description" />
+        <title>Purchase Receipt - XAO Cult</title>
+        <meta content="Purchase Receipt - XAO Cult" name="description" />
         <link href="/favicon.ico" rel="icon" />
       </Head>
 
       <Navbar showBackButton={true} pageTitle="Purchase Confirmation" />
 
-      <div
-        className={styles.confirmOverlayContainer}
-        style={{
-          position: 'fixed',
-          top: '60px',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundImage: `url('${event.image}')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          zIndex: 1,
-        }}
-      >
+      <div className={styles.Card}>
         <div
+          className={styles.bookingDetailsCard}
           style={{
-            position: 'absolute',
-            top: 0,
+            position: "fixed",
+            top: "60px",
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '20px',
-            zIndex: 2,
+            backgroundImage: `url('${image}')`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            zIndex: 1,
           }}
         >
-          <h1 className={styles.feedEventTitle} style={{ marginBottom: '10px' }}>
-            Ticket Confirmed
-          </h1>
-
-          <p style={{ color: '#fff', marginBottom: '20px', textAlign: 'center' }}>
-            You have successfully purchased your ticket!
-          </p>
-
           <div
-            className={styles.confirmationContent}
             style={{
-              background: 'transparent',
-              width: '100%',
-              maxWidth: '400px',
-              marginBottom: '20px',
-              textAlign: 'center',
-              color: '#fff',
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.7)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: "20px",
+              zIndex: 2,
             }}
           >
-            <div className={styles.confirmationEventInfo}>
-              <div className={styles.ticketTypeInfo}>
-                <span className={styles.ticketTypeName}>General Admission</span>
-              </div>
+            {/* ✅ Success Heading */}
+            <div className={styles.confirmationHeaderTitle}>
+              <h1>Ticket Confirmed</h1>
             </div>
 
-            <div className={styles.confirmationSummary}>
-              <div className={styles.summaryRow}>
-                <span className={styles.summaryLabel}>Event Date:</span>
-                <span className={styles.summaryValue}>{event.date}</span>
+            {/* ✅ Success Icon + Text */}
+            <div
+              className={styles.detailRow}
+              style={{ display: "flex", alignItems: "center", gap: "6px" }}
+            >
+              <div className={styles.successIcon}>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="url(#ticketGradient)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <defs>
+                    <linearGradient
+                      id="ticketGradient"
+                      x1="0%"
+                      y1="0%"
+                      x2="100%"
+                      y2="100%"
+                    >
+                      <stop offset="0%" stopColor="#FF8A00" />
+                      <stop offset="50%" stopColor="#FF5F6D" />
+                      <stop offset="100%" stopColor="#A557FF" />
+                    </linearGradient>
+                  </defs>
+                  <rect x="3" y="5" width="18" height="14" rx="2" ry="2" />
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
               </div>
-            </div>
-          </div>
 
-          <div
-            className={styles.confirmButtonContainer}
-            style={{ position: 'relative', bottom: 'auto' }}
-          >
-            <button className={styles.confirmButton} onClick={handleSeeInAsset}>
-              See in Assets
-            </button>
+              <span className={styles.detailValue}>
+                You successfully purchased your Ticket!
+              </span>
+            </div>
+
+            {/* ✅ Loop through all purchased ticket types */}
+            {parsedTickets.map((t: any, index: number) => (
+              <div
+                key={index}
+                className={styles.detailRow}
+                style={{ display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                <div className={styles.detailIcon}>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="url(#dollarGradient)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <defs>
+                      <linearGradient
+                        id="dollarGradient"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="100%"
+                      >
+                        <stop offset="0%" stopColor="#FF8A00" />
+                        <stop offset="50%" stopColor="#FF5F6D" />
+                        <stop offset="100%" stopColor="#A557FF" />
+                      </linearGradient>
+                    </defs>
+                    <line x1="12" y1="1" x2="12" y2="23" />
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                </div>
+                <span className={styles.detailValue}>
+                  {t.type} × {t.count}
+                </span>
+              </div>
+            ))}
+
+            {/* ✅ Event Info */}
+            <div
+              className={styles.detailRow}
+              style={{ display: "flex", alignItems: "center", gap: "6px" }}
+            >
+              <div className={styles.detailIcon}>
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <defs>
+                    <linearGradient
+                      id="eventGradient"
+                      x1="0"
+                      y1="0"
+                      x2="1"
+                      y2="1"
+                    >
+                      <stop offset="0%" stopColor="#FF8A00" />
+                      <stop offset="50%" stopColor="#FF5F6D" />
+                      <stop offset="100%" stopColor="#A557FF" />
+                    </linearGradient>
+                  </defs>
+                  <rect
+                    x="3"
+                    y="4"
+                    width="18"
+                    height="18"
+                    rx="2"
+                    stroke="url(#eventGradient)"
+                    strokeWidth="3"
+                  />
+                  <path
+                    d="M16 2v4M8 2v4M3 10h18"
+                    stroke="url(#eventGradient)"
+                    strokeWidth="2"
+                  />
+                </svg>
+              </div>
+
+              <span className={styles.detailValue}>
+                Event: {date} at {time}
+              </span>
+            </div>
+
+            {/* ✅ CTA */}
+            <div
+              className={styles.confirmButtonContainer}
+              style={{ position: "relative", bottom: "auto" }}
+            >
+              <button className={styles.confirmButton} onClick={handleSeeInAsset}>See in Assets</button>
+            </div>
           </div>
         </div>
       </div>

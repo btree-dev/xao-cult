@@ -1,10 +1,11 @@
+// pages/event/[id]/[id].tsx
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import styles from '../../styles/Home.module.css';
-import { supabase } from '../../lib/supabase';
+//import { supabase } from '../../lib/supabase';
 import Navbar from '../../components/Navbar';
 
 const EventDetails: NextPage = () => {
@@ -142,7 +143,9 @@ const EventDetails: NextPage = () => {
   }, [id]);
 
   const handleBuyTicket = () => {
+    //router.push(`/event/${id}/purchase?fresh=true`);
     router.push(`/event/${id}/purchase`);
+    sessionStorage.removeItem(`purchaseState-${id}`);
   };
 
   if (loading || !event) {
@@ -155,7 +158,6 @@ const EventDetails: NextPage = () => {
       </div>
     );
   }
-
   return (
     <div className={styles.eventDetailsContainer}>
       <div className={styles.background} />

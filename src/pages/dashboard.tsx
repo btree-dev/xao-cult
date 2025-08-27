@@ -1,3 +1,4 @@
+//src/pages/dashboard.tsx
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useState, useEffect } from 'react';
@@ -7,8 +8,7 @@ import styles from '../styles/Home.module.css';
 import { supabase } from '../lib/supabase';
 import Navbar from '../components/Navbar';
 import Layout from '../components/Layout';
-import { disconnect } from '@wagmi/core';
-import { config } from '../wagmi';
+import Scrollbar from '../components/Scrollbar';
 
 const Dashboard: NextPage = () => {
   const [user, setUser] = useState<any>(null);
@@ -111,7 +111,6 @@ const Dashboard: NextPage = () => {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    await disconnect(config);
     router.push('/');
   };
 
@@ -144,6 +143,7 @@ const Dashboard: NextPage = () => {
         username: profile?.username, 
         avatar: profile?.profile_picture_url || '/xao-profile.svg' 
       }} />
+      <Scrollbar />
 
       {showLogoutConfirm && (
         <div className={styles.logoutConfirmOverlay}>

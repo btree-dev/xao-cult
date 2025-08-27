@@ -7,7 +7,7 @@ import Image from 'next/image';
 import styles from '../../../styles/Home.module.css';
 import { supabase } from '../../../lib/supabase';
 import Navbar from '../../../components/Navbar';
-
+import Scrollbar from '../../../components/Scrollbar';
 const TicketPurchase: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<any>(null);
@@ -195,6 +195,7 @@ const TicketPurchase: NextPage = () => {
       </Head>
 
       <Navbar showBackButton={true} pageTitle="Ticket Purchase" />
+      <Scrollbar />
 
       <div
         className={styles.feedItem}

@@ -7,7 +7,7 @@ import Image from 'next/image';
 import styles from '../../styles/Home.module.css';
 //import { supabase } from '../../lib/supabase';
 import Navbar from '../../components/Navbar';
-
+import Scrollbar from '../../components/Scrollbar';
 const EventDetails: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<any>(null);
@@ -143,7 +143,6 @@ const EventDetails: NextPage = () => {
   }, [id]);
 
   const handleBuyTicket = () => {
-    //router.push(`/event/${id}/purchase?fresh=true`);
     router.push(`/event/${id}/purchase`);
     sessionStorage.removeItem(`purchaseState-${id}`);
   };
@@ -168,6 +167,8 @@ const EventDetails: NextPage = () => {
       </Head>
 
       <Navbar showBackButton={true} pageTitle="Event Details" />
+      <Scrollbar />
+
 
       <div className={styles.feedItem} style={{ marginTop: '20px' }}>
         <div className={styles.feedHeader}>

@@ -1,0 +1,629 @@
+
+.container {
+  min-height: 100vh;       
+  padding: 0 2rem;
+  display: flex;          
+  justify-content: center; 
+  align-items: center;     
+  max-width: 400px;       
+  margin-left: auto;      
+  margin-right: auto;
+}
+
+
+.background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  background-image: url('/084251a867b139499f23448c34c1f6f13ca835ec.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.mainDashboard {
+  width: 100%;
+  margin-top: 60px;
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.formContainer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.pageTitle {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+  flex-grow: 1;
+  text-align: center;
+}
+.profileContent {
+  width: 100%;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  position: relative;
+}
+.profileActionsContainer {
+  margin-top: 30px;
+  margin-bottom: 0px;
+  border-radius: 9px;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: left;
+  width: fit-content;
+  height: fit-content;
+  background: transparent;
+  border: 3px solid transparent;
+  border-image: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  border-image-slice: 1;
+  position: absolute;
+  z-index: 10; 
+}
+
+.profileImageSection {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 20px;
+  margin-top: 30px;
+  position: relative;
+}
+.actionIconButton {
+  width: auto;
+  min-width: 20px;
+  max-width: 30px;
+  height: auto;
+  min-height: 20px;
+  max-height: 30px;
+  background: transparent;
+  display: flex;
+  border-radius: 9px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: white;
+}
+
+.actionIconButton:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.5);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.actionIconButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.inputGroup {
+  flex: 1;
+  margin-bottom: 1.2rem;
+  position: relative;
+}
+.inputRow {
+  display: flex;
+  align-items: center;
+  border-radius: 30px;
+  padding: 0.5rem 0.75rem;
+  background: black;
+  border: 2px solid transparent;
+  background-image: 
+    linear-gradient(black, black), 
+    linear-gradient(to right, #ff9900, #e100ff);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  min-width: 0;
+}
+.locationinput {
+ display: flex;
+  align-items: center;
+  border-radius: 30px;
+  
+  background: black;
+  border: 2px solid transparent;
+  background-image: 
+    linear-gradient(black, black), 
+    linear-gradient(to right, #ff9900, #e100ff);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  min-width: 0; 
+}
+
+.input {
+  flex: 1;
+  min-width: 0; 
+  background: transparent;
+  border: none;
+  outline:none;
+  color: white;
+  font-size: clamp(14px, 2.5vw, 18px); 
+  overflow: hidden; 
+  text-overflow: ellipsis; 
+  white-space: nowrap; 
+}
+.input:disabled {
+  color: white; 
+  -webkit-text-fill-color: white;
+}
+.selectinput {
+  flex: 1;
+  min-width: 0; 
+  background: transparent;
+  border: none;
+  color: white;
+  outline:none;
+  font-size: clamp(14px, 2.5vw, 18px); 
+  overflow: hidden; 
+  text-overflow: ellipsis; 
+  white-space: nowrap; 
+}
+.selectInput option {
+  background-color: rgba(51, 51, 51, 0.9); 
+  color: white;
+  padding: 8px 12px;
+
+}
+.selectinput option:hover,
+.select.input option:focus {
+  background-color: rgba(71, 71, 71, 0.9);
+}
+.selectinput::-ms-expand {
+  display: none;
+}
+.selectinput:-moz-focusring {
+  color: transparent;
+  text-shadow: 0 0 0 #fff;
+}
+.arrowButton {
+  position: absolute;
+  display: flex;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.arrowButton:first-of-type {
+  left: calc(50% - 100px);
+}
+
+.arrowButton:last-of-type {
+  right: calc(50% - 100px); 
+}
+
+.profileImageWrapper {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin: 0 10px;
+}
+.profileImageUpload {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  position: relative;
+  background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+}
+
+.profileImagePreview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.imageUploadIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+}
+.editButton {
+  position: absolute;
+  min-height: fit-content;
+  max-height: fit-content;
+  bottom: 4px;
+  right: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  background: linear-gradient(90deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  box-shadow: 0px 2px 6px rgba(0,0,0,0.3);
+}
+.editButton:hover {
+  opacity: 0.9;
+}
+.identityLabel {
+  font-weight: 600;
+  color: white;
+  text-align: center;
+  margin-top: 5px;
+  margin-bottom: 20px;
+}
+.label {
+  font-size: 14px;
+  margin-bottom: 0.25rem;
+  display: block;
+  padding-left: 0.25rem;
+}
+
+.dropdownArrow {
+  font-size: 12px;
+  color: #888;
+}
+.copyIcon{
+  position: absolute;
+  right: 25px;
+  margin:10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #fdfdfd;
+  cursor: pointer;
+  fill:none;
+  background: none;
+  pointer-events: auto; 
+}
+.walletAddressContainer{
+  display: flex;
+  gap: 10px;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+}
+
+
+
+.walletIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+.readOnlyInput {
+  background: rgba(0, 0, 0, 0.4) !important;
+  color: rgba(255, 255, 255, 0.7);
+}
+.locationInput {
+  flex: 2; /* takes more space */
+  min-width: 0;
+  max-width: 170px;
+}
+
+.radiusInput {
+  flex: 1; /* smaller field */
+  min-width: 0;
+}
+
+
+.formGroup {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.formRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  align-items: center;
+  
+}
+
+.formLabel {
+  font-size: 14px;
+  color: #ffffff;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.formInput {
+  width: 100%;
+  height: 50px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 0 16px;
+  color: #ffffff;
+  font-size: 16px;
+}
+
+.formInput:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+/* Genre pill styles */
+.genrePillsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.genrePill {
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.genrePillSelected {
+  background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  border: none;
+}
+
+
+.sectionTitleContainer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  
+  
+}
+
+.gradientLine {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  border-radius: 1.5px;
+  min-width: 50px;
+  opacity: 1;
+}
+
+.pageSubDescription {
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  margin: 0;
+  padding: 0 ;
+}
+
+.bigButton {
+  width: 100vw;
+  max-width: 100%;
+  height: 60px;
+  border-radius: 40px;
+  border-width: 1px;
+  background: #000000;
+  color: #ffffff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  /* Gradient border */
+  border: 1px solid transparent;
+  background-image: 
+    linear-gradient(#000000, #000000), 
+    var(--main-gradient);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.bigButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.documentButton {
+  width: 100%;
+  height: 50px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  /* Gradient border */
+  border: 2px solid transparent;
+  background-image: 
+    linear-gradient(#000000, #000000), 
+    var(--main-gradient);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;   
+  justify-content: center; 
+  gap: 10px;             
+  margin-top: 12px;
+}
+
+.toggleLabel {
+  font-size: 16px;
+  color: #ffffff;
+  margin: 0;  
+}
+
+.toggleLabel {
+  text-align: center;
+  font-size: 16px;
+  color: #ffffff;
+  display: block;
+
+}
+
+.toggleSwitch {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 50px;
+  height: 26px;
+  background: #000; 
+  border-radius: 50px;
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.3s ease;
+  border: 1px solid #ff8a00;
+}
+.toggleSwitch:not(:checked) {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.toggleSwitch:not(:checked)::before {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.toggleSwitch:checked {
+  border-color: #ff8a00;
+  background: #000;
+}
+.toggleSwitch::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  transition: transform 0.3s ease;
+}
+
+
+.toggleSwitch:checked::before {
+  transform: translateX(24px);
+}
+.lastUpdated {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  margin-top: 30px;
+  margin-bottom: 2px;
+}
+.confirmButton {
+  width: 100%;
+  height: 60px;
+  border-radius: 40px;
+  border: none;
+  background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  color: #ffffff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding-left: 30px;
+  padding-right: 30px;
+  margin-bottom: 20px;
+  margin-top: 5px;
+}
+
+.confirmButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.confirmButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+/* Logout confirmation styles */
+.logoutConfirmOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.logoutConfirmBox {
+  background: rgb(20, 20, 20);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 24px;
+  min-width: 300px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  width: 90%;
+  max-width: 320px;
+}
+
+.logoutConfirmBox h3 {
+  margin: 0 0 12px 0;
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.logoutConfirmBox p {
+  margin: 0 0 24px 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+}
+
+.logoutButtons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.logoutcancelButton,
+.logoutconfirmButton {
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 80px;
+}
+
+.logoutcancelButton {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.logoutconfirmButton {
+  background: var(--main-gradient);
+  color: white;
+}
+
+

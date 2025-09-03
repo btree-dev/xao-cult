@@ -141,7 +141,7 @@ const Dashboard: NextPage = () => {
 
       <Navbar userProfile={{ 
         username: profile?.username, 
-        avatar: profile?.profile_picture_url || '/xao-profile.svg' 
+        avatar: profile?.profile_picture_url || '/profile-icon.jpeg' 
       }} />
       <Scrollbar />
 

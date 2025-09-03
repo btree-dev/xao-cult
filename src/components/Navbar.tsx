@@ -3,8 +3,6 @@ import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import styles from './Navbar.module.css';
-import { disconnect } from '@wagmi/core';
-import { config } from '../wagmi';
 
 interface NavbarProps {
   userProfile?: {
@@ -16,24 +14,12 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pageTitle = '' }) => {
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const router = useRouter();
 
   const handleProfileClick = () => {
     if (userProfile) {
-      setShowLogoutConfirm(true);
+      router.push('/public-information');
     }
-  };
-
-  const handleLogoutCancel = () => {
-    setShowLogoutConfirm(false);
-  };
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    await disconnect(config);
-    setShowLogoutConfirm(false);
-    router.push('/');
   };
 
   const goBack = () => {
@@ -122,6 +108,11 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
             <div className={styles.centerSection}>
               <div className={styles.profileAvatar} onClick={handleProfileClick} role="button" aria-label="User profile">
                 {userProfile?.avatar ? (
+                  <div 
+                  className={styles.profileIcon}
+                  onClick={handleProfileClick}
+                  style={{ cursor: 'pointer' }}
+                >
                   <Image 
                     src={userProfile.avatar} 
                     alt="Profile" 
@@ -129,6 +120,7 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
                     height={40}
                     className={styles.avatarImage}
                   />
+                  </div>
                 ) : (
                   <div className={styles.avatarPlaceholder}>
                     {userProfile?.username ? userProfile.username.charAt(0).toUpperCase() : 'U'}
@@ -138,7 +130,6 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
             </div>
 
             {/* Right side icons */}
-            {/* REMOVED : As tickets moved to the stats */}
             <div className={styles.navSection}>
               {/* <button 
                 className={styles.navButton} 
@@ -174,19 +165,7 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
         </nav>
       )}
 
-      {/* Logout Confirmation Modal */}
-      {showLogoutConfirm && (
-        <div className={styles.logoutConfirmOverlay} onClick={handleLogoutCancel}>
-          <div className={styles.logoutConfirmBox} onClick={(e) => e.stopPropagation()}>
-            <h3>Sign Out</h3>
-            <p>Are you sure you want to sign out?</p>
-            <div className={styles.logoutButtons}>
-              <button onClick={handleLogoutCancel} className={styles.cancelButton}>Cancel</button>
-              <button onClick={handleSignOut} className={styles.confirmButton}>Sign Out</button>
-            </div>
-          </div>
-        </div>
-      )}
+      
     </>
   );
 };

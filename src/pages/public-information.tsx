@@ -1,77 +1,39 @@
-// pages/profile/public-information.tsx
-import { useEffect,useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import Head from "next/head";
 import Image from "next/image";
-import styles from "../styles/publicInfo.module.css"
-import { useRouter } from 'next/router';
-import Scrollbar from "../components/Scrollbar";
-import { supabase } from '../lib/supabase';
+import styles from "../styles/publicInfo.module.css";
+import { useRouter } from "next/router";
 import Navbar from "../components/Navbar";
-const mainGenres = ["Rock", "Pop", "HipHop", "Electronic"];
+import { supabase } from "../lib/supabase";
+
+import { publicDocs, mainGenres } from "../backend/public-information-services/publicinfodata";
+
+import {
+  handleWalletSelection,
+  updateIdentityField,
+  toggleGenre,
+  handleNext,
+  handlePrev,
+  handleCopy,
+  handleDeleteIdentity,
+  handleSignOut,
+
+} from "../backend/public-information-services/publicInfoServices";
+import BlankNavbar from "../components/BackNav";
+import Scrollbar from "../components/Scrollbar";
 
 export default function PublicInfoPage() {
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const router = useRouter();
-  const [identities, setIdentities] = useState([
-{
-    username: "ABC",
-    walletAddresses: ["0x123...", "0x456...", "0x789..."], 
-    selectedWalletAddress: "", 
-    didEth: "did:eth:ABC",
-    didWeb: "did:web:ABC",
-    location: "Lahore",
-    radius: "50 Miles",
-    selectedGenres: [] as string[],
-  },
-  {
-    username: "Alice",
-    walletAddresses: ["0x123...", "0x456...", "0x789..."], 
-    selectedWalletAddress: "0x123...", 
-    didEth: "did:eth:alice",
-    didWeb: "did:web:alice.xyz",
-    location: "NY",
-    radius: "25 Miles",
-    selectedGenres: ["Rock"],
-  },
-  {
-    username: "Bob",
-    walletAddresses: ["0x999...", "0x888..."],
-    selectedWalletAddress: "0x999...",
-    didEth: "did:eth:bob",
-    didWeb: "did:web:bob.eth",
-    location: "LA",
-    radius: "100 Miles",
-    selectedGenres: ["Electronic", "Pop"],
-  },
-  ]);
 
-  const handleWalletSelection = (value: string) => {
-  const updated = [...identities];
-  updated[currentIndex].selectedWalletAddress = value;
-  setIdentities(updated);
-};
-  const handleSave = () => {
-    router.push('/dashboard');
-};
-  const handleLogoutClick = () => {
-  setShowLogoutConfirm(true);
-};
-
-const handleLogoutCancel = () => {
-  setShowLogoutConfirm(false);
-};
-
-const handleSignOut = async () => {
-  await supabase.auth.signOut();
-  localStorage.clear();
-  sessionStorage.clear();
-  router.push('/dashboard');
-};
+  const [identities, setIdentities] = useState(publicDocs);
   const [currentIndex, setCurrentIndex] = useState(0);
   const currentIdentity = identities[currentIndex];
+
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -79,76 +41,38 @@ const handleSignOut = async () => {
     }
   };
 
-  const updateIdentityField = (field: string, value: string) => {
-    const updated = [...identities];
-    (updated[currentIndex] as any)[field] = value;
-    setIdentities(updated);
+  const handleSave = () => {
+    router.push("/dashboard");
   };
 
-  const toggleGenre = (genre: string) => {
-    const updated = [...identities];
-    const selected = updated[currentIndex].selectedGenres;
-    updated[currentIndex].selectedGenres = selected.includes(genre)
-      ? selected.filter((g) => g !== genre)
-      : [...selected, genre];
-    setIdentities(updated);
-  };
+  const handleLogoutClick = () => setShowLogoutConfirm(true);
+  const handleLogoutCancel = () => setShowLogoutConfirm(false);
 
-  const handleNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % identities.length);
-  };
-  
-  const handlePrev = () => {
-    setCurrentIndex((prev) => (prev - 1 + identities.length) % identities.length);
-  };
-
-  const handleCopy = async () => {
-  if (currentIdentity.selectedWalletAddress) {
-    try {
-      await navigator.clipboard.writeText(currentIdentity.selectedWalletAddress);
-      alert("Wallet address copied!");
-    } catch (err) {
-      console.error("Failed to copy: ", err);
-      alert("Failed to copy wallet address");
-    }
-  }
-};
-    const handleDeleteIdentity = () => {
-    if (identities.length > 1) {
-      const updated = identities.filter((_, index) => index !== currentIndex);
-      setIdentities(updated);
-      setCurrentIndex(Math.max(0, currentIndex - 1));
-    }
-  };
   useEffect(() => {
     const checkAuth = async () => {
       try {
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
-        
         if (!user) {
-          router.push('/');
+          router.push("/");
           return;
         }
         const { data: profileData, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
           .single();
-          
         if (error || !profileData) {
-          router.push('/');
+          router.push("/");
           return;
         }
-
       } catch (error) {
-        console.error('Error checking authentication:', error);
-        router.push('/');
+        console.error("Error checking authentication:", error);
+        router.push("/");
       } finally {
         setLoading(false);
       }
     };
-
     checkAuth();
   }, [router]);
 
@@ -169,10 +93,10 @@ const handleSignOut = async () => {
       <Head>
         <title>Public Information</title>
       </Head>
-      <Navbar showBackButton/>
+      <BlankNavbar pageTitle="Public Information"/>
       <Scrollbar/>
       <main className={styles.mainDashboard}>
-        <h1 className={styles.pageTitle}>Public Information</h1>
+        
         <form className={styles.formContainer}>
           <div className={styles.profileContent}>
             
@@ -193,7 +117,8 @@ const handleSignOut = async () => {
               <button 
                 type="button" 
                 className={styles.actionIconButton} 
-                onClick={handleDeleteIdentity}
+                onClick={() =>
+                  handleDeleteIdentity(identities, currentIndex, setIdentities, setCurrentIndex)}
                 disabled={identities.length <= 1}
                 title="Delete Identity"
               >
@@ -206,7 +131,7 @@ const handleSignOut = async () => {
 
             {/* Profile image section with arrows */}
             <div className={styles.profileImageSection}>
-              <button type="button" className={styles.arrowButton} onClick={handlePrev}>
+              <button type="button" className={styles.arrowButton} onClick={() => handlePrev(setCurrentIndex, identities)}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M10 4L6 8L10 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -242,7 +167,7 @@ const handleSignOut = async () => {
                 </button>
               </div>
 
-              <button type="button" className={styles.arrowButton} onClick={handleNext}>
+              <button type="button" className={styles.arrowButton} onClick={() => handleNext(setCurrentIndex, identities)}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M6 4L10 8L6 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -259,7 +184,8 @@ const handleSignOut = async () => {
               <input
                 type="text"
                 value={currentIdentity.username}
-                onChange={(e) => updateIdentityField("username", e.target.value)}
+                onChange={(e) =>updateIdentityField("username",e.target.value,identities,currentIndex,setIdentities)
+                }
                 placeholder="Enter username"
                 className={styles.input}
                 required
@@ -272,9 +198,8 @@ const handleSignOut = async () => {
       <div className={styles.inputRow}>
       <select
         value={currentIdentity.selectedWalletAddress}
-        onChange={(e) => handleWalletSelection(e.target.value)}
-        className={styles.selectinput}
-      >
+        onChange={(e) =>handleWalletSelection(e.target.value,identities,currentIndex,setIdentities)}
+        className={styles.selectinput}>
         {currentIdentity.walletAddresses.map((address, index) => (
           <option key={index} value={address}>
             {address || `Wallet Address ${index + 1}`}
@@ -292,7 +217,7 @@ const handleSignOut = async () => {
         strokeLinecap="round"
         strokeLinejoin="round"
         className={styles.copyIcon}
-        onClick={handleCopy}
+        onClick={() => handleCopy(currentIdentity)}
       >
         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -333,7 +258,7 @@ const handleSignOut = async () => {
                 type="text"
                 placeholder="City / Zipcode"
                 value={currentIdentity.location}
-                onChange={(e) => updateIdentityField("location", e.target.value)}
+                onChange={(e) => updateIdentityField("location", e.target.value, identities,currentIndex,setIdentities)}
                 className={`${styles.input} ${styles.readOnlyInput}  ${styles.locationInput}`}
                 readOnly
               />
@@ -344,7 +269,7 @@ const handleSignOut = async () => {
               <div className={`${styles.inputRow} `}>
               <select
                 value={currentIdentity.radius}
-                onChange={(e) => updateIdentityField("radius", e.target.value)}
+                onChange={(e) => updateIdentityField("radius", e.target.value, identities,currentIndex,setIdentities)}
                 className={`${styles.selectinput} ${styles.radiusInput}`}
                 required
               >
@@ -369,7 +294,7 @@ const handleSignOut = async () => {
                       ? styles.genrePillSelected
                       : ""
                   }`}
-                  onClick={() => toggleGenre(genre)}
+                  onClick={() =>toggleGenre(genre, identities, currentIndex, setIdentities)}
                 >
                   {genre}
                 </button>
@@ -447,7 +372,8 @@ const handleSignOut = async () => {
           </button>
           </div>
         <div className={styles.formGroup}>
-          <button type="button" className={styles.documentButton}>
+          <button type="button" className={styles.documentButton}
+          onClick={() => router.push('/legal/legal-documents')}>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M6.66675 13.3333L10.0001 10L13.3334 13.3333" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     <path d="M10 10V17.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -532,7 +458,7 @@ const handleSignOut = async () => {
               <button onClick={handleSignOut} className={styles.logoutconfirmButton}>Sign Out</button>
             </div>
           </div>
-        </div>
+        </div> 
       )}
         </form>
       </main>

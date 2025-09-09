@@ -1,0 +1,187 @@
+
+.navbar {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  padding: 10px 0px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background 0.3s ease-in-out;
+  background: transparent;
+  z-index: 1000;
+
+}
+.navbar.scrolled {
+  background: transparent;;
+}
+.navContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1200px;
+  padding: 0 20px;
+  height: 100%;
+}
+
+.navSection {
+  display: flex;
+  align-items: center;
+  margin-top: 28px;
+  gap: 8px;
+  flex: 1;
+}
+
+.navSection:first-child {
+  justify-content: flex-start;
+}
+
+.navSection:last-child {
+  justify-content: flex-end;
+}
+
+.centerSection {
+  display: flex;
+  margin-top: 32px;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.pageTitle {
+  color: white;
+  font-size: 26px;
+  font-weight: 600;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: fit-content;
+  text-align: center;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.pageIcon {
+  margin-right: 8px;
+}
+
+
+.navButton {
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid white;
+  color: white;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.navButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.navButton:active {
+  transform: scale(0.95);
+}
+.rightnavButton {
+  background: black;
+  color: white;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  position: relative;
+   border: 2px solid transparent;
+  background-image: 
+    linear-gradient(#000000, #000000), 
+    var(--main-gradient);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}  
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .navContainer {
+    padding: 0 16px;
+  }
+  
+  .navSection {
+    gap: 12px;
+  }
+  
+  .navButton {
+    width: 40px;
+    height: 40px;
+    padding: 6px;
+  }
+  .rightnavButton{
+    width: 40px;
+    height: 40px;
+    padding: 6px;
+}
+.rightnavButton svg {
+    width: 100%;
+    height: 100%;
+  }
+  .navButton svg {
+    width: 18px;
+    height: 18px;
+  }
+
+}
+
+@media (max-width: 480px) {
+  .navbar {
+    height: 56px;
+  }
+  
+  .navContainer {
+    padding: 0 12px;
+  }
+  
+  .navSection {
+    gap: 8px;
+  }
+  
+  .centerSection {
+    flex: 1;
+  }
+  
+  .navButton {
+    width: 36px;
+    height: 36px;
+    padding: 4px;
+  }
+  .rightnavButton{
+    width: 36px;
+    height: 36px;
+    padding: 4px;
+  }
+  
+  .navButton svg {
+    width: 16px;
+    height: 16px;
+  }
+  .rightnavButton svg {
+    width: 100%;
+    height: 100%;
+  }
+  .pageTitle {
+    font-size: 22px;
+    max-width: fit-content;
+  }
+}
+
+

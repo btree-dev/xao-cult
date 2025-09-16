@@ -1,14 +1,61 @@
-import { NextPage } from 'next';
-import Head from 'next/head';
-import styles from '../../styles/Home.module.css';
-import Navbar from '../../components/Navbar';
-import StatsNav from '../../components/StatsNav';
-import Layout from '../../components/Layout';
-import { taxDocs } from '../../backend/taxdata';
-import BackNavbar from '../../components/BackNav';
-import Scrollbar from '../../components/Scrollbar';
+import { NextPage } from "next";
+import Head from "next/head";
+import styles from "../../styles/Home.module.css";
+import Layout from "../../components/Layout";
+import BackNavbar from "../../components/BackNav";
+import Scrollbar from "../../components/Scrollbar";
+import { useEffect, useState } from "react";
+
+interface FileItem {
+  id: string;
+  name: string;
+  fileName: string;
+  size: string;
+  uploadDate: string;
+}
 
 const TaxDocuments: NextPage = () => {
+  const [files, setFiles] = useState<FileItem[]>([]);
+
+  useEffect(() => {
+  async function fetchFiles() {
+    const res = await fetch("/api/read");
+    const data = await res.json();
+    setFiles(data);
+  }
+  fetchFiles();
+
+  const handleFilesUpdated = () => fetchFiles();
+  window.addEventListener("files-updated", handleFilesUpdated);
+
+  return () => {
+    window.removeEventListener("files-updated", handleFilesUpdated);
+  };
+}, []);
+
+  const handleDocRead = (fileName: string) => {
+    window.open(`/uploads/${fileName}`, "_blank");
+  };
+
+  const handleDelete = async (fileName: string) => {
+    try {
+      const res = await fetch("/api/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName }),
+      });
+
+      if (res.ok) {
+        // Remove deleted file from state so UI updates in real time
+        setFiles((prev) => prev.filter((file) => file.fileName !== fileName));
+      } else {
+        console.error("Failed to delete file");
+      }
+    } catch (err) {
+      console.error("Error deleting file", err);
+    }
+  };
+
   return (
     <Layout>
       <div className={styles.container}>
@@ -18,17 +65,24 @@ const TaxDocuments: NextPage = () => {
           <meta name="description" content="Tax Documents" />
           <link rel="icon" href="/favicon.ico" />
         </Head>
-        <BackNavbar  pageIcon="/pdfIcon.svg" pageTitle="Tax Documents" showDownload={true}/>
+
+        <BackNavbar
+          pageIcon="/pdfIcon.svg"
+          pageTitle="Tax Documents"
+          showDownload={true}
+        />
         <Scrollbar />
+
         <main className={styles.mainDashboard}>
           <div className={styles.taxDocumentsContainer}>
             <div className={styles.documentList}>
-              {taxDocs.map((doc) => (
+              {files.map((doc) => (
                 <div key={doc.id} className={styles.documentItem}>
                   <div className={styles.documentIcon}>
-                    <img src={'/pdfIcon.svg'} width={42} height={42}/> 
+                    <img src={"/pdfIcon.svg"} width={42} height={42} />
                   </div>
-                  <div className={styles.documentInfo}>
+                  <div className={styles.documentInfo} onClick={() => handleDocRead(doc.fileName)}
+                    style={{ cursor: "pointer" }}>
                     <h4>{doc.name}</h4>
                     <p>{doc.fileName}</p>
                     <p>
@@ -36,45 +90,10 @@ const TaxDocuments: NextPage = () => {
                     </p>
                   </div>
                   <div className={styles.documentMeta}>
-                    <button className={styles.downloadButton}>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="24"
-                          height="24"
-                          viewBox="0 0 24 24"
-                        >
-                          <g transform="scale(0.9) translate(1.4,1.4)">
-                            {/* Folder shape */}
-                            <path
-                              d="M3 7h5l2 2h9a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"
-                              stroke="white"
-                              strokeWidth="2"
-                              fill="none"
-                              strokeLinejoin="round"
-                            />
-
-                            {/* Upload arrow */}
-                            <line
-                              x1="12"
-                              y1="16"
-                              x2="12"
-                              y2="10"
-                              stroke="white"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                            />
-                            <polyline
-                              points="9 13 12 10 15 13"
-                              stroke="white"
-                              strokeWidth="2"
-                              fill="none"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </g>
-                        </svg>
-                    </button>
-                    <button className={styles.deleteButton}>
+                    <button
+                      className={styles.deleteButton}
+                      onClick={() => handleDelete(doc.fileName)}
+                    >
                       <svg
                         width="20"
                         height="20"
@@ -107,15 +126,19 @@ const TaxDocuments: NextPage = () => {
           <div className={styles.documentCategories}>
             <h3 className={styles.taxpageDescription}>USA Tax Form</h3>
             <div className={styles.taxformbuttonContainer}>
-            
-              <button className={styles.taxformbutton}>W-9</button>
-              <button className={styles.taxformbutton}>W-8BEN</button>
-              <button className={styles.taxformbutton}>W-8BEN-E</button>
-              </div>
-              <h3 className={styles.taxpageDescription}>Global Forms</h3>
-              <div className={styles.taxformbuttonContainer}>
-              <button className={styles.taxformbutton}>OECD</button>
-              <button className={styles.taxformbutton}>TAXSUMM</button>
+              <button className={styles.taxformbutton} onClick={() =>
+                window.open("https://www.irs.gov/pub/irs-pdf/fw9.pdf", "_blank")}>W-9</button>
+              <button className={styles.taxformbutton} onClick={() =>
+                window.open("https://www.irs.gov/pub/irs-pdf/fw8ben.pdf", "_blank")}>W-8BEN</button>
+              <button className={styles.taxformbutton} onClick={() =>
+                window.open("https://www.irs.gov/pub/irs-pdf/fw8bene.pdf", "_blank")}>W-8BEN-E</button>
+            </div>
+            <h3 className={styles.taxpageDescription}>Global Forms</h3>
+            <div className={styles.taxformbuttonContainer}>
+              <button className={styles.taxformbutton} onClick={() =>
+                window.open("https://www.oecd.org/tax/treaties/", "_blank")}>OECD</button>
+              <button className={styles.taxformbutton} onClick={() =>
+                window.open("https://www.irs.gov/pub/irs-pdf/fw9.pdhttps://taxsummaries.pwc.com/", "_blank")}>TAXSUMM</button>
             </div>
           </div>
         </main>

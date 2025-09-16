@@ -7,7 +7,7 @@ import styles from '../../../styles/Home.module.css';
 import { supabase } from '../../../lib/supabase';
 import StatsNav from '../../../components/StatsNav';
 import Layout from '../../../components/Layout';
-
+import { TicketsQR } from '../../../backend/ticket-services/ticketdata';
 const TicketsPage: NextPage = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -21,64 +21,7 @@ const TicketsPage: NextPage = () => {
   'unredeemed';
 
   // Mock ticket data
-  const [tickets, setTickets] = useState<any[]>([
-    {
-      id: 'ticket-1',
-      eventId: 'rivo-event-1',
-      title: 'Rivo',
-      artist: 'rivo',
-      tag: 'Les Déferlantes 2025',
-      date: '05 June 2025',
-      location: 'Berlin, Germany',
-      image: 'https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop',
-      profilePic: '/rivo-profile-pic.svg',
-      likes: '12.4M',
-      views: '1347',
-      redeemed: false,
-    },
-    {
-      id: 'ticket-2',
-      eventId: 'xao-event-1',
-      title: 'XAO',
-      artist: 'xao',
-      tag: 'Les Déferlantes 2025',
-      date: '15 July 2025',
-      location: 'London, UK',
-      image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop',
-      profilePic: '/xao-profile.svg',
-      likes: '8.2M',
-      views: '982',
-      redeemed: false,
-    },
-    {
-      id: 'ticket-3',
-      eventId: 'edm-event-1',
-      title: 'NEON.BLK',
-      artist: 'neonblk',
-      tag: 'Les Déferlantes 2025',
-      date: '20 August 2025',
-      location: 'Paris, France',
-      image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop',
-      profilePic: '/rivo-profile-pic.svg',
-      likes: '5.7M',
-      views: '743',
-      redeemed: true,
-    },
-    {
-      id: 'ticket-4',
-      eventId: 'rivo-event-2',
-      title: 'Rivo',
-      artist: 'rivo',
-      tag: 'Les Déferlantes 2025',
-      date: '05 September 2025',
-      location: 'Madrid, Spain',
-      image: 'https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop',
-      profilePic: '/rivo-profile-pic.svg',
-      likes: '9.8M',
-      views: '1125',
-      redeemed: true,
-    },
-  ]);
+  const [tickets, setTickets] = useState<any[]>(TicketsQR);
 
   useEffect(() => {
     const getUser = async () => {

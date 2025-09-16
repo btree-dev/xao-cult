@@ -4,53 +4,47 @@ import { useEffect, useState, useRef } from "react";
 const Scrollbar = () => {
   const [scrollHeight, setScrollHeight] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
-  const [visible, setVisible] = useState(false);
+  const [isScrollable, setIsScrollable] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const startY = useRef(0);
   const startScrollTop = useRef(0);
-  const hideTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Update scrollbar height
-  useEffect(() => {
-    const handleResize = () => {
-      setScrollHeight(
-        (window.innerHeight / document.documentElement.scrollHeight) *
-          window.innerHeight
-      );
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  // Calculate scroll metrics
+  const updateScrollMetrics = () => {
+    const { scrollHeight, clientHeight } = document.documentElement;
+    const viewportHeight = window.innerHeight;
 
-  // Show scrollbar while scrolling
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrollTop(
-        (window.scrollY / document.documentElement.scrollHeight) *
-          window.innerHeight
-      );
-      showScrollbar();
-    };
-    handleScroll();
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+    // Check if content is scrollable
+    setIsScrollable(scrollHeight > viewportHeight);
 
-  const showScrollbar = () => {
-    setVisible(true);
-    if (hideTimeout.current) clearTimeout(hideTimeout.current);
-    hideTimeout.current = setTimeout(() => setVisible(false), 1000); // hide after 1s idle
+    if (scrollHeight > viewportHeight) {
+      setScrollHeight((viewportHeight / scrollHeight) * viewportHeight);
+      setScrollTop((window.scrollY / scrollHeight) * viewportHeight);
+    } else {
+      setScrollHeight(0);
+      setScrollTop(0);
+    }
   };
+
+  // Update on resize + initial load
+  useEffect(() => {
+    updateScrollMetrics();
+    window.addEventListener("resize", updateScrollMetrics);
+    window.addEventListener("scroll", updateScrollMetrics);
+
+    return () => {
+      window.removeEventListener("resize", updateScrollMetrics);
+      window.removeEventListener("scroll", updateScrollMetrics);
+    };
+  }, []);
 
   // Drag handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     isDragging.current = true;
     startY.current = e.clientY;
     startScrollTop.current = scrollTop;
-    setVisible(true);
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
   };
@@ -68,10 +62,12 @@ const Scrollbar = () => {
 
   const handleMouseUp = () => {
     isDragging.current = false;
-    showScrollbar(); // keep visible briefly after drag
     document.removeEventListener("mousemove", handleMouseMove);
     document.removeEventListener("mouseup", handleMouseUp);
   };
+
+  // Hide scrollbar completely if not scrollable
+  if (!isScrollable) return null;
 
   return (
     <div
@@ -84,9 +80,6 @@ const Scrollbar = () => {
         width: "4px",
         background: "rgba(0,0,0,0.1)",
         borderRadius: "4px",
-        opacity: visible ? 1 : 0,
-        transition: "opacity 0.3s ease",
-        pointerEvents: visible ? "auto" : "none", 
       }}
     >
       <div

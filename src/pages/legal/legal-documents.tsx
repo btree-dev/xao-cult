@@ -7,6 +7,7 @@ import docStyles from "../../styles/legalDocument.module.css";
 import { legalDocs } from "../../backend/legaldata";
 import { useRouter } from "next/router";
 import BackNavbar from "../../components/BackNav";
+import Scrollbar from "../../components/Scrollbar";
 export default function LegalDocument() {
   const router = useRouter();
 
@@ -25,8 +26,7 @@ export default function LegalDocument() {
           <link rel="icon" href="/favicon.ico" />
         </Head>
         <BackNavbar pageTitle="Legal"/>
-            
-
+            <Scrollbar/>
         <main className={docStyles.legalHomecontainer}>
           <div className={docStyles.docContainer}>
             {legalDocs.map((doc, index) => (

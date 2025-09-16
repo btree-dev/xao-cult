@@ -6,7 +6,7 @@ import Image from 'next/image';
 import styles from '../../../styles/Home.module.css';
 import { supabase } from '../../../lib/supabase';
 import Navbar from '../../../components/Navbar';
-
+import { mockTickets } from '../../../backend/ticket-services/ticketdata';
 const TicketDetailPage: NextPage = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -14,62 +14,7 @@ const TicketDetailPage: NextPage = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const router = useRouter();
   const { id } = router.query;
-
-  // Mock tickets data
-  const mockTickets = [
-    {
-      id: 'ticket-1',
-      eventId: 'rivo-event-1',
-      title: 'Rivo Open Air',
-      date: '05 June 2025',
-      location: 'Berlin, Germany',
-      image: 'https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-      redeemed: false,
-      ticketCode: 'RIVO-2025-06-05-001',
-      lineup: ['Lola Mex', 'Synthetics', 'Rivo', 'NEON.BLK'],
-      details: 'XAO is proud to present an unforgettable night of music, art, and community at the Rivo Open Air concert at Wembley Stadium. Experience the electric atmosphere as top artists perform live under the stars. Immerse yourself in the vibrant energy, connect with fellow music lovers, and create memories that will last a lifetime.',
-      organizer: 'Tomorrowland Events'
-    },
-    {
-      id: 'ticket-2',
-      eventId: 'xao-event-1',
-      title: 'XAO Festival',
-      date: '15 July 2025',
-      location: 'London, UK',
-      image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
-      redeemed: false,
-      ticketCode: 'XAO-2025-07-15-001',
-      lineup: ['XAO', 'Synthetics', 'NEON.BLK'],
-      details: 'Join us for the annual XAO Festival, a celebration of music, art, and culture. This year\'s lineup features some of the most exciting artists in electronic music, with stunning visuals and immersive experiences throughout the venue.',
-      organizer: 'XAO Events'
-    },
-    {
-      id: 'ticket-3',
-      eventId: 'edm-event-1',
-      title: 'Electric Dreams',
-      date: '20 August 2025',
-      location: 'Paris, France',
-      image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
-      redeemed: true,
-      ticketCode: 'EDM-2025-08-20-001',
-      lineup: ['NEON.BLK', 'Lola Mex', 'Synthetics'],
-      details: 'Electric Dreams brings you a night of cutting-edge electronic music in the heart of Paris. Experience stunning visuals, state-of-the-art sound systems, and performances from world-class DJs.',
-      organizer: 'Electric Dreams Productions'
-    },
-    {
-      id: 'ticket-4',
-      eventId: 'rivo-event-2',
-      title: 'Rivo Open Air',
-      date: '05 September 2025',
-      location: 'Madrid, Spain',
-      image: 'https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-      redeemed: true,
-      ticketCode: 'RIVO-2025-09-05-001',
-      lineup: ['Rivo', 'Synthetics', 'NEON.BLK'],
-      details: 'Rivo Open Air returns to Madrid for another unforgettable night of music and community. Join us under the stars for performances from top artists and an atmosphere like no other.',
-      organizer: 'Rivo Productions'
-    },
-  ];
+  
 
   useEffect(() => {
     const getTicketData = async () => {
@@ -87,9 +32,7 @@ const TicketDetailPage: NextPage = () => {
         }
         
         setUser(user);
-        
-        // In a real app, fetch ticket from the database
-        // For now we're using mock data
+
         const ticketData = mockTickets.find(t => t.id === id);
         
         if (!ticketData) {

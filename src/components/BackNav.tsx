@@ -7,12 +7,14 @@ interface BackNavbarProps {
   pageTitle?: string;
   showDownload?: boolean;
   pageIcon?: string;
+  showRectangleRight?: boolean;
 }
 
 const BackNavbar: React.FC<BackNavbarProps> = ({
   pageTitle = "",
   showDownload = false,
   pageIcon,
+  showRectangleRight = false,
 }) => {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -27,31 +29,33 @@ const BackNavbar: React.FC<BackNavbarProps> = ({
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    const formData = new FormData();
     Array.from(files).forEach((file) => {
-      formData.append("files", file);
+      const reader = new FileReader();
+      reader.onload = () => {
+        const fileData = {
+          id: file.name + Date.now(),
+          name: file.name.replace(/\.pdf$/i, ""),
+          fileName: file.name,
+          size: `${(file.size / 1024).toFixed(2)} KB`,
+          uploadDate: new Date().toLocaleDateString(),
+          dataUrl: reader.result as string,
+        };
+        // Save to localStorage
+        const stored = JSON.parse(localStorage.getItem("taxDocs") || "[]");
+        stored.push(fileData);
+        localStorage.setItem("taxDocs", JSON.stringify(stored));
+        window.dispatchEvent(new Event("files-updated"));
+      };
+      reader.readAsDataURL(file);
     });
-
-    const res = await fetch("/api/upload", {
-      method: "POST",
-      body: formData,
-    });
-
-    const data = await res.json();
-    if (data.success) {
-      alert("Files uploaded successfully!");
-      window.dispatchEvent(new Event("files-updated"));
-    } else {
-      alert("Upload failed");
-      console.error(data);
-    }
+    alert("Files stored locally!");
   };
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
 
-  // 🔹 Close info box when clicking outside
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (infoRef.current && !infoRef.current.contains(event.target as Node)) {
@@ -71,7 +75,6 @@ const BackNavbar: React.FC<BackNavbarProps> = ({
   return (
     <nav className={styles.navbar}>
       <div className={styles.navContainer}>
-        {/* Left Section */}
         <div className={styles.navSection}>
           <button
             className={styles.navButton}
@@ -222,6 +225,16 @@ const BackNavbar: React.FC<BackNavbarProps> = ({
               />
             </>
           )}
+          {showRectangleRight && (
+          <Image
+            src="/contracts-Icons/rectangle 428.svg"
+            alt="Rectangle 428"
+            width={40}
+            height={40}
+            className={styles.pageIcon}
+            style={{ marginLeft: "12px" }}
+          />
+        )}
         </div>
       </div>
     </nav>

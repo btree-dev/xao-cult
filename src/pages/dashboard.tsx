@@ -4,49 +4,19 @@ import Head from 'next/head';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
+
 import styles from '../styles/Home.module.css';
 import { supabase } from '../lib/supabase';
 import Navbar from '../components/Navbar';
 import Layout from '../components/Layout';
 import Scrollbar from '../components/Scrollbar';
-
+import { EventDocs } from '../backend/eventsdata';
 const Dashboard: NextPage = () => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [events, setEvents] = useState<any[]>([
-    {
-      id: 'rivo-event-1',
-      title: 'Rivo',
-      artist: 'rivo',
-      tag: 'Les Déferlantes 2025',
-      image: 'https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-      profilePic: '/rivo-profile-pic.svg',
-      likes: '12.4M',
-      views: '1347'
-    },
-    {
-      id: 'xao-event-1',
-      title: 'XAO',
-      artist: 'xao',
-      tag: 'Les Déferlantes 2025',
-      image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
-      profilePic: '/xao-profile.svg',
-      likes: '8.2M',
-      views: '982'
-    },
-    {
-      id: 'edm-event-1',
-      title: 'NEON.BLK',
-      artist: 'neonblk',
-      tag: 'Les Déferlantes 2025',
-      image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
-      profilePic: '/rivo-profile-pic.svg',
-      likes: '5.7M',
-      views: '743'
-    }
-  ]);
+
+  const [events, setEvents] = useState<any[]>(EventDocs);
   
   const router = useRouter();
 
@@ -55,7 +25,7 @@ const Dashboard: NextPage = () => {
       setLoading(true);
       
       try {
-        // Get the current user
+      
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
@@ -65,11 +35,11 @@ const Dashboard: NextPage = () => {
         
         setUser(user);
         
-        // Try to get profile
+     
         let profileData = null;
         
         try {
-          // Get the user's profile
+         
           const { data, error } = await supabase
             .from('profiles')
             .select('*')
@@ -83,7 +53,7 @@ const Dashboard: NextPage = () => {
           console.error('Error fetching profile:', error);
         }
         
-        // If we don't have a profile, redirect to create profile
+    
         if (!profileData) {
           router.push('/create-profile');
           return;
@@ -101,18 +71,8 @@ const Dashboard: NextPage = () => {
     getUser();
   }, [router]);
 
-  const handleLogoutClick = () => {
-    setShowLogoutConfirm(true);
-  };
-
-  const handleLogoutCancel = () => {
-    setShowLogoutConfirm(false);
-  };
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-  };
+  
+  
 
   const handleEventClick = (eventId: string) => {
     router.push(`/event/${eventId}`);
@@ -141,22 +101,11 @@ const Dashboard: NextPage = () => {
 
       <Navbar userProfile={{ 
         username: profile?.username, 
-        avatar: profile?.profile_picture_url || '/profile-icon.jpeg' 
+        avatar: profile?.profile_picture_url || '/profileIcon.svg'  
       }} />
       <Scrollbar />
 
-      {showLogoutConfirm && (
-        <div className={styles.logoutConfirmOverlay}>
-          <div className={styles.logoutConfirmBox}>
-            <h3>Sign Out</h3>
-            <p>Are you sure you want to sign out?</p>
-            <div className={styles.logoutButtons}>
-              <button onClick={handleLogoutCancel} className={styles.cancelButton}>Cancel</button>
-              <button onClick={handleSignOut} className={styles.confirmButton}>Sign Out</button>
-            </div>
-          </div>
-        </div>
-      )}
+      
 
       <div className={styles.walletCardContainer}>
         <div 

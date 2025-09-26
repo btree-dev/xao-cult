@@ -12,48 +12,45 @@ interface FileItem {
   fileName: string;
   size: string;
   uploadDate: string;
+  dataUrl: string;
 }
 
 const TaxDocuments: NextPage = () => {
   const [files, setFiles] = useState<FileItem[]>([]);
 
   useEffect(() => {
-  async function fetchFiles() {
-    const res = await fetch("/api/read");
-    const data = await res.json();
-    setFiles(data);
-  }
-  fetchFiles();
-
-  const handleFilesUpdated = () => fetchFiles();
-  window.addEventListener("files-updated", handleFilesUpdated);
-
-  return () => {
-    window.removeEventListener("files-updated", handleFilesUpdated);
-  };
-}, []);
-
-  const handleDocRead = (fileName: string) => {
-    window.open(`/uploads/${fileName}`, "_blank");
-  };
-
-  const handleDelete = async (fileName: string) => {
-    try {
-      const res = await fetch("/api/delete", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName }),
-      });
-
-      if (res.ok) {
-        // Remove deleted file from state so UI updates in real time
-        setFiles((prev) => prev.filter((file) => file.fileName !== fileName));
-      } else {
-        console.error("Failed to delete file");
-      }
-    } catch (err) {
-      console.error("Error deleting file", err);
+    function fetchFiles() {
+      const stored = JSON.parse(localStorage.getItem("taxDocs") || "[]");
+      setFiles(stored);
     }
+    fetchFiles();
+
+    const handleFilesUpdated = () => fetchFiles();
+    window.addEventListener("files-updated", handleFilesUpdated);
+
+    return () => {
+      window.removeEventListener("files-updated", handleFilesUpdated);
+    };
+  }, []);
+
+  const handleDocRead = (dataUrl: string) => {
+  const base64 = dataUrl.split(",")[1];
+  const byteCharacters = atob(base64);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  const byteArray = new Uint8Array(byteNumbers);
+  const blob = new Blob([byteArray], { type: "application/pdf" });
+  const blobUrl = URL.createObjectURL(blob);
+  window.open(blobUrl, "_blank");
+};
+
+  const handleDelete = (fileName: string) => {
+    const stored = JSON.parse(localStorage.getItem("taxDocs") || "[]");
+    const updated = stored.filter((file: FileItem) => file.fileName !== fileName);
+    localStorage.setItem("taxDocs", JSON.stringify(updated));
+    setFiles(updated);
   };
 
   return (
@@ -76,12 +73,15 @@ const TaxDocuments: NextPage = () => {
         <main className={styles.mainDashboard}>
           <div className={styles.taxDocumentsContainer}>
             <div className={styles.documentList}>
-              {files.map((doc) => (
+              {files.length === 0 ? (
+                  <p style={{ textAlign: "center" }}>Upload Tax document</p>
+              ) : (
+              files.map((doc) => (
                 <div key={doc.id} className={styles.documentItem}>
                   <div className={styles.documentIcon}>
                     <img src={"/pdfIcon.svg"} width={42} height={42} />
                   </div>
-                  <div className={styles.documentInfo} onClick={() => handleDocRead(doc.fileName)}
+                  <div className={styles.documentInfo} onClick={() => handleDocRead(doc.dataUrl)}
                     style={{ cursor: "pointer" }}>
                     <h4>{doc.name}</h4>
                     <p>{doc.fileName}</p>
@@ -119,7 +119,8 @@ const TaxDocuments: NextPage = () => {
                     </button>
                   </div>
                 </div>
-              ))}
+              ))
+            )}
             </div>
           </div>
 

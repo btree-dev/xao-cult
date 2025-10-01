@@ -16,6 +16,7 @@ const Negotiation: React.FC = () => {
         id: item.id,
         ticketsold: item.TicketsSold,
         totalrevenue: item.TotalRevenue,
+        source: "negotiation",
       },
     });
   };

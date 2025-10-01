@@ -16,6 +16,7 @@ const CurrentContract: React.FC = () => {
         id: contract.id,
         ticketsold: contract.TicketsSold,
         totalrevenue: contract.TotalRevenue,
+        source: "current",
       },
     });
   };

@@ -1,5 +1,5 @@
-//public-information-services/publinfodata.ts
-export const mainGenres = ["Rock", "Pop", "HipHop", "Electronic"];
+//public-information-services/publicinfodata.ts
+export const Genres = ["Classical", "Avant-garde", "Blues", "Country", "Easy Listening",  "Folk","Electronic", "R&B & Soul", "Jazz", "Hip hop","Metal","Pop",  "Rock",  "Punk", "World"];
 
 export const publicDocs =[
 {

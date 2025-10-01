@@ -7,19 +7,49 @@ import { EventDocs } from "../../backend/eventsdata";
 import CreateContractsection from "./create-contract-section";
 import { useRouter } from "next/router";
 import Scrollbar from "../../components/Scrollbar";
-
+import BlankNavbar from "../../components/BackNav";
 const Contractsdetail: React.FC = () => {
   const [party1, setParty1] = useState("");
   const [party2, setParty2] = useState("");
   const router = useRouter();
-  const { id, ticketsold, totalrevenue } = router.query;
-
-  // Find event by id
+  const { id, ticketsold, totalrevenue, source } = router.query;
   const eventDetail = EventDocs.find((event) => String(event.id) === String(id));
 
   const handleArbitrateClick = () => {
     router.push("/contracts/arbitrate");
   };
+  const renderButtons = () => {
+    if (source === "current") {
+      return (
+        <div className={styles.contractRow}>
+          <button type="button" className={styles.cancelButton}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className={styles.arbitrateButton}
+            onClick={handleArbitrateClick}
+          >
+            Arbitrate
+          </button>
+        </div>
+      );
+    } else if (source === "negotiation") {
+
+      return (
+        <div className={styles.contractRow}>
+          <button type="button" className={styles.cancelButton}>
+            Cancel
+          </button>
+        </div>
+      );
+    } else if (source === "past") {
+
+      return null;
+    }
+    return null;
+  };
+
 
   return (
     <Layout>
@@ -28,14 +58,12 @@ const Contractsdetail: React.FC = () => {
         <Head>
           <title>Contract Details - XAO Cult</title>
         </Head>
-        <ContractsNav />
+        <BlankNavbar pageTitle="Contract Details"/>
+
         <Scrollbar />
         <main className={styles.contractDetailcontainer}>
-          <div className={styles.topSection}>
-            <h1 className={styles.heading}>Contracts Details</h1>
-          </div>
 
-          {eventDetail && (
+          {eventDetail && ( 
             <div className={styles.ImageContainer}>
               <img
                 src={eventDetail.image}
@@ -74,18 +102,7 @@ const Contractsdetail: React.FC = () => {
             />
           </div>
           <CreateContractsection />
-          <div className={styles.contractRow}>
-            <button type="button" className={styles.cancelButton}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              className={styles.arbitrateButton}
-              onClick={handleArbitrateClick}
-            >
-              Arbitrate
-            </button>
-          </div>
+          {renderButtons()}
         </main>
       </div>
     </Layout>

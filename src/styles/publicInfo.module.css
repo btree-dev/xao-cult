@@ -8,6 +8,7 @@
   max-width: 400px;       
   margin-left: auto;      
   margin-right: auto;
+  margin-bottom: 60px;
 }
 
 
@@ -70,7 +71,7 @@
   border: 3px solid transparent;
   border-image: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
   border-image-slice: 1;
-  position: absolute;
+  position: absolute;     
   z-index: 10; 
 }
 
@@ -122,7 +123,7 @@
   border-radius: 30px;
   padding: 0.5rem 0.75rem;
   background: black;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   background-image: 
     linear-gradient(black, black), 
     linear-gradient(to right, #ff9900, #e100ff);
@@ -134,7 +135,7 @@
  display: flex;
   align-items: center;
   border-radius: 30px;
-  
+  flex: 2 1 0%;
   background: black;
   border: 2px solid transparent;
   background-image: 
@@ -143,6 +144,7 @@
   background-origin: border-box;
   background-clip: padding-box, border-box;
   min-width: 0; 
+   max-width: none;
 }
 
 .input {
@@ -322,8 +324,10 @@
 }
 
 .radiusInput {
-  flex: 1; /* smaller field */
+  flex: 1 1 0%;
   min-width: 0;
+  max-width: 170px;
+  margin-left: auto;
 }
 
 
@@ -334,6 +338,7 @@
 
 .formRow {
   display: flex;
+  flex-direction: row;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
@@ -456,8 +461,7 @@
   font-size: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
-  /* Gradient border */
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   background-image: 
     linear-gradient(#000000, #000000), 
     var(--main-gradient);
@@ -468,9 +472,11 @@
 .toggleRow {
   display: flex;
   align-items: center;   
-  justify-content: center; 
+  justify-content: space-between; 
   gap: 10px;             
   margin-top: 12px;
+  margin-left: 60px;
+  margin-right: 60px;
 }
 
 .toggleLabel {
@@ -484,7 +490,6 @@
   font-size: 16px;
   color: #ffffff;
   display: block;
-
 }
 
 .toggleSwitch {

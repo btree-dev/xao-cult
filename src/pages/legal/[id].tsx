@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import Layout from "../../components/Layout";
 import styles from "../../styles/Home.module.css";
-import docStyles from "../../styles/legalDocument.module.css";
+import docStyles from "../../styles/LegalDocument.module.css";
 import { legalDocs } from "../../backend/legaldata";
 import BackNavbar from "../../components/BackNav";
 import Scrollbar from "../../components/Scrollbar";
@@ -12,7 +12,7 @@ export default function LegalDocDetail() {
   const router = useRouter();
   const { id } = router.query;
 
-  // Find document by id
+ 
   const doc =
     typeof id === "string" ? legalDocs.find((d) => d.id === id) : null;
 
@@ -93,10 +93,6 @@ export default function LegalDocDetail() {
                 ))}
               </div>
             )}
-          </div>
-
-          <div className={docStyles.acceptButtoncontainer}>
-            <button className={styles.confirmButton}>Accept</button>
           </div>
         </main>
       </div>

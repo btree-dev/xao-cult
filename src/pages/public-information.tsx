@@ -6,7 +6,7 @@ import { useRouter } from "next/router";
 import Navbar from "../components/Navbar";
 import { supabase } from "../lib/supabase";
 
-import { publicDocs, mainGenres } from "../backend/public-information-services/publicinfodata";
+import { publicDocs, Genres } from "../backend/public-information-services/publicinfodata";
 
 import {
   handleWalletSelection,
@@ -21,6 +21,7 @@ import {
 } from "../backend/public-information-services/publicInfoServices";
 import BlankNavbar from "../components/BackNav";
 import Scrollbar from "../components/Scrollbar";
+import Layout from "../components/Layout";
 
 export default function PublicInfoPage() {
   const [loading, setLoading] = useState(true);
@@ -88,6 +89,7 @@ export default function PublicInfoPage() {
   }
 
   return (
+    <Layout>
     <div className={styles.container}>
       <div className={styles.background} />
       <Head>
@@ -128,8 +130,6 @@ export default function PublicInfoPage() {
                 </svg>
               </button>
             </div>
-
-            {/* Profile image section with arrows */}
             <div className={styles.profileImageSection}>
               <button type="button" className={styles.arrowButton} onClick={() => handlePrev(setCurrentIndex, identities)}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -259,14 +259,14 @@ export default function PublicInfoPage() {
                 placeholder="City / Zipcode"
                 value={currentIdentity.location}
                 onChange={(e) => updateIdentityField("location", e.target.value, identities,currentIndex,setIdentities)}
-                className={`${styles.input} ${styles.readOnlyInput}  ${styles.locationInput}`}
-                readOnly
+                className={`${styles.input} ${styles.locationInput}`}
+                
               />
             </div>
           </div>
           <div className={styles.inputGroup}>
               <label className={styles.label}>Radius</label>
-              <div className={`${styles.inputRow} `}>
+              <div className={`${styles.inputRow } `}>
               <select
                 value={currentIdentity.radius}
                 onChange={(e) => updateIdentityField("radius", e.target.value, identities,currentIndex,setIdentities)}
@@ -285,7 +285,7 @@ export default function PublicInfoPage() {
           <div className={styles.formGroup}>
             <label className={styles.formLabel}>Genre</label>
             <div className={styles.genrePillsContainer}>
-              {mainGenres.map((genre) => (
+              {Genres.map((genre) => (
                 <button
                   key={genre}
                   type="button"
@@ -463,5 +463,6 @@ export default function PublicInfoPage() {
         </form>
       </main>
     </div>
+    </Layout>
   );
 }

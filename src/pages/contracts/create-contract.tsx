@@ -45,7 +45,7 @@ const CreateContract = () => {
                 }`}
                 onClick={() => setSelected("contract")}
               >
-                Contract
+                Contract 
               </button>
             </div>
           </div>

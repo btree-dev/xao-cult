@@ -85,7 +85,6 @@ const ContractsNav: React.FC = () => {
             height={40}
           />
         </span>
-        <Image src="/contracts-nav/Notification.svg" alt="Search" width={40} height={40} />
       </div>
     </nav>
   );

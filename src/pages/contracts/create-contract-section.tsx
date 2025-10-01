@@ -30,10 +30,17 @@ const CreateContractsection = ({}) => {
   const [general, setGeneral] = useState("");
   const [presale, setPresale] = useState("");
   const [add, setAdd] = useState("");
-  const [isAddEnabled, setIsAddEnabled] = useState(false);
+  const [isTicketEnabled, setticketsEnabled] = useState(false);
   const [moneyInput, setmoneyInput] = useState("");
+  const [venueCanceledBy, setvenueCanceledBy] = useState("");
   const [securitydepositAdd, setsecuritydepositAdd] = useState("");
   const [canceledbyAdd, setcanceledbyAdd] = useState("");
+  const [depositbandInput, setdepositbandInput] = useState("");
+  const [bandCanceledBy, setbandCanceledBy] = useState("");
+  const [guaranteeInput, setguaranteeInput] = useState("");
+  const [advanceInput, setAdvanceInput] = useState("");
+  const [backendInput, setBackendInput] = useState("");
+  const [barsplitInput, setBarsplitInput] = useState("");
   const [RiderAdd, setRiderAdd] = useState("");
   const [RiderValue, setRiderValue] = useState("");
   const [promotionValue, setPromotionValue] = useState("");
@@ -42,7 +49,7 @@ const CreateContractsection = ({}) => {
   const dateInputRef = useRef<HTMLInputElement | null>(null);
   const ticketsSaleDateInputRef = useRef<HTMLInputElement | null>(null);
   const showDateInputRef = useRef<HTMLInputElement | null>(null);
-  const DocHeader = ({
+  const SectionHeader = ({
     label,
     isOpen,
     onToggle,
@@ -83,8 +90,8 @@ const CreateContractsection = ({}) => {
   }, [activeDropdown]);
   return (
     <div className={styles.sectioncontainer}>
-      <div className={styles.docContainer}>
-          <DocHeader
+      <div className={`${styles.docContainer} ${isDatesTimeOpen ? styles.open : styles.closed}`}>
+          <SectionHeader
           label="Dates and Time"
           isOpen={isDatesTimeOpen}
           onToggle={() => setIsDatesTimeOpen(!isDatesTimeOpen)}
@@ -440,8 +447,8 @@ const CreateContractsection = ({}) => {
           </>
         )}
       </div>
-      <div className={styles.docContainer}>
-        <DocHeader
+      <div className={`${styles.docContainer} ${isLocationOpen ? styles.open : styles.closed}`}>
+        <SectionHeader
         label="Location"
         isOpen={isLocationOpen}
         onToggle={() => setIsLocationOpen(!isLocationOpen)}
@@ -449,7 +456,7 @@ const CreateContractsection = ({}) => {
 
         {isLocationOpen && (
           <>
-            <div className={styles.inputRow}>
+            <div className={styles.dropdownInput}>
               <button type="button" className={styles.contracticon}>
                 <Image
                   src="/contracts-Icons/Building_01.svg"
@@ -470,7 +477,27 @@ const CreateContractsection = ({}) => {
                 alt="Dropdown"
                 width={24}
                 height={24}
+                style={{ cursor: "pointer" }}
+                onClick={() =>
+                  setActiveDropdown(activeDropdown === "venueName" ? null : "venueName")
+                }
               />
+              {activeDropdown === "venueName" && (
+                <div className={styles.dropdownMenu}>
+                  {dropdownOptions.map((option) => (
+                    <div
+                      key={option}
+                      className={styles.dropdownOption}
+                      onClick={() => {
+                        setVenueName(option);
+                        setActiveDropdown(null);
+                      }}
+                    >
+                      {option}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className={styles.inputRow}>
               <button type="button" className={styles.contracticon}>
@@ -498,20 +525,20 @@ const CreateContractsection = ({}) => {
           </>
         )}
       </div>
-      <div className={styles.docContainer}>
-        <DocHeader
+      <div className={`${styles.docContainer} ${isTicketsOpen ? styles.open : styles.closed}`}>
+        <SectionHeader
         label="Tickets"
         isOpen={isTicketsOpen}
         onToggle={() => setIsTicketsOpen(!isTicketsOpen)}
-      />
-
+        />
         {isTicketsOpen && (
           <>
             <div className={styles.contractRow}>
-              <div className={styles.contractInput}>
+              <div className={styles.dropdownInput}>
                 <input
                   type="text"
                   placeholder="Total Capacity"
+                  value={totalCapacity}
                   onChange={(e) => setTotalCapacity(e.target.value)}
                   className={styles.input}
                   required
@@ -521,15 +548,33 @@ const CreateContractsection = ({}) => {
                   alt="Dropdown"
                   width={24}
                   height={24}
+                  style={{ cursor: "pointer" }}
+                  onClick={() =>
+                    setActiveDropdown(activeDropdown === "totalCapacity" ? null : "totalCapacity")
+                  }
                 />
+                {activeDropdown === "totalCapacity" && (
+                  <div className={styles.dropdownMenu}>
+                    {dropdownOptions.map((option) => (
+                      <div
+                        key={option}
+                        className={styles.dropdownOption}
+                        onClick={() => {
+                          setTotalCapacity(option);
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        {option}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className={styles.contractInput}>
-                <button type="button" className={styles.contracticon}>
-                  
-                </button>
+              <div className={styles.dropdownInput}>
                 <input
                   type="text"
                   placeholder="Comps"
+                  value={comps}
                   onChange={(e) => setComps(e.target.value)}
                   className={styles.input}
                   required
@@ -539,11 +584,31 @@ const CreateContractsection = ({}) => {
                   alt="Dropdown"
                   width={24}
                   height={24}
+                  style={{ cursor: "pointer" }}
+                  onClick={() =>
+                    setActiveDropdown(activeDropdown === "comps" ? null : "comps")
+                  }
                 />
+                {activeDropdown === "comps" && (
+                  <div className={styles.dropdownMenu}>
+                    {dropdownOptions.map((option) => (
+                      <div
+                        key={option}
+                        className={styles.dropdownOption}
+                        onClick={() => {
+                          setComps(option);
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        {option}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <div className={styles.contractRow}>
-              <div className={styles.contractInput}>
+              <div className={styles.dropdownInput}>
                 <button type="button" className={styles.contracticon}>
                   <Image
                     src="/contracts-Icons/Calendar.svg"
@@ -555,6 +620,7 @@ const CreateContractsection = ({}) => {
                 <input
                   type="text"
                   placeholder="General"
+                  value={general}
                   onChange={(e) => setGeneral(e.target.value)}
                   className={styles.input}
                   required
@@ -564,9 +630,29 @@ const CreateContractsection = ({}) => {
                   alt="Dropdown"
                   width={24}
                   height={24}
+                  style={{ cursor: "pointer" }}
+                  onClick={() =>
+                    setActiveDropdown(activeDropdown === "general" ? null : "general")
+                  }
                 />
+                {activeDropdown === "general" && (
+                  <div className={styles.dropdownMenu}>
+                    {dropdownOptions.map((option) => (
+                      <div
+                        key={option}
+                        className={styles.dropdownOption}
+                        onClick={() => {
+                          setGeneral(option);
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        {option}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className={styles.contractInput}>
+              <div className={styles.dropdownInput}>
                 <button type="button" className={styles.contracticon}>
                   <Image
                     src="/contracts-Icons/Calendar.svg"
@@ -578,6 +664,7 @@ const CreateContractsection = ({}) => {
                 <input
                   type="text"
                   placeholder="Presale"
+                  value={presale}
                   onChange={(e) => setPresale(e.target.value)}
                   className={styles.input}
                   required
@@ -587,7 +674,27 @@ const CreateContractsection = ({}) => {
                   alt="Dropdown"
                   width={24}
                   height={24}
+                  style={{ cursor: "pointer" }}
+                  onClick={() =>
+                    setActiveDropdown(activeDropdown === "presale" ? null : "presale")
+                  }
                 />
+                {activeDropdown === "presale" && (
+                  <div className={styles.dropdownMenu}>
+                    {dropdownOptions.map((option) => (
+                      <div
+                        key={option}
+                        className={styles.dropdownOption}
+                        onClick={() => {
+                          setPresale(option);
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        {option}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <div className={styles.contractRow}>
@@ -607,41 +714,33 @@ const CreateContractsection = ({}) => {
                   className={styles.input}
                   required
                 />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                />
               </div>
               <div className={styles.toggleRow}>
-                
                 <input
                   type="checkbox"
                   className={styles.toggleSwitch}
-                  checked={isAddEnabled}
-                  onChange={(e) => setIsAddEnabled(e.target.checked)}
+                  checked={isTicketEnabled}
+                  onChange={(e) => setticketsEnabled(e.target.checked)}
                 />
               </div>
             </div>
           </>
         )}
       </div>
-      <div className={styles.docContainer}>
-        <DocHeader
+      <div className={`${styles.docContainer} ${isMoneyOpen ? styles.open : styles.closed}`}>
+        <SectionHeader
         label="Money"
         isOpen={isMoneyOpen}
         onToggle={() => setIsMoneyOpen(!isMoneyOpen)}
       />
-
-        {isMoneyOpen && (
+      {isMoneyOpen && (
           <>
           <label
             className={`${styles.LeftLabel} ${isMoneyOpen ? styles.open : ''}`}>
             Security deposit Venue
           </label>
             <div className={styles.contractRow}>
-              <div className={styles.contractInput}>
+              <div className={styles.dropdownInput}>
                 <button type="button" className={styles.contracticon}>
                   <Image
                     src="/contracts-Icons/calendar.svg"
@@ -662,7 +761,27 @@ const CreateContractsection = ({}) => {
                   alt="Dropdown"
                   width={24}
                   height={24}
+                  style={{ cursor: "pointer" }}
+                  onClick={() =>
+                  setActiveDropdown(activeDropdown === "moneyInput" ? null : "moneyInput")
+                  }
                 />
+                {activeDropdown === "moneyInput" && (
+                <div className={styles.dropdownMenu}>
+                  {dropdownOptions.map((option) => (
+                    <div
+                      key={option}
+                      className={styles.dropdownOption}
+                      onClick={() => {
+                        setmoneyInput(option);
+                        setActiveDropdown(null);
+                      }}
+                    >
+                      {option}
+                    </div>
+                  ))}
+                </div>
+              )}
               </div>
               <div className={styles.contractInput}>
                 <input
@@ -699,7 +818,7 @@ const CreateContractsection = ({}) => {
             If canceled by
           </label>
           <div className={styles.contractRow}>
-              <div className={styles.contractInput}>
+              <div className={styles.dropdownInput}>
                 <button type="button" className={styles.contracticon}>
                   <Image
                     src="/contracts-Icons/calendar.svg"
@@ -711,7 +830,7 @@ const CreateContractsection = ({}) => {
                 <input
                   type="text"
                   placeholder="30%"
-                  onChange={(e) => setmoneyInput(e.target.value)}
+                  onChange={(e) => setvenueCanceledBy(e.target.value)}
                   className={styles.input}
                   required
                 />
@@ -720,7 +839,27 @@ const CreateContractsection = ({}) => {
                   alt="Dropdown"
                   width={24}
                   height={24}
+                  style={{ cursor: "pointer" }}
+                  onClick={() =>
+                  setActiveDropdown(activeDropdown === "30%" ? null : "30%")
+                  }
                 />
+                {activeDropdown === "30%" && (
+                <div className={styles.dropdownMenu}>
+                  {dropdownOptions.map((option) => (
+                    <div
+                      key={option}
+                      className={styles.dropdownOption}
+                      onClick={() => {
+                        setvenueCanceledBy(option);
+                        setActiveDropdown(null);
+                      }}
+                    >
+                      {option}
+                    </div>
+                  ))}
+                </div>
+              )}
               </div>
               <div className={styles.contractInput}>
                 <input
@@ -756,7 +895,7 @@ const CreateContractsection = ({}) => {
             Security deposit Band
           </label>
             <div className={styles.contractRow}>
-              <div className={styles.contractInput}>
+              <div className={styles.dropdownInput}>
                 <button type="button" className={styles.contracticon}>
                   <Image
                     src="/contracts-Icons/calendar.svg"
@@ -768,7 +907,7 @@ const CreateContractsection = ({}) => {
                 <input
                   type="text"
                   placeholder="30%"
-                  onChange={(e) => setmoneyInput(e.target.value)}
+                  onChange={(e) => setdepositbandInput(e.target.value)}
                   className={styles.input}
                   required
                 />
@@ -777,7 +916,27 @@ const CreateContractsection = ({}) => {
                   alt="Dropdown"
                   width={24}
                   height={24}
+                  style={{ cursor: "pointer" }}
+                  onClick={() =>
+                    setActiveDropdown(activeDropdown === "depositbandInput" ? null : "depositbandInput")
+                  }
                 />
+                {activeDropdown === "depositbandInput" && (
+                  <div className={styles.dropdownMenu}>
+                    {dropdownOptions.map((option) => (
+                      <div
+                        key={option}
+                        className={styles.dropdownOption}
+                        onClick={() => {
+                          setdepositbandInput(option);
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        {option}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className={styles.contractInput}>
                 <input
@@ -814,7 +973,7 @@ const CreateContractsection = ({}) => {
             If canceled by
           </label>
           <div className={styles.contractRow}>
-              <div className={styles.contractInput}>
+              <div className={styles.dropdownInput}>
                 <button type="button" className={styles.contracticon}>
                   <Image
                     src="/contracts-Icons/calendar.svg"
@@ -826,7 +985,7 @@ const CreateContractsection = ({}) => {
                 <input
                   type="text"
                   placeholder="30%"
-                  onChange={(e) => setmoneyInput(e.target.value)}
+                  onChange={(e) => setbandCanceledBy(e.target.value)}
                   className={styles.input}
                   required
                 />
@@ -835,7 +994,27 @@ const CreateContractsection = ({}) => {
                   alt="Dropdown"
                   width={24}
                   height={24}
+                  style={{ cursor: "pointer" }}
+                  onClick={() =>
+                  setActiveDropdown(activeDropdown === "bandCanceledBy" ? null : "bandCanceledBy")
+                  }
                 />
+                {activeDropdown === "bandCanceledBy" && (
+                <div className={styles.dropdownMenu}>
+                  {dropdownOptions.map((option) => (
+                    <div
+                      key={option}
+                      className={styles.dropdownOption}
+                      onClick={() => {
+                        setbandCanceledBy(option);
+                        setActiveDropdown(null);
+                      }}
+                    >
+                      {option}
+                    </div>
+                  ))}
+                </div>
+              )}
               </div>
               <div className={styles.contractInput}>
                 <input
@@ -871,19 +1050,19 @@ const CreateContractsection = ({}) => {
             Guarantee $
           </label>
           <div className={styles.contractRow}>
-              <div className={styles.contractInput}>
-                <button type="button" className={styles.contracticon}>
+              <div className={styles.dropdownInput}>
                   <Image
                     src="/contracts-Icons/calendar.svg"
                     alt="moneyInput"
                     width={24}
                     height={24}
                   />
-                </button>
+                
                 <input
                   type="text"
                   placeholder="30%"
-                  onChange={(e) => setmoneyInput(e.target.value)}
+                  value={guaranteeInput}
+                  onChange={(e) => setguaranteeInput(e.target.value)}
                   className={styles.input}
                   required
                 />
@@ -892,7 +1071,27 @@ const CreateContractsection = ({}) => {
                   alt="Dropdown"
                   width={24}
                   height={24}
+                  style={{ cursor: "pointer" }}
+                  onClick={() =>
+                  setActiveDropdown(activeDropdown === "guaranteeInput" ? null : "guaranteeInput")
+                  }
                 />
+                {activeDropdown === "guaranteeInput" && (
+                <div className={styles.dropdownMenu}>
+                  {dropdownOptions.map((option) => (
+                    <div
+                      key={option}
+                      className={styles.dropdownOption}
+                      onClick={() => {
+                        setguaranteeInput(option);
+                        setActiveDropdown(null);
+                      }}
+                    >
+                      {option}
+                    </div>
+                  ))}
+                </div>
+              )}
               </div>
               <div className={styles.contractInput}>
                 <input
@@ -921,7 +1120,8 @@ const CreateContractsection = ({}) => {
                 <input
                   type="text"
                   placeholder="30%"
-                  onChange={(e) => setmoneyInput(e.target.value)}
+                  value={advanceInput}
+                  onChange={(e) => setAdvanceInput(e.target.value)}
                   className={styles.input}
                   required
                 />
@@ -930,7 +1130,27 @@ const CreateContractsection = ({}) => {
                   alt="Dropdown"
                   width={24}
                   height={24}
+                  style={{ cursor: "pointer" }}
+                  onClick={() =>
+                  setActiveDropdown(activeDropdown === "advanceInput" ? null : "advanceInput")
+                  }
                 />
+                {activeDropdown === "advanceInput" && (
+                <div className={styles.dropdownMenu}>
+                  {dropdownOptions.map((option) => (
+                    <div
+                      key={option}
+                      className={styles.dropdownOption}
+                      onClick={() => {
+                        setAdvanceInput(option);
+                        setActiveDropdown(null);
+                      }}
+                    >
+                      {option}
+                    </div>
+                  ))}
+                </div>
+              )}
               </div>
               <div className={styles.contractInput}>
                 <input
@@ -947,7 +1167,7 @@ const CreateContractsection = ({}) => {
             Backend
           </label>
           <div className={styles.contractRow}>
-              <div className={styles.contractInput}>
+              <div className={styles.dropdownInput}>
                 <button type="button" className={styles.contracticon}>
                   <Image
                     src="/contracts-Icons/calendar.svg"
@@ -959,7 +1179,8 @@ const CreateContractsection = ({}) => {
                 <input
                   type="text"
                   placeholder="30%"
-                  onChange={(e) => setmoneyInput(e.target.value)}
+                  value={backendInput}
+                  onChange={(e) => setBackendInput(e.target.value)}
                   className={styles.input}
                   required
                 />
@@ -968,7 +1189,27 @@ const CreateContractsection = ({}) => {
                   alt="Dropdown"
                   width={24}
                   height={24}
+                  style={{ cursor: "pointer" }}
+                  onClick={() =>
+                  setActiveDropdown(activeDropdown === "backendInput" ? null : "backendInput")
+                  }
                 />
+                {activeDropdown === "backendInput" && (
+                <div className={styles.dropdownMenu}>
+                  {dropdownOptions.map((option) => (
+                    <div
+                      key={option}
+                      className={styles.dropdownOption}
+                      onClick={() => {
+                        setBackendInput(option);
+                        setActiveDropdown(null);
+                      }}
+                    >
+                      {option}
+                    </div>
+                  ))}
+                </div>
+              )}
               </div>
               <div className={styles.contractInput}>
                 <input
@@ -997,7 +1238,7 @@ const CreateContractsection = ({}) => {
                 <input
                   type="text"
                   placeholder="30%"
-                  onChange={(e) => setmoneyInput(e.target.value)}
+                  onChange={(e) => setBarsplitInput(e.target.value)}
                   className={styles.input}
                   required
                 />
@@ -1013,8 +1254,8 @@ const CreateContractsection = ({}) => {
             )}
             </div>
 
-            <div className={styles.docContainer}>
-            <DocHeader
+            <div className={`${styles.docContainer} ${isPaymentsOpen ? styles.open : styles.closed}`}>
+            <SectionHeader
             label="Payments"
             isOpen={isPaymentsOpen}
             onToggle={() => setIsPaymentsOpen(!isPaymentsOpen)}
@@ -1130,8 +1371,8 @@ const CreateContractsection = ({}) => {
                       </>
                     )}
                   </div>
-          <div className={styles.docContainer}>
-          <DocHeader
+          <div className={`${styles.docContainer} ${isPromotionOpen ? styles.open : styles.closed}`}>
+          <SectionHeader
                   label="Promotion"
                   isOpen={isPromotionOpen}
                   onToggle={() => setIsPromotionOpen(!isPromotionOpen)}
@@ -1173,8 +1414,8 @@ const CreateContractsection = ({}) => {
           )}
         </div>
 
-        <div className={styles.docContainer}>
-          <DocHeader
+        <div className={`${styles.docContainer} ${isRiderOpen ? styles.open : styles.closed}`}>
+          <SectionHeader
                   label="Rider"
                   isOpen={isRiderOpen}
                   onToggle={() => setIsRiderOpen(!isRiderOpen)}
@@ -1215,8 +1456,8 @@ const CreateContractsection = ({}) => {
           )}
         </div>
 
-        <div className={styles.docContainer}>
-          <DocHeader
+        <div className={`${styles.docContainer} ${isLegalAgreementOpen ? styles.open : styles.closed}`}>
+          <SectionHeader
                   label="Legal Agreement"
                   isOpen={isLegalAgreementOpen}
                   onToggle={() => setIsLegalAgreementOpen(!isLegalAgreementOpen)}

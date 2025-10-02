@@ -630,11 +630,11 @@
   padding: 0.5rem 1rem;
   margin-bottom: 8px;
   max-width: 80%;
-  align-self: flex-start; /* align at left side */
+  align-self: flex-start;
   font-size: 1rem;
   word-break: break-word;
   width: fit-content;
-  border: none; /* no border */
+  border: none; 
 }
 
 .dropdownInput {

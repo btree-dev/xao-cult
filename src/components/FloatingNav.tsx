@@ -8,7 +8,7 @@ const FloatingNav = () => {
     {
       id: 'home',
       title: 'Home',
-      routes: ['/dashboard1'],
+      routes: ['/contracts/create-contract'],
       icon: '/floating-nav/home.svg',
       iconSelected: '/floating-nav/home-selected.svg',
     },

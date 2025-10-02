@@ -51,10 +51,12 @@
   font-size: 18px;
   font-weight: 600;
   margin: 0;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 150px;
+  white-space: pre-line;   /* ⬅️ allows "\n" to render as a line break */
+  text-align: center;
+  line-height: 1.2;
 }
 
 .navButton {
@@ -143,10 +145,6 @@
     height: 36px;
   }
   
-  .pageTitle {
-    font-size: 16px;
-    max-width: 120px;
-  }
 }
 
 @media (max-width: 480px) {
@@ -282,8 +280,11 @@
   }
   
   .cancelButton,
-  .confirmButton {
+  .confirmButton{
     width: 100%;
     padding: 10px;
   }
 } 
+
+/* End of Navbar.module.css */
+

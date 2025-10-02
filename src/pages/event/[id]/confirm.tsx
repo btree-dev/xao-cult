@@ -1,84 +1,102 @@
-import type { NextPage } from 'next';
-import Head from 'next/head';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
-import Image from 'next/image';
-import styles from '../../../styles/Home.module.css';
-import { supabase } from '../../../lib/supabase';
-import Navbar from '../../../components/Navbar';
+// pages/event/[id]/confirm.tsx
+import type { NextPage } from "next";
+import Head from "next/head";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import styles from "../../../styles/Home.module.css";
+import Navbar from "../../../components/Navbar";
 
 const PurchaseConfirmation: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<any>(null);
+  const [selectedTickets, setSelectedTickets] = useState<any[]>([]);
   const router = useRouter();
-  const { id } = router.query;
+  const { id, tickets } = router.query;
 
+  // ✅ Parse tickets from query
   useEffect(() => {
-    const fetchEvent = async () => {
-      if (!id) return;
-      
-      setLoading(true);
+    if (tickets) {
       try {
-        // In a real app, this would fetch the event from the database
-        // For now, we'll use mock data based on the event ID
-        let mockEvent;
-        
-        if (id === 'rivo-event-1') {
-          mockEvent = {
-            id,
-            title: 'Rivo Open Air',
-            date: '5th December',
-            time: '06:30PM',
-            location: 'Wembley Stadium, London',
-            image: 'https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-            ticketPrice: 50.00
-          };
-        } else if (id === 'xao-event-1') {
-          mockEvent = {
-            id,
-            title: 'XAO Festival',
-            date: '15th December',
-            time: '08:00PM',
-            location: 'O2 Arena, London',
-            image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 65.00
-          };
-        } else if (id === 'edm-event-1') {
-          mockEvent = {
-            id,
-            title: 'Electric Dreams',
-            date: '20th January',
-            time: '09:00PM',
-            location: 'Alexandra Palace, London',
-            image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 45.00
-          };
-        } else {
-          // Default event if ID doesn't match
-          mockEvent = {
-            id,
-            title: 'Rivo Open Air',
-            date: '5th December',
-            time: '06:30PM',
-            location: 'Wembley Stadium, London',
-            image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 50.00
-          };
-        }
-        
-        setEvent(mockEvent);
-      } catch (error) {
-        console.error('Error fetching event:', error);
-      } finally {
-        setLoading(false);
+        const parsed = JSON.parse(tickets as string);
+        setSelectedTickets(parsed);
+      } catch (e) {
+        console.error("Error parsing tickets:", e);
       }
-    };
-    
-    fetchEvent();
+    }
+  }, [tickets]);
+
+  // ✅ Mock event fetch (replace with real API later)
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      let mockEvent;
+      if (id === "rivo-event-1") {
+        mockEvent = {
+          id,
+          title: "Rivo Open Air",
+          date: "5th December",
+          time: "06:30PM",
+          location: "Wembley Stadium, London",
+          image:
+            "https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop",
+          ticketPrice: 50.0,
+        };
+      } else if (id === "xao-event-1") {
+        mockEvent = {
+          id,
+          title: "XAO Festival",
+          date: "15th December",
+          time: "08:00PM",
+          location: "O2 Arena, London",
+          image:
+            "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80",
+          ticketPrice: 65.0,
+        };
+      } else if (id === "edm-event-1") {
+        mockEvent = {
+          id,
+          title: "Electric Dreams",
+          date: "20th January",
+          time: "09:00PM",
+          location: "Alexandra Palace, London",
+          image:
+            "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1740&q=80",
+          ticketPrice: 45.0,
+        };
+      } else {
+        mockEvent = {
+          id,
+          title: "Rivo Open Air",
+          date: "5th December",
+          time: "06:30PM",
+          location: "Wembley Stadium, London",
+          image:
+            "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80",
+          ticketPrice: 50.0,
+        };
+      }
+      setEvent(mockEvent);
+    } catch (error) {
+      console.error("Error fetching event:", error);
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
-  const handleBackToDashboard = () => {
-    router.push('/dashboard');
+  // ✅ confirm purchase
+  const handleConfirm = () => {
+    router.push({
+      pathname: `/event/${id}/ticket-confirmation`,
+      query: {
+        event: event.title,
+        date: event.date,
+        time: event.time,
+        image: event.image,
+        location: event.location,
+        tickets: JSON.stringify(selectedTickets),
+      },
+    });
   };
 
   if (loading || !event) {
@@ -92,6 +110,12 @@ const PurchaseConfirmation: NextPage = () => {
     );
   }
 
+  // ✅ calculate total dynamically
+  const totalAmount = selectedTickets.reduce(
+    (sum, t) => sum + t.count * t.price,
+    0
+  );
+
   return (
     <div className={styles.confirmationContainer}>
       <div className={styles.background} />
@@ -101,65 +125,157 @@ const PurchaseConfirmation: NextPage = () => {
         <link href="/favicon.ico" rel="icon" />
       </Head>
 
-      <Navbar showBackButton={true} pageTitle="Confirm Purchase" />
+      <Navbar showBackButton={true} pageTitle={"Confirm Purchase"} />
 
-      <div 
-        className={styles.confirmOverlayContainer}
-        style={{ 
-          position: 'fixed',
-          top: '60px',
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundImage: `url('${event.image}')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          zIndex: 1
-        }}
-      >
+      <div className={styles.Card}>
         <div
+          className={styles.bookingDetailsCard}
           style={{
-            position: 'absolute',
-            top: 0,
+            position: "fixed",
+            top: "60px",
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '20px',
-            zIndex: 2
+            backgroundImage: `url('${event.image}')`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            zIndex: 1,
           }}
         >
-          <h1 className={styles.feedEventTitle} style={{ marginBottom: '20px' }}>{event.title}</h1>
-          
-          <div className={styles.confirmationContent} style={{ 
-            background: 'transparent',
-            width: '100%',
-            maxWidth: '400px',
-            marginBottom: '20px'
-          }}>
-            <div className={styles.confirmationEventInfo}>
-              <div className={styles.ticketTypeInfo}>
-                <span className={styles.ticketTypeName}>General Admission</span>
-                <span className={styles.ticketTypeVersion}>v2</span>
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.7)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: "20px",
+              zIndex: 2,
+              gap: "12px", // ✅ uniform spacing
+            }}
+          >
+            {/* ✅ Event Title */}
+            <div className={styles.confirmationHeaderTitle}>
+              <h1>{event.title}</h1>
+            </div>
+
+            {/* ✅ Ticket Breakdown + Total in same container */}
+            <div
+              className={styles.confirmationContent}
+              style={{
+                background: "transparent",
+                width: "100%",
+                maxWidth: "400px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px", // ✅ keeps equal spacing
+              }}
+            >
+              {selectedTickets.map((t, index) => (
+                <div
+                  key={index}
+                  className={styles.detailRow}
+                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  <div className={styles.detailIcon}>
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <defs>
+                        <linearGradient
+                          id={`ticketGradient-${index}`}
+                          x1="0"
+                          y1="0"
+                          x2="1"
+                          y2="1"
+                        >
+                          <stop offset="0%" stopColor="#FF8A00" />
+                          <stop offset="50%" stopColor="#FF5F6D" />
+                          <stop offset="100%" stopColor="#A557FF" />
+                        </linearGradient>
+                      </defs>
+                      <rect
+                        x="3"
+                        y="4"
+                        width="18"
+                        height="18"
+                        rx="2"
+                        stroke={`url(#ticketGradient-${index})`}
+                        strokeWidth="3"
+                      />
+                      <path
+                        d="M16 2v4M8 2v4M3 10h18"
+                        stroke={`url(#ticketGradient-${index})`}
+                        strokeWidth="2"
+                      />
+                    </svg>
+                  </div>
+
+                  <span className={styles.ticketTypeName}>
+                    Ticket(s): {t.type} × {t.count}
+                  </span>
+                </div>
+              ))}
+
+              {/* ✅ Total Summary - now no extra gap */}
+              <div
+                className={styles.detailRow}
+                style={{ display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                <div className={styles.detailIcon}>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="url(#dollarGradient)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <defs>
+                      <linearGradient
+                        id="dollarGradient"
+                        x1="0%"
+                        y1="0%"
+                        x2="100%"
+                        y2="100%"
+                      >
+                        <stop offset="0%" stopColor="#FF8A00" />
+                        <stop offset="50%" stopColor="#FF5F6D" />
+                        <stop offset="100%" stopColor="#A557FF" />
+                      </linearGradient>
+                    </defs>
+                    <line x1="12" y1="1" x2="12" y2="23" />
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                </div>
+                <span className={styles.summaryLabel}>Total:</span>
+                <span className={styles.summaryValue}>
+                  ${totalAmount.toFixed(2)}
+                </span>
               </div>
             </div>
 
-            <div className={styles.confirmationSummary}>
-              <div className={styles.summaryRow}>
-                <span className={styles.summaryLabel}>Total:</span>
-                <span className={styles.summaryValue}>${event.ticketPrice.toFixed(2)}</span>
-              </div>
+            {/* ✅ Confirm Button */}
+            <div
+              className={styles.confirmButtonContainer}
+              style={{ position: "relative", bottom: "auto" }}
+            >
+              <button className={styles.confirmButton} onClick={handleConfirm}>
+                Confirm Purchase
+              </button>
             </div>
-          </div>
-          
-          <div className={styles.confirmButtonContainer} style={{ position: 'relative', bottom: 'auto' }}>
-            <button className={styles.confirmButton} onClick={handleBackToDashboard}>
-              Confirm Purchase
-            </button>
           </div>
         </div>
       </div>
@@ -167,4 +283,4 @@ const PurchaseConfirmation: NextPage = () => {
   );
 };
 
-export default PurchaseConfirmation; 
+export default PurchaseConfirmation;

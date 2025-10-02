@@ -67,9 +67,9 @@ const StatsNav = () => {
 
   const go = (route: Url) => {
     if (typeof route === 'string') {
-      router.push(route);
+      router.replace(route);
     } else {
-      router.push(route);
+      router.replace(route);
     }
   };
 

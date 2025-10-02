@@ -3,8 +3,7 @@ import BackNavbar from "../../components/BackNav";
 import Layout from "../../components/Layout";
 import Head from "next/head";
 import styles from "../../styles/CreateContract.module.css";
-import Scrollbar from "../../components/Scrollbar";
-import MessageScrollbar from "../../components/MessageScrollbar";
+
 
 const Arbitrate: React.FC = () => {
   const [message, setMessage] = useState("");
@@ -30,8 +29,8 @@ const Arbitrate: React.FC = () => {
       <div className={styles.container}>
         <div className={styles.background} />
         <Head>
-          <title>Tax Documents - XAO Cult</title>
-          <meta name="description" content="Tax Documents" />
+          <title>Arbitrate Chat - XAO Cult</title>
+          <meta name="description" content="Arbitrate Chat" />
           <link rel="icon" href="/favicon.ico" />
         </Head>
         <BackNavbar

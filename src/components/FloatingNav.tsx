@@ -4,11 +4,20 @@ import styles from '../styles/FloatingNav.module.css';
 const FloatingNav = () => {
   const router = useRouter();
 
+  const homeRoutes = [
+    '/contracts/create-contract',
+    '/contracts/Negotiation',
+    '/contracts/current-contract',
+    '/contracts/past-contracts',
+    '/contracts/arbitrate',
+    '/contracts/contracts-detail'
+  ];
+
   const navItems = [
     {
       id: 'home',
       title: 'Home',
-      routes: ['/contracts/create-contract'],
+      routes: homeRoutes,
       icon: '/floating-nav/home.svg',
       iconSelected: '/floating-nav/home-selected.svg',
     },
@@ -59,4 +68,3 @@ const FloatingNav = () => {
 };
 
 export default FloatingNav;
-

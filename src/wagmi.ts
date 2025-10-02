@@ -5,10 +5,25 @@ import {
   mainnet,
   optimism,
   polygon,
-  sepolia,
-  baseSepolia, 
-} from 'wagmi/chains';
-
+  sepolia, 
+} from "@wagmi/chains";
+import { type Chain } from 'viem';
+export const baseSepolia: Chain = {
+  id: 84531, 
+  name: 'Base Sepolia',
+  nativeCurrency: {
+    name: 'Base Sepolia Ether',
+    symbol: 'ETH',
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: { http: ['YOUR_RPC_URL'] }, 
+    public: { http: ['YOUR_RPC_URL'] },
+  },
+  blockExplorers: {
+    default: { name: 'BaseSepoliaScan', url: 'https://sepolia.basescan.org/' },
+  },
+};
 export const config = getDefaultConfig({
   appName: 'RainbowKit App',
   projectId: 'YOUR_PROJECT_ID',

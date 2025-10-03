@@ -227,7 +227,7 @@ const BackNavbar: React.FC<BackNavbarProps> = ({
           )}
           {showRectangleRight && (
           <Image
-            src="/contracts-Icons/rectangle 428.svg"
+            src="/contracts-Icons/Rectangle 428.svg"
             alt="Rectangle 428"
             width={40}
             height={40}

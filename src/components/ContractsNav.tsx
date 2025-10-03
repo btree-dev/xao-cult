@@ -41,7 +41,7 @@ const ContractsNav: React.FC = () => {
           <Image
             src={
               isCreateContractPage
-                ? "/contracts-nav/File_Add_selected.svg"
+                ? "/contracts-nav/File_Add_Selected.svg"
                 : "/contracts-nav/File_Add.svg"
             }
             alt="Add"

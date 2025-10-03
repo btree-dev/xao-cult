@@ -308,7 +308,7 @@ export const legalDocs = [
     id: "privacypolicy",
     title: "Privacy Policy",
     description: "Learn how we handle your data",
-    icon: "/Legal/lockIcon.svg",
+    icon: "/Legal/CopyIcon.svg",
       information: [
       {
         heading: "Summary",

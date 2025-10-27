@@ -1,0 +1,110 @@
+.notificationcontainer{
+     width: 100%;
+  margin-top: 60px;
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.notificationrow {
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
+  padding: 6px;
+  background: black;
+  border: 1px solid transparent;
+  background-image: 
+    linear-gradient(black, black), 
+    linear-gradient(to right, #ff9900, #e100ff);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+.notificationCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  border-radius: 16px;
+  padding: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.CardContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  width: 100%;
+}
+.cardIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  color: white;
+  font-size: 1.125rem;
+  flex-shrink: 0;
+}
+
+
+.cardIcon.new-contract {
+  background: rgba(253, 194, 2, 0.959);
+}
+.cardIcon.new-message {
+  background: rgba(255, 4, 171, 0.877);
+}
+.cardIcon.document-uploaded {
+  background: red;
+}
+.cardIcon.payment-received {
+  background: rgb(23, 226, 84);
+}
+@media (max-width: 768px) {
+
+     .notificationcontainer{
+    margin-top: -40px;   
+    padding-top: 0;
+   
+
+
+  }
+}
+
+.cardTextContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.cardTitle {
+  color: white;
+  font-weight: 400;
+  font-size: 18px;
+  margin: 0;
+}
+.cardDescription {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+.cardTime {
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-left: auto;
+  align-self: center;
+  background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

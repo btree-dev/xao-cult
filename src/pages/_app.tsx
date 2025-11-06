@@ -10,6 +10,8 @@ import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 
 import { config } from '../wagmi';
 import { supabase } from '../lib/supabase';
+import store from '../store/store'
+import { Provider } from 'react-redux'
 import Navbar from '../components/Navbar';
 
 const client = new QueryClient();
@@ -37,7 +39,6 @@ function MyApp({ Component, pageProps }: AppProps) {
 
     getUserProfile();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {

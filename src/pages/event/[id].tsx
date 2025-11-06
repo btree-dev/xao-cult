@@ -1,150 +1,114 @@
-// pages/event/[id]/[id].tsx
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import styles from '../../styles/Home.module.css';
-//import { supabase } from '../../lib/supabase';
 import Navbar from '../../components/Navbar';
 import Scrollbar from '../../components/Scrollbar';
+import { eventAPI, venueAPI } from '../../backend/services/Event';
+import { IEvent, IVenue } from '../../backend/services/types/api';
+
 const EventDetails: NextPage = () => {
   const [loading, setLoading] = useState(true);
-  const [event, setEvent] = useState<any>(null);
+  const [event, setEvent] = useState<IEvent | null>(null);
+  const [venue, setVenue] = useState<IVenue | null>(null);
+  const [lineup, setLineup] = useState<IEvent[]>([]);
   const router = useRouter();
   const { id } = router.query;
 
   useEffect(() => {
-    const fetchEvent = async () => {
-      if (!id) return;
+    const fetchEventData = async () => {
+      if (!id || typeof id !== 'string') return;
       
       setLoading(true);
       try {
-        // In a real app, this would fetch the event from the database
-        // For now, we'll use mock data based on the event ID
-        let mockEvent;
+        console.log('🔍 Fetching event with ID:', id);
         
-        if (id === 'rivo-event-1') {
-          mockEvent = {
-            id,
-            title: 'Rivo',
-            artist: 'rivo',
-            tag: 'Les Déferlantes 2025',
-            date: '5th December',
-            time: '06:30PM',
-            location: 'Wembley Stadium, London',
-            description: 'Join DJ Rivo for an unforgettable night of music, light and energy! This VIP ticket gives you access to the best seats in the house, plus entry to the after-party. Enjoy the electrifying atmosphere at Wembley Stadium. Enjoy stage views, expedited entry and access to a private lounge Get ready for a night of pulsating beats, lights, and breathtaking visuals.',
-            image: 'https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-            profilePic: '/rivo-profile-pic.svg',
-            likes: '12.4M',
-            views: '1347',
-            lineup: [
-              { name: 'Lola Max', image: '/rivo-profile-pic.svg' },
-              { name: 'Synthetics', image: '/rivo-profile-pic.svg' },
-              { name: 'Rivo', image: '/rivo-profile-pic.svg' },
-              { name: 'NEON.BLK', image: '/rivo-profile-pic.svg' },
-            ],
-            organizer: {
-              name: 'Tomorrowland Events',
-              image: '/rivo-profile-pic.svg'
-            },
-            ticketPrice: 50.00
-          };
-        } else if (id === 'xao-event-1') {
-          mockEvent = {
-            id,
-            title: 'XAO',
-            artist: 'xao',
-            tag: 'Les Déferlantes 2025',
-            date: '15th December',
-            time: '08:00PM',
-            location: 'O2 Arena, London',
-            description: 'Experience the revolutionary XAO Festival featuring cutting-edge performances and immersive audio-visual experiences. This exclusive event brings together the best electronic artists for a night of unparalleled entertainment.',
-            image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
-            profilePic: '/xao-profile.svg',
-            likes: '8.2M',
-            views: '982',
-            lineup: [
-              { name: 'XAO', image: '/xao-profile.svg' },
-              { name: 'Synthetics', image: '/rivo-profile-pic.svg' },
-              { name: 'NEON.BLK', image: '/rivo-profile-pic.svg' },
-              { name: 'Lola Max', image: '/rivo-profile-pic.svg' },
-            ],
-            organizer: {
-              name: 'XAO Productions',
-              image: '/xao-profile.svg'
-            },
-            ticketPrice: 65.00
-          };
-        } else if (id === 'edm-event-1') {
-          mockEvent = {
-            id,
-            title: 'NEON.BLK',
-            artist: 'neonblk',
-            tag: 'Les Déferlantes 2025',
-            date: '20th January',
-            time: '09:00PM',
-            location: 'Alexandra Palace, London',
-            description: 'Electric Dreams is the ultimate EDM experience featuring NEON.BLK and other top electronic artists. Prepare for a night of pulsating rhythms, spectacular light shows, and an atmosphere charged with energy.',
-            image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
-            profilePic: '/rivo-profile-pic.svg',
-            likes: '5.7M',
-            views: '743',
-            lineup: [
-              { name: 'NEON.BLK', image: '/rivo-profile-pic.svg' },
-              { name: 'Synthetics', image: '/rivo-profile-pic.svg' },
-              { name: 'Lola Max', image: '/rivo-profile-pic.svg' },
-              { name: 'XAO', image: '/xao-profile.svg' },
-            ],
-            organizer: {
-              name: 'Electric Dreams Productions',
-              image: '/rivo-profile-pic.svg'
-            },
-            ticketPrice: 45.00
-          };
-        } else {
-          // Default event if ID doesn't match
-          mockEvent = {
-            id,
-            title: 'Rivo',
-            artist: 'rivo',
-            tag: 'Les Déferlantes 2025',
-            date: '5th December',
-            time: '06:30PM',
-            location: 'Wembley Stadium, London',
-            description: 'Join DJ Rivo for an unforgettable night of music, light and energy! This VIP ticket gives you access to the best seats in the house, plus entry to the after-party.',
-            image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
-            profilePic: '/rivo-profile-pic.svg',
-            likes: '9.8M',
-            views: '1125',
-            lineup: [
-              { name: 'Lola Max', image: '/rivo-profile-pic.svg' },
-              { name: 'Synthetics', image: '/rivo-profile-pic.svg' },
-              { name: 'Rivo', image: '/rivo-profile-pic.svg' },
-              { name: 'NEON.BLK', image: '/rivo-profile-pic.svg' },
-            ],
-            organizer: {
-              name: 'Tomorrowland Events',
-              image: '/rivo-profile-pic.svg'
-            },
-            ticketPrice: 50.00
-          };
+        // Fetch the main event
+        const eventData = await eventAPI.getEventById(id);
+        console.log('✅ Event data received:', eventData);
+        setEvent(eventData);
+
+        // Fetch venue data
+        if (eventData.venueId) {
+          try {
+            console.log('🏢 Fetching venue with ID:', eventData.venueId);
+            const venueData = await venueAPI.getVenueById(eventData.venueId);
+            console.log('✅ Venue data received:', venueData);
+            setVenue(venueData);
+          } catch (venueError: any) {
+            console.error('⚠️ Error fetching venue:', venueError);
+            setVenue(null);
+          }
         }
-        
-        setEvent(mockEvent);
-      } catch (error) {
-        console.error('Error fetching event:', error);
+
+        // Fetch ALL events for lineup
+        try {
+          console.log('📅 Fetching all events for lineup...');
+
+          const allEvents = await eventAPI.getAllEvents({ limit: 50, skip: 0 });
+
+          console.log('✅ All events received:', allEvents.length);
+          console.log('📋 All events:', allEvents.map(e => ({
+            id: e._id,
+            title: e.title,
+            organizer: e.organizerName,
+            date: e.date
+          })));
+
+          // Filter out the current event and limit to 4 events for lineup
+          const filteredLineup = allEvents
+            .filter(e => {
+              const isSameEvent = e._id === id;
+              console.log(`🔍 Event: ${e.title} (${e._id}) - Same as current? ${isSameEvent}`);
+              return !isSameEvent;
+            })
+            .slice(0, 4);
+          
+          console.log('✅ Filtered lineup count:', filteredLineup.length);
+          console.log('📋 Filtered lineup:', filteredLineup.map(e => ({
+            id: e._id,
+            title: e.title,
+            organizer: e.organizerName
+          })));
+          
+          setLineup(filteredLineup);
+        } catch (lineupError: any) {
+          console.error('❌ Error fetching lineup:', lineupError);
+          console.error('❌ Error message:', lineupError.message);
+          console.error('❌ Error response:', lineupError.response?.data);
+          setLineup([]);
+        }
+      } catch (error: any) {
+        console.error('❌ Error fetching event:', error);
+        console.error('❌ Error message:', error.message);
       } finally {
         setLoading(false);
       }
     };
     
-    fetchEvent();
+    fetchEventData();
   }, [id]);
 
   const handleBuyTicket = () => {
     router.push(`/event/${id}/purchase`);
     sessionStorage.removeItem(`purchaseState-${id}`);
+  };
+
+  // Format date helper
+  const formatDate = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDate();
+    const month = d.toLocaleString('en-US', { month: 'long' });
+    const suffix = ['th', 'st', 'nd', 'rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 != 10 ? day % 10 : 0)];
+    return `${day}${suffix} ${month}`;
+  };
+
+  // Format time helper
+  const formatTime = (date: Date) => {
+    const d = new Date(date);
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
   if (loading || !event) {
@@ -157,6 +121,7 @@ const EventDetails: NextPage = () => {
       </div>
     );
   }
+
   return (
     <div className={styles.eventDetailsContainer}>
       <div className={styles.background} />
@@ -169,21 +134,27 @@ const EventDetails: NextPage = () => {
       <Navbar showBackButton={true} pageTitle="Event Details" />
       <Scrollbar />
 
-
       <div className={styles.feedItem} style={{ marginTop: '20px' }}>
         <div className={styles.feedHeader}>
           <div className={styles.feedAuthor}>
             <div className={styles.authorAvatar}>
-              <Image src={event.profilePic} alt={event.artist} width={32} height={32} />
+              <Image 
+                src={event.eventPicUrl || '/default-profile.png'} 
+                alt={event.organizerName} 
+                width={32} 
+                height={32} 
+              />
             </div>
-            <div className={styles.authorName}>@{event.artist}</div>
-            <div className={styles.headerTag}>{event.tag}</div>
+            <div className={styles.authorName}>@{event.organizerName}</div>
+            {event.tags && event.tags.length > 0 && (
+              <div className={styles.headerTag}>{event.tags[0]}</div>
+            )}
           </div>
         </div>
         <div className={styles.feedContent}>
           <Image 
-            src={event.image} 
-            alt={`${event.artist} Content`} 
+            src={event.eventPicUrl || '/default-event.png'} 
+            alt={event.title} 
             width={430} 
             height={764} 
             className={styles.feedImage}
@@ -198,13 +169,13 @@ const EventDetails: NextPage = () => {
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="white"/>
               <circle cx="12" cy="12" r="3" fill="white"/>
             </svg>
-            <span className={styles.actionCounter}>{event.views}</span>
+            <span className={styles.actionCounter}>{event.views || 0}</span>
           </div>
           <div className={styles.actionButton} onClick={(e) => e.stopPropagation()}>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="white" strokeWidth="2"/>
             </svg>
-            <span className={styles.actionCounter}>{event.likes}</span>
+            <span className={styles.actionCounter}>{event.likes || 0}</span>
           </div>
           <div className={styles.actionButton} onClick={(e) => e.stopPropagation()}>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -232,7 +203,7 @@ const EventDetails: NextPage = () => {
                 <path d="M3 10H21" stroke="white" strokeWidth="2"/>
               </svg>
             </div>
-            <span>{event.date}</span>
+            <span>{formatDate(event.date)}</span>
           </div>
           <div className={styles.eventDetail}>
             <div className={styles.eventDetailIcon}>
@@ -241,7 +212,7 @@ const EventDetails: NextPage = () => {
                 <path d="M12 6V12L16 14" stroke="white" strokeWidth="2" strokeLinecap="round"/>
               </svg>
             </div>
-            <span>{event.time}</span>
+            <span>{formatTime(event.startTime)}</span>
           </div>
           <div className={styles.eventDetail}>
             <div className={styles.eventDetailIcon}>
@@ -250,27 +221,38 @@ const EventDetails: NextPage = () => {
                 <circle cx="12" cy="10" r="3" stroke="white" strokeWidth="2"/>
               </svg>
             </div>
-            <span>{event.location}</span>
+            <span>{venue ? venue.name : 'Loading venue...'}</span>
           </div>
         </div>
 
         <div className={styles.eventSection}>
           <h2 className={styles.sectionTitle}>LINEUP</h2>
           <div className={styles.lineupGrid}>
-            {event.lineup.map((artist: any, index: number) => (
-              <div key={index} className={styles.lineupItem}>
-                <div className={styles.lineupAvatar}>
-                  <Image src={artist.image} alt={artist.name} width={40} height={40} />
+            {lineup.length > 0 ? (
+              lineup.map((lineupEvent, index) => (
+                <div key={lineupEvent._id || index} className={styles.lineupItem}>
+                  <div className={styles.lineupAvatar}>
+                    <Image 
+                      src={lineupEvent.eventPicUrl || '/default-profile.png'} 
+                      alt={lineupEvent.organizerName} 
+                      width={40} 
+                      height={40} 
+                    />
+                  </div>
+                  <span className={styles.lineupName}>{lineupEvent.organizerName}</span>
                 </div>
-                <span className={styles.lineupName}>{artist.name}</span>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p>No other events available</p>
+            )}
           </div>
         </div>
 
         <div className={styles.eventSection}>
           <h2 className={styles.sectionTitle}>DETAILS</h2>
-          <p className={styles.eventDescription}>{event.description}</p>
+          <p className={styles.eventDescription}>
+            {event.description || 'No description available'}
+          </p>
           <button className={styles.readMoreButton}>Read more</button>
         </div>
 
@@ -278,20 +260,25 @@ const EventDetails: NextPage = () => {
           <h2 className={styles.sectionTitle}>ORGANIZER</h2>
           <div className={styles.organizerInfo}>
             <div className={styles.organizerAvatar}>
-              <Image src={event.organizer.image} alt={event.organizer.name} width={40} height={40} />
+              <Image 
+                src={event.eventPicUrl || '/default-profile.png'} 
+                alt={event.organizerName} 
+                width={40} 
+                height={40} 
+              />
             </div>
-            <span className={styles.organizerName}>{event.organizer.name}</span>
+            <span className={styles.organizerName}>{event.organizerName}</span>
           </div>
         </div>
       </div>
 
       <div className={styles.buyTicketContainer}>
         <button className={styles.buyTicketButton} onClick={handleBuyTicket}>
-          Buy Ticket
+          Buy Ticket {event.ticketPrice ? `- $${event.ticketPrice}` : ''}
         </button>
       </div>
     </div>
   );
 };
 
-export default EventDetails; 
+export default EventDetails;

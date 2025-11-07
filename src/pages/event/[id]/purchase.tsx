@@ -5,19 +5,22 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import styles from '../../../styles/Home.module.css';
-import { supabase } from '../../../lib/supabase';
+import { eventAPI, venueAPI, artistAPI } from '../../../backend/services/Event';
+import { IEvent, IVenue, IArtist } from '../../../backend/services/types/api';
 import Navbar from '../../../components/Navbar';
 import Scrollbar from '../../../components/Scrollbar';
 const TicketPurchase: NextPage = () => {
   const [loading, setLoading] = useState(true);
-  const [event, setEvent] = useState<any>(null);
+  const [event, setEvent] = useState<IEvent | null>(null);
+  const [venue, setVenue] = useState<IVenue | null>(null);
+  const [artists, setArtists] = useState<IArtist[]>([]);
   const [paymentMethod, setPaymentMethod] = useState('wallet');
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
   const router = useRouter();
   const { id } = router.query;
 
   // ✅ Initial ticketTypes defaults
-  const defaultTicketTypes = [
+ const defaultTicketTypes = [
     { id: 'general', name: 'General Admission', price: 50, selected: false, count: 0 },
     { id: 'premium', name: 'Premium', price: 80, selected: false, count: 0 },
     { id: 'vip', name: 'VIP', price: 120, selected: false, count: 0 }
@@ -52,81 +55,56 @@ const TicketPurchase: NextPage = () => {
     );
   }, [ticketTypes, paymentMethod, id]);
 
-  // ✅ Fetch mock event
   useEffect(() => {
-    const fetchEvent = async () => {
-      if (!id) return;
+    const fetchEventData = async () => {
+      if (!id || typeof id !== 'string') return;
+      
       setLoading(true);
       try {
-        let mockEvent;
+        console.log('🔍 Fetching event with ID:', id);
+        
+        // Fetch the main event
+        const eventData = await eventAPI.getEventById(id);
+        console.log('✅ Event data received:', eventData);
+        setEvent(eventData);
 
-        if (id === 'rivo-event-1') {
-          mockEvent = {
-            id,
-            title: 'Rivo Open Air',
-            date: '5th December',
-            time: '06:30PM',
-            location: 'Wembley Stadium, London',
-            image:
-              'https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop',
-            ticketPrice: 50.0,
-            artist: 'rivo',
-            tag: 'Les Déferlantes 2025',
-            profilePic: '/rivo-profile-pic.svg',
-          };
-        } else if (id === 'xao-event-1') {
-          mockEvent = {
-            id,
-            title: 'XAO Festival',
-            date: '15th December',
-            time: '08:00PM',
-            location: 'O2 Arena, London',
-            image:
-              'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 65.0,
-            artist: 'xao',
-            tag: 'Les Déferlantes 2025',
-            profilePic: '/xao-profile.svg',
-          };
-        } else if (id === 'edm-event-1') {
-          mockEvent = {
-            id,
-            title: 'Electric Dreams',
-            date: '20th January',
-            time: '09:00PM',
-            location: 'Alexandra Palace, London',
-            image:
-              'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 45.0,
-            artist: 'neonblk',
-            tag: 'Les Déferlantes 2025',
-            profilePic: '/rivo-profile-pic.svg',
-          };
-        } else {
-          mockEvent = {
-            id,
-            title: 'Rivo Open Air',
-            date: '5th December',
-            time: '06:30PM',
-            location: 'Wembley Stadium, London',
-            image:
-              'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 50.0,
-            artist: 'rivo',
-            tag: 'Les Déferlantes 2025',
-            profilePic: '/rivo-profile-pic.svg',
-          };
+        // Fetch venue data
+        if (eventData.venueId) {
+          try {
+            console.log('🏢 Fetching venue with ID:', eventData.venueId);
+            const venueData = await venueAPI.getVenueById(eventData.venueId);
+            console.log('✅ Venue data received:', venueData);
+            setVenue(venueData);
+          } catch (venueError: any) {
+            console.error('⚠️ Error fetching venue:', venueError);
+            setVenue(null);
+          }
         }
-
-        setEvent(mockEvent);
-      } catch (error) {
-        console.error('Error fetching event:', error);
+        
+        // Fetch artists data
+        if (eventData.artistIds && eventData.artistIds.length > 0) {
+          try {
+            console.log('🎤 Fetching artists with IDs:', eventData.artistIds);
+            const artistPromises = eventData.artistIds.map(artistId => 
+              artistAPI.getArtistById(artistId)
+            );
+            const artistsData = await Promise.all(artistPromises);
+            console.log('✅ Artists data received:', artistsData);
+            setArtists(artistsData);
+          } catch (artistError: any) {
+            console.error('⚠️ Error fetching artists:', artistError);
+            setArtists([]);
+          }
+        }
+      } catch (error: any) {
+        console.error('❌ Error fetching event:', error);
+        console.error('❌ Error message:', error.message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchEvent();
+    fetchEventData();
   }, [id]);
 
   const handleConfirmPurchase = () => {
@@ -174,6 +152,21 @@ const TicketPurchase: NextPage = () => {
     return acc;
   }, 0);
 
+   // Format date helper
+  const formatDate = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDate();
+    const month = d.toLocaleString('en-US', { month: 'long' });
+    const suffix = ['th', 'st', 'nd', 'rd'][day % 10 > 3 ? 0 : (day % 100 - day % 10 != 10 ? day % 10 : 0)];
+    return `${day}${suffix} ${month}`;
+  };
+
+  // Format time helper
+  const formatTime = (date: Date) => {
+    const d = new Date(date);
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+  };
+
   if (loading || !event || ticketTypes.length === 0) {
     return (
       <div className={styles.container}>
@@ -184,7 +177,7 @@ const TicketPurchase: NextPage = () => {
       </div>
     );
   }
-
+  const primaryArtist = artists.length > 0 ? artists[0] : null;
   return (
     <div className={styles.ticketPurchaseContainer}>
       <div className={styles.background} />
@@ -205,20 +198,22 @@ const TicketPurchase: NextPage = () => {
           <div className={styles.feedAuthor}>
             <div className={styles.authorAvatar}>
               <Image
-                src={event.profilePic || '/xao-profile.svg'}
-                alt={event.artist || 'Artist'}
+                src={ '/xao-profile.svg'}
+                alt={primaryArtist?.name || event.organizerName}
                 width={32}
                 height={32}
               />
             </div>
-            <div className={styles.authorName}>@{event.artist || 'artist'}</div>
-            <div className={styles.headerTag}>{event.tag || 'Event'}</div>
+            <div className={styles.authorName}>@{event.organizerName || 'artist'}</div>
+            {event.tags && event.tags.length > 0 && (
+              <div className={styles.headerTag}>{event.tags[0]}</div>
+            )}
           </div>
         </div>
         <div className={styles.feedContent}>
           <Image
-            src={event.image}
-            alt={`${event.title} Content`}
+            src={event.eventPicUrl || '/default-event.png'}
+            alt={event.title}
             width={430}
             height={764}
             className={styles.feedImage}

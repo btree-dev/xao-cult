@@ -11,8 +11,18 @@ export interface IVenue {
   name: string;
   address?: string;
   capacity?: number;
-
 }
+
+export interface IArtist {
+  _id?: string;
+  name: string;
+  genre?: string;
+  profilePicUrl?: string;
+  bio?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 export interface IEvent {
   _id?: string;
   title: string;
@@ -77,6 +87,12 @@ export interface DateRangeFilter {
   end: Date;
 }
 
+export interface ArtistFilters {
+  limit?: number;
+  skip?: number;
+  genre?: string;
+}
+
 // Profile Types
 export interface IProfile {
   _id?: string;
@@ -98,22 +114,6 @@ export interface ProfileFilters {
   genre?: string;
   city?: string;
   search?: string;
-}
-
-// Other types remain the same...
-export interface IArtist {
-  _id?: string;
-  name?: string;
-  genre?: string;
-  profilePicUrl?: string;
-  bio?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-export interface ArtistFilters {
-  limit?: number;
-  skip?: number;
 }
 
 export interface ITicket {

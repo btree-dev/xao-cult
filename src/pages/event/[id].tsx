@@ -139,7 +139,7 @@ const EventDetails: NextPage = () => {
           <div className={styles.feedAuthor}>
             <div className={styles.authorAvatar}>
               <Image 
-                src={event.eventPicUrl || '/default-profile.png'} 
+                src={'/xao-profile.svg'} 
                 alt={event.organizerName} 
                 width={32} 
                 height={32} 

@@ -1,5 +1,5 @@
 import apiClient from './ApiClient';
-import { IEvent,IVenue, APIResponse, EventFilters, DateRangeFilter } from './types/api';
+import { IEvent, IVenue, IArtist, APIResponse, EventFilters, DateRangeFilter, ArtistFilters } from './types/api';
 
 // Event API Class
 export class EventAPI {
@@ -18,7 +18,6 @@ export class EventAPI {
       
       console.log('✅ Raw API response:', response.data);
       
-      // Extract events and normalize _id
       let events = response.data.data || response.data;
       if (Array.isArray(events)) {
         events = events.map(this.normalizeEvent);
@@ -43,22 +42,17 @@ export class EventAPI {
       console.log('✅ Response data:', response.data);
       console.log('✅ Response status:', response.status);
       
-      // Handle different response structures
       let eventData: IEvent;
       
       if (response.data.data) {
-        // Response format: { success: true, data: {...} }
         eventData = response.data.data;
       } else if (response.data.success !== undefined && response.data) {
-        // Response format: { success: true, ...eventData }
         const { success, message, ...rest } = response.data;
         eventData = rest as IEvent;
       } else {
-        // Direct event data
         eventData = response.data;
       }
       
-      // Normalize the event (handle MongoDB ObjectId format)
       eventData = this.normalizeEvent(eventData);
       
       console.log('✅ Event data extracted and normalized:', eventData);
@@ -79,7 +73,6 @@ export class EventAPI {
         throw new Error(`Server error: ${errorMsg}`);
       }
       
-      // More detailed error message
       const errorMessage = error.response?.data?.message 
         || error.response?.data?.error 
         || error.message 
@@ -120,7 +113,7 @@ export class EventAPI {
   async getEventsByDateRange(dateRange: DateRangeFilter): Promise<IEvent[]> {
     try {
       const params = new URLSearchParams({
-        start: dateRange.start.toISOString().split('T')[0], // YYYY-MM-DD format
+        start: dateRange.start.toISOString().split('T')[0],
         end: dateRange.end.toISOString().split('T')[0]
       });
       
@@ -154,7 +147,6 @@ export class EventAPI {
     }
   }
 
-  // New method: Increment likes
   async likeEvent(id: string): Promise<boolean> {
     try {
       const response = await apiClient.post<APIResponse<{ message: string }>>(
@@ -170,7 +162,6 @@ export class EventAPI {
     }
   }
 
-  // New method: Increment views (manual)
   async recordView(id: string): Promise<boolean> {
     try {
       const response = await apiClient.post<APIResponse<{ message: string }>>(
@@ -186,14 +177,11 @@ export class EventAPI {
     }
   }
 
-  // Helper method to normalize MongoDB ObjectId format
   private normalizeEvent(event: any): IEvent {
-    // Handle MongoDB's { $oid: "..." } format
     if (event._id && typeof event._id === 'object' && event._id.$oid) {
       event._id = event._id.$oid;
     }
     
-    // Convert date strings to Date objects
     if (event.date && typeof event.date === 'string') {
       event.date = new Date(event.date);
     }
@@ -214,46 +202,32 @@ export class EventAPI {
   }
 }
 
+// Venue API Class
 export class VenueAPI {
   private endpoint = '/venues';
 
   async getVenueById(id: string): Promise<IVenue> {
     try {
       console.log('🏢 Fetching venue by ID:', id);
-      console.log('🏢 Full URL:', `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'}${this.endpoint}/${id}`);
-      
       const response = await apiClient.get<any>(`${this.endpoint}/${id}`);
       
-      console.log('✅ Raw venue response received:', response);
-      console.log('✅ Venue response data:', response.data);
-      console.log('✅ Venue response status:', response.status);
-      
-      // Handle different response structures
       let venueData: IVenue;
       
       if (response.data.data) {
-        // Response format: { success: true, data: {...} }
         venueData = response.data.data;
       } else if (response.data.success !== undefined && response.data) {
-        // Response format: { success: true, ...venueData }
         const { success, message, ...rest } = response.data;
         venueData = rest as IVenue;
       } else {
-        // Direct venue data
         venueData = response.data;
       }
       
-      // Normalize the venue (handle MongoDB ObjectId format)
       venueData = this.normalizeVenue(venueData);
       
       console.log('✅ Venue data extracted and normalized:', venueData);
       return venueData;
     } catch (error: any) {
       console.error('❌ Error fetching venue by ID:', error);
-      console.error('❌ Error response:', error.response);
-      console.error('❌ Error response data:', error.response?.data);
-      console.error('❌ Error status:', error.response?.status);
-      console.error('❌ Error message:', error.message);
       
       if (error.response?.status === 404) {
         throw new Error('Venue not found');
@@ -264,7 +238,6 @@ export class VenueAPI {
         throw new Error(`Server error: ${errorMsg}`);
       }
       
-      // More detailed error message
       const errorMessage = error.response?.data?.message 
         || error.response?.data?.error 
         || error.message 
@@ -285,9 +258,6 @@ export class VenueAPI {
       console.log('🏢 Fetching all venues from:', url);
       const response = await apiClient.get<APIResponse<IVenue[]>>(url);
       
-      console.log('✅ Raw venues API response:', response.data);
-      
-      // Extract venues and normalize _id
       let venues = response.data.data || response.data;
       if (Array.isArray(venues)) {
         venues = venues.map(this.normalizeVenue);
@@ -296,19 +266,15 @@ export class VenueAPI {
       return venues;
     } catch (error: any) {
       console.error('❌ Error in getAllVenues:', error);
-      console.error('Error response:', error.response?.data);
       throw new Error(error.response?.data?.message || 'Failed to fetch venues');
     }
   }
 
-  // Helper method to normalize MongoDB ObjectId format
   private normalizeVenue(venue: any): IVenue {
-    // Handle MongoDB's { $oid: "..." } format
     if (venue._id && typeof venue._id === 'object' && venue._id.$oid) {
       venue._id = venue._id.$oid;
     }
     
-    // Convert date strings to Date objects if present
     if (venue.createdAt && typeof venue.createdAt === 'string') {
       venue.createdAt = new Date(venue.createdAt);
     }
@@ -320,8 +286,100 @@ export class VenueAPI {
   }
 }
 
+// Artist API Class
+export class ArtistAPI {
+  private endpoint = '/artists';
+
+  async getArtistById(id: string): Promise<IArtist> {
+    try {
+      console.log('🎤 Fetching artist by ID:', id);
+      console.log('🎤 Full URL:', `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'}${this.endpoint}/${id}`);
+      
+      const response = await apiClient.get<any>(`${this.endpoint}/${id}`);
+      
+      console.log('✅ Raw artist response received:', response);
+      console.log('✅ Artist response data:', response.data);
+      
+      let artistData: IArtist;
+      
+      if (response.data.data) {
+        artistData = response.data.data;
+      } else if (response.data.success !== undefined && response.data) {
+        const { success, message, ...rest } = response.data;
+        artistData = rest as IArtist;
+      } else {
+        artistData = response.data;
+      }
+      
+      artistData = this.normalizeArtist(artistData);
+      
+      console.log('✅ Artist data extracted and normalized:', artistData);
+      return artistData;
+    } catch (error: any) {
+      console.error('❌ Error fetching artist by ID:', error);
+      
+      if (error.response?.status === 404) {
+        throw new Error('Artist not found');
+      }
+      
+      if (error.response?.status === 500) {
+        const errorMsg = error.response?.data?.error || error.response?.data?.message || 'Internal server error';
+        throw new Error(`Server error: ${errorMsg}`);
+      }
+      
+      const errorMessage = error.response?.data?.message 
+        || error.response?.data?.error 
+        || error.message 
+        || 'Failed to fetch artist';
+      
+      throw new Error(errorMessage);
+    }
+  }
+
+  async getAllArtists(filters?: ArtistFilters): Promise<IArtist[]> {
+    try {
+      const params = new URLSearchParams();
+      
+      if (filters?.limit) params.append('limit', filters.limit.toString());
+      if (filters?.skip) params.append('skip', filters.skip.toString());
+      if (filters?.genre) params.append('genre', filters.genre);
+      
+      const url = `${this.endpoint}${params.toString() ? `?${params.toString()}` : ''}`;
+      console.log('🎤 Fetching all artists from:', url);
+      const response = await apiClient.get<APIResponse<IArtist[]>>(url);
+      
+      let artists = response.data.data || response.data;
+      if (Array.isArray(artists)) {
+        artists = artists.map(this.normalizeArtist);
+      }
+      
+      return artists;
+    } catch (error: any) {
+      console.error('❌ Error in getAllArtists:', error);
+      throw new Error(error.response?.data?.message || 'Failed to fetch artists');
+    }
+  }
+
+  private normalizeArtist(artist: any): IArtist {
+    if (artist._id && typeof artist._id === 'object' && artist._id.$oid) {
+      artist._id = artist._id.$oid;
+    }
+    
+    if (artist.createdAt && typeof artist.createdAt === 'string') {
+      artist.createdAt = new Date(artist.createdAt);
+    }
+    if (artist.updatedAt && typeof artist.updatedAt === 'string') {
+      artist.updatedAt = new Date(artist.updatedAt);
+    }
+    
+    return artist as IArtist;
+  }
+}
+
 export const eventAPI = new EventAPI();
 export const venueAPI = new VenueAPI();
+export const artistAPI = new ArtistAPI();
+
 // Interface to match your current EventDocs structure
 export interface EventDoc {
   id: string;

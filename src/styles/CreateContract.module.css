@@ -51,7 +51,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  
+   
 }
 
 .heading {
@@ -683,4 +683,143 @@
 
 .dropdownOption:hover {
   background: #292929;
+}
+
+.ticketsHeaderRow {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  align-items: center;
+}
+
+.toggleContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+.dropdownInput {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ticketsLabel {
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.ticketDetailsContainer {
+  border-radius: 30px;
+  padding: 20px;
+  background: black;
+  border: 1px solid transparent;
+  background-image: 
+    linear-gradient(black, black), 
+    linear-gradient(to right, #ff9900, #e100ff);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.ticketDetailsRow {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.ticketColumn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ticketColumnLabel {
+  color: white;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.ticketTypeButton {
+  border-radius: 30px;
+  height: 55px;
+  padding: 0 1rem;
+  background: black;
+  border: 1px solid;
+  border-image: linear-gradient(to right, #ff9900, #e100ff) 1;
+  display: flex;
+  align-items: center;
+  color: white;
+  font-size: 16px;
+}
+
+.ticketSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 12px;
+  align-items: center;
+  justify-content: center;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+
+.summaryLabel {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 400;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.summaryValue {
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.netSubRow {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.netSubRow .summaryLabel,
+.netSubRow .summaryValue {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.ticketInputWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.ticketInputWrapper .ticketsLabel {
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.ticketInputWrapper .contractInput,
+.ticketInputWrapper .dropdownInput {
+  width: 100%;
 }

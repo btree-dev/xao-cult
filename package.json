@@ -8,10 +8,10 @@
     "start": "next start"
   },
   "dependencies": {
-    "@rainbow-me/rainbowkit": "^2.2.5",
+    "@rainbow-me/rainbowkit": "^2.2.9",
     "@reduxjs/toolkit": "^2.9.2",
-    "@supabase/supabase-js": "^2.50.0",
-    "@tanstack/react-query": "^5.55.3",
+    "@supabase/supabase-js": "^2.81.1",
+    "@tanstack/react-query": "^5.90.10",
     "@wagmi/chains": "^1.8.0",
     "axios": "^1.13.1",
     "dotenv": "^16.5.0",
@@ -24,8 +24,8 @@
     "react-icons": "^5.5.0",
     "react-native-vector-icons": "^10.2.0",
     "react-redux": "^9.2.0",
-    "viem": "2.29.2",
-    "wagmi": "^2.15.2"
+    "viem": "^2.39.0",
+    "wagmi": "^2.19.4"
   },
   "devDependencies": {
     "@types/formidable": "^3.4.5",

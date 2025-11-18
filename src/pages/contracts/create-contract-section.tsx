@@ -38,12 +38,20 @@ const CreateContractsection = ({}) => {
   const [depositbandInput, setdepositbandInput] = useState("");
   const [bandCanceledBy, setbandCanceledBy] = useState("");
   const [guaranteeInput, setguaranteeInput] = useState("");
-  const [advanceInput, setAdvanceInput] = useState("");
   const [backendInput, setBackendInput] = useState("");
   const [barsplitInput, setBarsplitInput] = useState("");
+  const [merchSplitInput, setMerchSplitInput] = useState("");
+  const [cancelParty1DateTime, setCancelParty1DateTime] = useState("");
+  const [cancelParty2DateTime, setCancelParty2DateTime] = useState("");
   const [RiderAdd, setRiderAdd] = useState("");
   const [RiderValue, setRiderValue] = useState("");
   const [promotionValue, setPromotionValue] = useState("");
+  const [payoutDateTime, setPayoutDateTime] = useState("");
+  const [payoutPercentage, setPayoutPercentage] = useState("");
+  const [payoutDollarAmount, setPayoutDollarAmount] = useState("");
+  const [payout2DateTime, setPayout2DateTime] = useState("");
+  const [payout2Percentage, setPayout2Percentage] = useState("");
+  const [payout2DollarAmount, setPayout2DollarAmount] = useState("");
   const startTimeInputRef = useRef<HTMLInputElement | null>(null);
   const endTimeInputRef = useRef<HTMLInputElement | null>(null);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
@@ -165,7 +173,7 @@ const CreateContractsection = ({}) => {
               />
             </div>
             <div className={styles.contractRow}>
-              <div className={styles.dropdownInput}>
+              <div className={styles.contractInput}>
                 <button type="button" className={styles.contracticon}>
                   <Image
                     src="/contracts-Icons/Clock.svg"
@@ -208,7 +216,7 @@ const CreateContractsection = ({}) => {
                 </div>
               )}
             </div>
-              <div className={styles.dropdownInput}>
+              <div className={styles.contractInput}>
                 <button type="button" className={styles.contracticon}>
                   <Image
                     src="/contracts-Icons/Clock.svg"
@@ -254,7 +262,7 @@ const CreateContractsection = ({}) => {
               </div>
             </div>
             <div className={styles.contractRow}>
-              <div className={styles.dropdownInput}>
+              <div className={styles.contractInput}>
                 <button
                   type="button"
                   className={styles.contracticon}
@@ -303,7 +311,7 @@ const CreateContractsection = ({}) => {
                   </div>
                 )}
               </div>
-              <div className={styles.dropdownInput}>
+              <div className={styles.contractInput}>
                 <button
                   type="button"
                   className={styles.contracticon}
@@ -354,7 +362,7 @@ const CreateContractsection = ({}) => {
               </div>
             </div>
             <div className={styles.contractRow}>
-              <div className={styles.dropdownInput}>
+              <div className={styles.contractInput}>
                 <button type="button" className={styles.contracticon}>
                   <Image
                     src="/contracts-Icons/Clock.svg"
@@ -398,7 +406,7 @@ const CreateContractsection = ({}) => {
                   </div>
                 )}
               </div>
-              <div className={styles.dropdownInput}>
+              <div className={styles.contractInput}>
                 <button type="button" className={styles.contracticon}>
                   <Image
                     src="/contracts-Icons/Clock.svg"
@@ -456,71 +464,97 @@ const CreateContractsection = ({}) => {
 
         {isLocationOpen && (
           <>
-            <div className={styles.dropdownInput}>
-              <button type="button" className={styles.contracticon}>
+            <div className={styles.ticketInputWrapper}>
+              <label className={styles.ticketsLabel}>Venue Name</label>
+              <div className={styles.contractInput}>
+                <button type="button" className={styles.contracticon}>
+                  <Image
+                    src="/contracts-Icons/Building_01.svg"
+                    alt="Building"
+                    width={24}
+                    height={24}
+                  />
+                </button>
+                <input
+                  type="text"
+                  onChange={(e) => setVenueName(e.target.value)}
+                  placeholder="Venue Name"
+                  className={styles.input}
+                  required
+                />
                 <Image
-                  src="/contracts-Icons/Building_01.svg"
-                  alt="Building"
+                  src="/contracts-Icons/Dropdown.svg"
+                  alt="Dropdown"
                   width={24}
                   height={24}
+                  style={{ cursor: "pointer" }}
+                  onClick={() =>
+                    setActiveDropdown(activeDropdown === "venueName" ? null : "venueName")
+                  }
                 />
-              </button>
-              <input
-                type="text"
-                onChange={(e) => setVenueName(e.target.value)}
-                placeholder="Venue Name"
-                className={styles.input}
-                required
-              />
-              <Image
-                src="/contracts-Icons/Dropdown.svg"
-                alt="Dropdown"
-                width={24}
-                height={24}
-                style={{ cursor: "pointer" }}
-                onClick={() =>
-                  setActiveDropdown(activeDropdown === "venueName" ? null : "venueName")
-                }
-              />
-              {activeDropdown === "venueName" && (
-                <div className={styles.dropdownMenu}>
-                  {dropdownOptions.map((option) => (
-                    <div
-                      key={option}
-                      className={styles.dropdownOption}
-                      onClick={() => {
-                        setVenueName(option);
-                        setActiveDropdown(null);
-                      }}
-                    >
-                      {option}
-                    </div>
-                  ))}
-                </div>
-              )}
+                {activeDropdown === "venueName" && (
+                  <div className={styles.dropdownMenu}>
+                    {dropdownOptions.map((option) => (
+                      <div
+                        key={option}
+                        className={styles.dropdownOption}
+                        onClick={() => {
+                          setVenueName(option);
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        {option}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className={styles.inputRow}>
-              <button type="button" className={styles.contracticon}>
+            <div className={styles.ticketInputWrapper}>
+              <label className={styles.ticketsLabel}>Address</label>
+              <div className={styles.contractInput}>
+                <button type="button" className={styles.contracticon}>
+                  <Image
+                    src="/contracts-Icons/Map_Pin.svg"
+                    alt="Map Pin"
+                    width={24}
+                    height={24}
+                  />
+                </button>
+                <input
+                  type="text"
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Address"
+                  className={styles.input}
+                  required
+                />
                 <Image
-                  src="/contracts-Icons/Map_Pin.svg"
-                  alt="Map Pin"
+                  src="/contracts-Icons/Dropdown.svg"
+                  alt="Dropdown"
                   width={24}
                   height={24}
+                  style={{ cursor: "pointer" }}
+                  onClick={() =>
+                    setActiveDropdown(activeDropdown === "address" ? null : "address")
+                  }
                 />
-              </button>
-              <input
-                type="text"
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Address"
-                className={styles.input}
-                required
-              />
-              <Image
-                src="/contracts-Icons/Dropdown.svg"
-                alt="Dropdown"
-                width={24}
-                height={24}
-              />
+                {activeDropdown === "address" && (
+                  <div className={styles.dropdownMenu}>
+                    {dropdownOptions.map((option) => (
+                      <div
+                        key={option}
+                        className={styles.dropdownOption}
+                        onClick={() => {
+                          setAddress(option);
+                          setActiveDropdown(null);
+                        }}
+                      >
+                        {option}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </>
         )}
@@ -533,170 +567,294 @@ const CreateContractsection = ({}) => {
         />
         {isTicketsOpen && (
           <>
-            <div className={styles.contractRow}>
-              <div className={styles.dropdownInput}>
+            <div className={styles.ticketsHeaderRow}>
+              <div className={styles.toggleContainer}>
+                <label className={styles.ticketsLabel}>Tickets</label>
                 <input
-                  type="text"
-                  placeholder="Total Capacity"
-                  value={totalCapacity}
-                  onChange={(e) => setTotalCapacity(e.target.value)}
-                  className={styles.input}
-                  required
+                  type="checkbox"
+                  className={styles.toggleSwitch}
+                  checked={isTicketEnabled}
+                  onChange={(e) => setticketsEnabled(e.target.checked)}
                 />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                    setActiveDropdown(activeDropdown === "totalCapacity" ? null : "totalCapacity")
-                  }
-                />
-                {activeDropdown === "totalCapacity" && (
-                  <div className={styles.dropdownMenu}>
-                    {dropdownOptions.map((option) => (
-                      <div
-                        key={option}
-                        className={styles.dropdownOption}
-                        onClick={() => {
-                          setTotalCapacity(option);
-                          setActiveDropdown(null);
-                        }}
-                      >
-                        {option}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-              <div className={styles.dropdownInput}>
-                <input
-                  type="text"
-                  placeholder="Comps"
-                  value={comps}
-                  onChange={(e) => setComps(e.target.value)}
-                  className={styles.input}
-                  required
-                />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                    setActiveDropdown(activeDropdown === "comps" ? null : "comps")
-                  }
-                />
-                {activeDropdown === "comps" && (
-                  <div className={styles.dropdownMenu}>
-                    {dropdownOptions.map((option) => (
-                      <div
-                        key={option}
-                        className={styles.dropdownOption}
-                        onClick={() => {
-                          setComps(option);
-                          setActiveDropdown(null);
-                        }}
-                      >
-                        {option}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className={styles.contractRow}>
-              <div className={styles.dropdownInput}>
-                <button type="button" className={styles.contracticon}>
+              <div className={styles.ticketInputWrapper}>
+                <label className={styles.ticketsLabel}>Total Capacity</label>
+                <div className={styles.contractInput}>
+                  <button type="button" className={styles.contracticon}>
+                    <Image
+                      src="/contracts-Icons/hash icon.svg"
+                      alt="hash"
+                      width={24}
+                      height={24}
+                    />
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="Total Capacity"
+                    value={totalCapacity}
+                    onChange={(e) => setTotalCapacity(e.target.value)}
+                    className={styles.input}
+                    required
+                  />
                   <Image
-                    src="/contracts-Icons/Calendar.svg"
-                    alt="general"
+                    src="/contracts-Icons/Dropdown.svg"
+                    alt="Dropdown"
                     width={24}
                     height={24}
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      setActiveDropdown(activeDropdown === "totalCapacity" ? null : "totalCapacity")
+                    }
                   />
-                </button>
-                <input
-                  type="text"
-                  placeholder="General"
-                  value={general}
-                  onChange={(e) => setGeneral(e.target.value)}
-                  className={styles.input}
-                  required
-                />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                    setActiveDropdown(activeDropdown === "general" ? null : "general")
-                  }
-                />
-                {activeDropdown === "general" && (
-                  <div className={styles.dropdownMenu}>
-                    {dropdownOptions.map((option) => (
-                      <div
-                        key={option}
-                        className={styles.dropdownOption}
-                        onClick={() => {
-                          setGeneral(option);
-                          setActiveDropdown(null);
-                        }}
-                      >
-                        {option}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  {activeDropdown === "totalCapacity" && (
+                    <div className={styles.dropdownMenu}>
+                      {dropdownOptions.map((option) => (
+                        <div
+                          key={option}
+                          className={styles.dropdownOption}
+                          onClick={() => {
+                            setTotalCapacity(option);
+                            setActiveDropdown(null);
+                          }}
+                        >
+                          {option}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className={styles.dropdownInput}>
-                <button type="button" className={styles.contracticon}>
+              <div className={styles.ticketInputWrapper}>
+                <label className={styles.ticketsLabel}>Sales Tax</label>
+                <div className={styles.contractInput}>
+                  <button type="button" className={styles.contracticon}>
+                    <Image
+                      src="/contracts-Icons/Percent icon.svg"
+                      alt="percent"
+                      width={24}
+                      height={24}
+                    />
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="Sales Tax %"
+                    value={comps}
+                    onChange={(e) => setComps(e.target.value)}
+                    className={styles.input}
+                    required
+                  />
                   <Image
-                    src="/contracts-Icons/Calendar.svg"
-                    alt="presale"
+                    src="/contracts-Icons/Dropdown.svg"
+                    alt="Dropdown"
                     width={24}
                     height={24}
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      setActiveDropdown(activeDropdown === "salesTax" ? null : "salesTax")
+                    }
                   />
-                </button>
-                <input
-                  type="text"
-                  placeholder="Presale"
-                  value={presale}
-                  onChange={(e) => setPresale(e.target.value)}
-                  className={styles.input}
-                  required
-                />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                    setActiveDropdown(activeDropdown === "presale" ? null : "presale")
-                  }
-                />
-                {activeDropdown === "presale" && (
-                  <div className={styles.dropdownMenu}>
-                    {dropdownOptions.map((option) => (
-                      <div
-                        key={option}
-                        className={styles.dropdownOption}
-                        onClick={() => {
-                          setPresale(option);
-                          setActiveDropdown(null);
-                        }}
-                      >
-                        {option}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  {activeDropdown === "salesTax" && (
+                    <div className={styles.dropdownMenu}>
+                      {Array.from({ length: 100 }, (_, i) => i + 1).map((num) => (
+                        <div
+                          key={num}
+                          className={styles.dropdownOption}
+                          onClick={() => {
+                            setComps(`${num}%`);
+                            setActiveDropdown(null);
+                          }}
+                        >
+                          {num}%
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+
+            {/* Ticket Details Container */}
+            <div className={styles.ticketDetailsContainer}>
+              <div className={styles.ticketDetailsRow}>
+                <div className={styles.ticketColumn}>
+                  <label className={styles.ticketColumnLabel}>Ticket Type</label>
+                  <div className={styles.contractInput}>
+                    <input
+                      type="text"
+                      placeholder="General Admission"
+                      className={styles.input}
+                      required
+                    />
+                    <Image
+                      src="/contracts-Icons/Dropdown.svg"
+                      alt="Dropdown"
+                      width={20}
+                      height={20}
+                      style={{ cursor: "pointer" }}
+                      onClick={() =>
+                        setActiveDropdown(activeDropdown === "ticketType" ? null : "ticketType")
+                      }
+                    />
+                    {activeDropdown === "ticketType" && (
+                      <div className={styles.dropdownMenu}>
+                        {["Comp", "Presale", "General Admission", "VIP", "Text input"].map((option) => (
+                          <div
+                            key={option}
+                            className={styles.dropdownOption}
+                            onClick={() => {
+                              setActiveDropdown(null);
+                            }}
+                          >
+                            {option}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className={styles.ticketColumn}>
+                  <label className={styles.ticketColumnLabel}>On Sale Date</label>
+                  <div className={styles.contractInput}>
+                    <button type="button" className={styles.contracticon}>
+                      <Image
+                        src="/contracts-Icons/Calendar.svg"
+                        alt="Calendar"
+                        width={20}
+                        height={20}
+                      />
+                    </button>
+                    <input
+                      type="text"
+                      placeholder="General"
+                      value={general}
+                      onChange={(e) => setGeneral(e.target.value)}
+                      className={styles.input}
+                      required
+                    />
+                    <Image
+                      src="/contracts-Icons/Dropdown.svg"
+                      alt="Dropdown"
+                      width={20}
+                      height={20}
+                      style={{ cursor: "pointer" }}
+                      onClick={() =>
+                        setActiveDropdown(activeDropdown === "general" ? null : "general")
+                      }
+                    />
+                    {activeDropdown === "general" && (
+                      <div className={styles.dropdownMenu}>
+                        {dropdownOptions.map((option) => (
+                          <div
+                            key={option}
+                            className={styles.dropdownOption}
+                            onClick={() => {
+                              setGeneral(option);
+                              setActiveDropdown(null);
+                            }}
+                          >
+                            {option}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className={styles.ticketDetailsRow}>
+                <div className={styles.ticketColumn}>
+                  <label className={styles.ticketColumnLabel}>Number of tickets</label>
+                  <div className={styles.contractInput}>
+                    <button type="button" className={styles.contracticon}>
+                      <Image
+                        src="/contracts-Icons/hash icon.svg"
+                        alt="hash"
+                        width={20}
+                        height={20}
+                      />
+                    </button>
+                    <input
+                      type="text"
+                      placeholder="500"
+                      className={styles.input}
+                      required
+                    />
+                    <Image
+                      src="/contracts-Icons/Dropdown.svg"
+                      alt="Dropdown"
+                      width={20}
+                      height={20}
+                      style={{ cursor: "pointer" }}
+                      onClick={() =>
+                        setActiveDropdown(activeDropdown === "numberOfTickets" ? null : "numberOfTickets")
+                      }
+                    />
+                    {activeDropdown === "numberOfTickets" && (
+                      <div className={styles.dropdownMenu}>
+                        {dropdownOptions.map((option) => (
+                          <div
+                            key={option}
+                            className={styles.dropdownOption}
+                            onClick={() => {
+                              setActiveDropdown(null);
+                            }}
+                          >
+                            {option}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className={styles.ticketColumn}>
+                  <label className={styles.ticketColumnLabel}>Ticket price</label>
+                  <div className={styles.contractInput}>
+                    <button type="button" className={styles.contracticon}>
+                      <Image
+                        src="/contracts-Icons/Dollar sign.svg"
+                        alt="dollar"
+                        width={20}
+                        height={20}
+                      />
+                    </button>
+                    <input
+                      type="text"
+                      placeholder="50.00"
+                      className={styles.input}
+                      required
+                    />
+                    <Image
+                      src="/contracts-Icons/Dropdown.svg"
+                      alt="Dropdown"
+                      width={20}
+                      height={20}
+                      style={{ cursor: "pointer" }}
+                      onClick={() =>
+                        setActiveDropdown(activeDropdown === "ticketPrice" ? null : "ticketPrice")
+                      }
+                    />
+                    {activeDropdown === "ticketPrice" && (
+                      <div className={styles.dropdownMenu}>
+                        {dropdownOptions.map((option) => (
+                          <div
+                            key={option}
+                            className={styles.dropdownOption}
+                            onClick={() => {
+                              setActiveDropdown(null);
+                            }}
+                          >
+                            {option}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              
+            </div>
+
             <div className={styles.contractRow}>
               <div className={`${styles.contractInput} ${styles.addInput}`}>
                 <button type="button" className={styles.contracticon}>
@@ -715,15 +873,29 @@ const CreateContractsection = ({}) => {
                   required
                 />
               </div>
-              <div className={styles.toggleRow}>
-                <input
-                  type="checkbox"
-                  className={styles.toggleSwitch}
-                  checked={isTicketEnabled}
-                  onChange={(e) => setticketsEnabled(e.target.checked)}
-                />
-              </div>
             </div>
+            <div className={styles.ticketSummary}>
+                <div className={styles.summaryRow}>
+                  <span className={styles.summaryLabel}>Gross Sub:</span>
+                  <span className={styles.summaryValue}>₵25,000</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span className={styles.summaryLabel}>Taxes:</span>
+                  <span className={styles.summaryValue}>₵2,000</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span className={styles.summaryLabel}>Gas:</span>
+                  <span className={styles.summaryValue}>₵500</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span className={styles.summaryLabel}>Xao's 2%:</span>
+                  <span className={styles.summaryValue}>₵500</span>
+                </div>
+                <div className={styles.summaryRow}>
+                  <span className={styles.summaryLabel}>Net Sub:</span>
+                  <span className={styles.summaryValue}>₵2,200</span>
+                </div>
+              </div>
           </>
         )}
       </div>
@@ -735,62 +907,373 @@ const CreateContractsection = ({}) => {
       />
       {isMoneyOpen && (
           <>
-          <label
-            className={`${styles.LeftLabel} ${isMoneyOpen ? styles.open : ''}`}>
-            Security deposit Venue
-          </label>
+          <div className={styles.ticketDetailsContainer}>
+            <label className={`${styles.LeftLabel} ${isMoneyOpen ? styles.open : ''}`}>
+              Security deposit Party 1
+            </label>
+            <div className={styles.ticketDetailsRow}>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Date & Time</label>
+                <div className={styles.contractInput}>
+                  <button type="button" className={styles.contracticon}>
+                    <Image
+                      src="/contracts-Icons/Calendar.svg"
+                      alt="Calendar"
+                      width={24}
+                      height={24}
+                    />
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="Date and time"
+                    value={dateTime}
+                    onChange={(e) => setDateTime(e.target.value)}
+                    className={styles.input}
+                    required
+                  />
+                  <Image
+                    src="/contracts-Icons/Dropdown.svg"
+                    alt="Dropdown"
+                    width={24}
+                    height={24}
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      setActiveDropdown(
+                        activeDropdown === "securityDateTime" ? null : "securityDateTime"
+                      )
+                    }
+                  />
+                  {activeDropdown === "securityDateTime" && (
+                    <div className={styles.dropdownMenu}>
+                      {dropdownOptions.map((option) => (
+                        <div
+                          key={option}
+                          className={styles.dropdownOption}
+                          onClick={() => {
+                            setDateTime(option);
+                            setActiveDropdown(null);
+                          }}
+                        >
+                          {option}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Percentage</label>
+                <div className={styles.contractInput}>
+                  <button type="button" className={styles.contracticon}>
+                    <Image
+                      src="/contracts-Icons/Percent icon.svg"
+                      alt="Percent"
+                      width={24}
+                      height={24}
+                    />
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="30%"
+                    onChange={(e) => setmoneyInput(e.target.value)}
+                    className={styles.input}
+                    required
+                  />
+                  <Image
+                    src="/contracts-Icons/Dropdown.svg"
+                    alt="Dropdown"
+                    width={24}
+                    height={24}
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      setActiveDropdown(activeDropdown === "moneyInput" ? null : "moneyInput")
+                    }
+                  />
+                  {activeDropdown === "moneyInput" && (
+                    <div className={styles.dropdownMenu}>
+                      {dropdownOptions.map((option) => (
+                        <div
+                          key={option}
+                          className={styles.dropdownOption}
+                          onClick={() => {
+                            setmoneyInput(option);
+                            setActiveDropdown(null);
+                          }}
+                        >
+                          {option}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Dollar Amount</label>
+                <div className={styles.contractInput}>
+                  <Image
+                    src="/contracts-Icons/Dollar sign.svg"
+                    alt="Dollar"
+                    width={24}
+                    height={24}
+                  />
+                  <input
+                    type="text"
+                    placeholder="$ 500"
+                    className={styles.input}
+                    readOnly
+                  />
+                </div>
+              </div>
+            </div>
             <div className={styles.contractRow}>
-              <div className={styles.dropdownInput}>
+              <div className={`${styles.contractInput} ${styles.addInput}`}>
                 <button type="button" className={styles.contracticon}>
                   <Image
-                    src="/contracts-Icons/calendar.svg"
-                    alt="moneyInput"
+                    src="/contracts-Icons/Add_Plus.svg"
+                    alt="add"
                     width={24}
                     height={24}
                   />
                 </button>
                 <input
                   type="text"
-                  placeholder="30%"
-                  onChange={(e) => setmoneyInput(e.target.value)}
+                  placeholder="Add"
+                  onChange={(e) => setsecuritydepositAdd(e.target.value)}
                   className={styles.input}
                   required
                 />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                  setActiveDropdown(activeDropdown === "moneyInput" ? null : "moneyInput")
-                  }
-                />
-                {activeDropdown === "moneyInput" && (
-                <div className={styles.dropdownMenu}>
-                  {dropdownOptions.map((option) => (
-                    <div
-                      key={option}
-                      className={styles.dropdownOption}
-                      onClick={() => {
-                        setmoneyInput(option);
-                        setActiveDropdown(null);
-                      }}
-                    >
-                      {option}
-                    </div>
-                  ))}
-                </div>
-              )}
               </div>
-              <div className={styles.contractInput}>
+            </div>
+          
+            <label className={`${styles.LeftLabel} ${isMoneyOpen ? styles.open : ''}`}>
+              Party 1 receives if canceled by:
+            </label>
+            <div className={styles.ticketDetailsRow}>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Date & Time</label>
+                <div className={styles.contractInput}>
+                  <button type="button" className={styles.contracticon}>
+                    <Image
+                      src="/contracts-Icons/Calendar.svg"
+                      alt="Calendar"
+                      width={24}
+                      height={24}
+                    />
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="Date and time"
+                    value={cancelParty1DateTime}
+                    onChange={(e) => setCancelParty1DateTime(e.target.value)}
+                    className={styles.input}
+                    required
+                  />
+                  <Image
+                    src="/contracts-Icons/Dropdown.svg"
+                    alt="Dropdown"
+                    width={24}
+                    height={24}
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      setActiveDropdown(
+                        activeDropdown === "cancelParty1DateTime" ? null : "cancelParty1DateTime"
+                      )
+                    }
+                  />
+                  {activeDropdown === "cancelParty1DateTime" && (
+                    <div className={styles.dropdownMenu}>
+                      {dropdownOptions.map((option) => (
+                        <div
+                          key={option}
+                          className={styles.dropdownOption}
+                          onClick={() => {
+                            setCancelParty1DateTime(option);
+                            setActiveDropdown(null);
+                          }}
+                        >
+                          {option}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Percentage</label>
+                <div className={styles.contractInput}>
+                  <button type="button" className={styles.contracticon}>
+                    <Image
+                      src="/contracts-Icons/Percent icon.svg"
+                      alt="Percent"
+                      width={24}
+                      height={24}
+                    />
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="30%"
+                    onChange={(e) => setvenueCanceledBy(e.target.value)}
+                    className={styles.input}
+                    required
+                  />
+                  <Image
+                    src="/contracts-Icons/Dropdown.svg"
+                    alt="Dropdown"
+                    width={24}
+                    height={24}
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      setActiveDropdown(activeDropdown === "venueCanceledBy" ? null : "venueCanceledBy")
+                    }
+                  />
+                  {activeDropdown === "venueCanceledBy" && (
+                    <div className={styles.dropdownMenu}>
+                      {dropdownOptions.map((option) => (
+                        <div
+                          key={option}
+                          className={styles.dropdownOption}
+                          onClick={() => {
+                            setvenueCanceledBy(option);
+                            setActiveDropdown(null);
+                          }}
+                        >
+                          {option}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Dollar Amount</label>
+                <div className={styles.contractInput}>
+                  <Image
+                    src="/contracts-Icons/Dollar sign.svg"
+                    alt="Dollar"
+                    width={24}
+                    height={24}
+                  />
+                  <input
+                    type="text"
+                    placeholder="$ 500"
+                    className={styles.input}
+                    readOnly
+                  />
+                </div>
+              </div>
+            </div>
+            <div className={styles.contractRow}>
+              <div className={`${styles.contractInput} ${styles.addInput}`}>
+                <button type="button" className={styles.contracticon}>
+                  <Image
+                    src="/contracts-Icons/Add_Plus.svg"
+                    alt="add"
+                    width={24}
+                    height={24}
+                  />
+                </button>
                 <input
                   type="text"
-                  placeholder="$ 500"
+                  placeholder="Add"
+                  onChange={(e) => setcanceledbyAdd(e.target.value)}
                   className={styles.input}
-                  readOnly
+                  required
                 />
-                
+              </div>
+            </div>
+            </div>
+            <div className={styles.ticketDetailsContainer}>
+          <label className={`${styles.LeftLabel} ${isMoneyOpen ? styles.open : ''}`}>
+              Security deposit Part 2
+            </label>
+            <div className={styles.ticketDetailsRow}>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Date & Time</label>
+                <div className={styles.contractInput}>
+                  <button type="button" className={styles.contracticon}>
+                    <Image
+                      src="/contracts-Icons/Calendar.svg"
+                      alt="Calendar"
+                      width={24}
+                      height={24}
+                    />
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="Date and time"
+                    className={styles.input}
+                    required
+                  />
+                  <Image
+                    src="/contracts-Icons/Dropdown.svg"
+                    alt="Dropdown"
+                    width={24}
+                    height={24}
+                  />
+                </div>
+              </div>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Percentage</label>
+                <div className={styles.contractInput}>
+                  <button type="button" className={styles.contracticon}>
+                    <Image
+                      src="/contracts-Icons/Percent icon.svg"
+                      alt="Percent"
+                      width={24}
+                      height={24}
+                    />
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="30%"
+                    onChange={(e) => setdepositbandInput(e.target.value)}
+                    className={styles.input}
+                    required
+                  />
+                  <Image
+                    src="/contracts-Icons/Dropdown.svg"
+                    alt="Dropdown"
+                    width={24}
+                    height={24}
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      setActiveDropdown(activeDropdown === "depositbandInput" ? null : "depositbandInput")
+                    }
+                  />
+                  {activeDropdown === "depositbandInput" && (
+                    <div className={styles.dropdownMenu}>
+                      {dropdownOptions.map((option) => (
+                        <div
+                          key={option}
+                          className={styles.dropdownOption}
+                          onClick={() => {
+                            setdepositbandInput(option);
+                            setActiveDropdown(null);
+                          }}
+                        >
+                          {option}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Dollar Amount</label>
+                <div className={styles.contractInput}>
+                  <Image
+                    src="/contracts-Icons/Dollar sign.svg"
+                    alt="Dollar"
+                    width={24}
+                    height={24}
+                  />
+                  <input
+                    type="text"
+                    placeholder="$ 500"
+                    className={styles.input}
+                    readOnly
+                  />
+                </div>
               </div>
             </div>
             <div className={styles.contractRow}>
@@ -815,215 +1298,121 @@ const CreateContractsection = ({}) => {
 
             <label
             className={`${styles.LeftLabel} ${isMoneyOpen ? styles.open : ''}`}>
-            If canceled by
+            Party 2 receives if canceled by:
           </label>
-          <div className={styles.contractRow}>
-              <div className={styles.dropdownInput}>
-                <button type="button" className={styles.contracticon}>
-                  <Image
-                    src="/contracts-Icons/calendar.svg"
-                    alt="moneyInput"
-                    width={24}
-                    height={24}
-                  />
-                </button>
-                <input
-                  type="text"
-                  placeholder="30%"
-                  onChange={(e) => setvenueCanceledBy(e.target.value)}
-                  className={styles.input}
-                  required
-                />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                  setActiveDropdown(activeDropdown === "30%" ? null : "30%")
-                  }
-                />
-                {activeDropdown === "30%" && (
-                <div className={styles.dropdownMenu}>
-                  {dropdownOptions.map((option) => (
-                    <div
-                      key={option}
-                      className={styles.dropdownOption}
-                      onClick={() => {
-                        setvenueCanceledBy(option);
-                        setActiveDropdown(null);
-                      }}
-                    >
-                      {option}
-                    </div>
-                  ))}
-                </div>
-              )}
-              </div>
-              <div className={styles.contractInput}>
-                <input
-                  type="text"
-                  placeholder="$ 500"
-                  className={styles.input}
-                  readOnly
-                />
-                
-              </div>
-            </div>
-            <div className={styles.contractRow}>
-              <div className={`${styles.contractInput} ${styles.addInput}`}>
-                <button type="button" className={styles.contracticon}>
-                  <Image
-                    src="/contracts-Icons/Add_Plus.svg"
-                    alt="add"
-                    width={24}
-                    height={24}
-                  />
-                </button>
-                <input
-                  type="text"
-                  placeholder="Add"
-                  onChange={(e) => setcanceledbyAdd(e.target.value)}
-                  className={styles.input}
-                  required
-                />
-              </div>
-            </div>
-          <label
-            className={`${styles.LeftLabel} ${isMoneyOpen ? styles.open : ''}`}>
-            Security deposit Band
-          </label>
-            <div className={styles.contractRow}>
-              <div className={styles.dropdownInput}>
-                <button type="button" className={styles.contracticon}>
-                  <Image
-                    src="/contracts-Icons/calendar.svg"
-                    alt="moneyInput"
-                    width={24}
-                    height={24}
-                  />
-                </button>
-                <input
-                  type="text"
-                  placeholder="30%"
-                  onChange={(e) => setdepositbandInput(e.target.value)}
-                  className={styles.input}
-                  required
-                />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                    setActiveDropdown(activeDropdown === "depositbandInput" ? null : "depositbandInput")
-                  }
-                />
-                {activeDropdown === "depositbandInput" && (
-                  <div className={styles.dropdownMenu}>
-                    {dropdownOptions.map((option) => (
-                      <div
-                        key={option}
-                        className={styles.dropdownOption}
-                        onClick={() => {
-                          setdepositbandInput(option);
-                          setActiveDropdown(null);
-                        }}
-                      >
-                        {option}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className={styles.contractInput}>
-                <input
-                  type="text"
-                  placeholder="$ 500"
-                  className={styles.input}
-                  readOnly
-                />
-                
-              </div>
-            </div>
-            <div className={styles.contractRow}>
-              <div className={`${styles.contractInput} ${styles.addInput}`}>
-                <button type="button" className={styles.contracticon}>
-                  <Image
-                    src="/contracts-Icons/Add_Plus.svg"
-                    alt="add"
-                    width={24}
-                    height={24}
-                  />
-                </button>
-                <input
-                  type="text"
-                  placeholder="Add"
-                  onChange={(e) => setsecuritydepositAdd(e.target.value)}
-                  className={styles.input}
-                  required
-                />
-              </div>
-            </div>
 
-            <label
-            className={`${styles.LeftLabel} ${isMoneyOpen ? styles.open : ''}`}>
-            If canceled by
-          </label>
-          <div className={styles.contractRow}>
-              <div className={styles.dropdownInput}>
-                <button type="button" className={styles.contracticon}>
+            <div className={styles.ticketDetailsRow}>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Date & Time</label>
+                <div className={styles.contractInput}>
+                  <button type="button" className={styles.contracticon}>
+                    <Image
+                      src="/contracts-Icons/Calendar.svg"
+                      alt="Calendar"
+                      width={24}
+                      height={24}
+                    />
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="Date and time"
+                    value={cancelParty2DateTime}
+                    onChange={(e) => setCancelParty2DateTime(e.target.value)}
+                    className={styles.input}
+                    required
+                  />
                   <Image
-                    src="/contracts-Icons/calendar.svg"
-                    alt="moneyInput"
+                    src="/contracts-Icons/Dropdown.svg"
+                    alt="Dropdown"
+                    width={24}
+                    height={24}
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      setActiveDropdown(
+                        activeDropdown === "cancelParty2DateTime" ? null : "cancelParty2DateTime"
+                      )
+                    }
+                  />
+                  {activeDropdown === "cancelParty2DateTime" && (
+                    <div className={styles.dropdownMenu}>
+                      {dropdownOptions.map((option) => (
+                        <div
+                          key={option}
+                          className={styles.dropdownOption}
+                          onClick={() => {
+                            setCancelParty2DateTime(option);
+                            setActiveDropdown(null);
+                          }}
+                        >
+                          {option}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Percentage</label>
+                <div className={styles.contractInput}>
+                  <button type="button" className={styles.contracticon}>
+                    <Image
+                      src="/contracts-Icons/Percent icon.svg"
+                      alt="Percent"
+                      width={24}
+                      height={24}
+                    />
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="30%"
+                    onChange={(e) => setbandCanceledBy(e.target.value)}
+                    className={styles.input}
+                    required
+                  />
+                  <Image
+                    src="/contracts-Icons/Dropdown.svg"
+                    alt="Dropdown"
+                    width={24}
+                    height={24}
+                    style={{ cursor: "pointer" }}
+                    onClick={() =>
+                      setActiveDropdown(activeDropdown === "bandCanceledBy" ? null : "bandCanceledBy")
+                    }
+                  />
+                  {activeDropdown === "bandCanceledBy" && (
+                    <div className={styles.dropdownMenu}>
+                      {dropdownOptions.map((option) => (
+                        <div
+                          key={option}
+                          className={styles.dropdownOption}
+                          onClick={() => {
+                            setbandCanceledBy(option);
+                            setActiveDropdown(null);
+                          }}
+                        >
+                          {option}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Dollar Amount</label>
+                <div className={styles.contractInput}>
+                  <Image
+                    src="/contracts-Icons/Dollar sign.svg"
+                    alt="Dollar"
                     width={24}
                     height={24}
                   />
-                </button>
-                <input
-                  type="text"
-                  placeholder="30%"
-                  onChange={(e) => setbandCanceledBy(e.target.value)}
-                  className={styles.input}
-                  required
-                />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                  setActiveDropdown(activeDropdown === "bandCanceledBy" ? null : "bandCanceledBy")
-                  }
-                />
-                {activeDropdown === "bandCanceledBy" && (
-                <div className={styles.dropdownMenu}>
-                  {dropdownOptions.map((option) => (
-                    <div
-                      key={option}
-                      className={styles.dropdownOption}
-                      onClick={() => {
-                        setbandCanceledBy(option);
-                        setActiveDropdown(null);
-                      }}
-                    >
-                      {option}
-                    </div>
-                  ))}
+                  <input
+                    type="text"
+                    placeholder="$ 500"
+                    className={styles.input}
+                    readOnly
+                  />
                 </div>
-              )}
-              </div>
-              <div className={styles.contractInput}>
-                <input
-                  type="text"
-                  placeholder="$ 500"
-                  className={styles.input}
-                  readOnly
-                />
-                
               </div>
             </div>
             <div className={styles.contractRow}>
@@ -1044,13 +1433,14 @@ const CreateContractsection = ({}) => {
                   required
                 />
               </div>
+            </div>
             </div>
             <label
             className={`${styles.LeftLabel} ${isMoneyOpen ? styles.open : ''}`}>
             Guarantee $
           </label>
           <div className={styles.contractRow}>
-              <div className={styles.dropdownInput}>
+              <div className={styles.contractInput}>
                   <Image
                     src="/contracts-Icons/calendar.svg"
                     alt="moneyInput"
@@ -1103,71 +1493,14 @@ const CreateContractsection = ({}) => {
                 
               </div>
             </div>
-          <label
-            className={`${styles.LeftLabel} ${isMoneyOpen ? styles.open : ''}`}>
-            Advance
-          </label>
-          <div className={styles.contractRow}>
-              <div className={styles.contractInput}>
-                <button type="button" className={styles.contracticon}>
-                  <Image
-                    src="/contracts-Icons/calendar.svg"
-                    alt="moneyInput"
-                    width={24}
-                    height={24}
-                  />
-                </button>
-                <input
-                  type="text"
-                  placeholder="30%"
-                  value={advanceInput}
-                  onChange={(e) => setAdvanceInput(e.target.value)}
-                  className={styles.input}
-                  required
-                />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                  setActiveDropdown(activeDropdown === "advanceInput" ? null : "advanceInput")
-                  }
-                />
-                {activeDropdown === "advanceInput" && (
-                <div className={styles.dropdownMenu}>
-                  {dropdownOptions.map((option) => (
-                    <div
-                      key={option}
-                      className={styles.dropdownOption}
-                      onClick={() => {
-                        setAdvanceInput(option);
-                        setActiveDropdown(null);
-                      }}
-                    >
-                      {option}
-                    </div>
-                  ))}
-                </div>
-              )}
-              </div>
-              <div className={styles.contractInput}>
-                <input
-                  type="text"
-                  placeholder="$ 500"
-                  className={styles.input}
-                  readOnly
-                />
-                
-              </div>
-            </div>
+          
+          
       <label
             className={`${styles.LeftLabel} ${isMoneyOpen ? styles.open : ''}`}>
             Backend
           </label>
           <div className={styles.contractRow}>
-              <div className={styles.dropdownInput}>
+              <div className={styles.contractInput}>
                 <button type="button" className={styles.contracticon}>
                   <Image
                     src="/contracts-Icons/calendar.svg"
@@ -1221,35 +1554,100 @@ const CreateContractsection = ({}) => {
                 
               </div>
             </div>
-      <label
-            className={`${styles.LeftLabel} ${isMoneyOpen ? styles.open : ''}`}>
-            Bar Split
-          </label>
           <div className={styles.contractRow}>
-              <div className={styles.contractInput}>
-                <button type="button" className={styles.contracticon}>
-                  <Image
-                    src="/contracts-Icons/calendar.svg"
-                    alt="moneyInput"
-                    width={24}
-                    height={24}
-                  />
-                </button>
-                <input
-                  type="text"
-                  placeholder="30%"
-                  onChange={(e) => setBarsplitInput(e.target.value)}
-                  className={styles.input}
-                  required
-                />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                />
+        <div className={styles.ticketColumn}>
+          <label className={styles.ticketColumnLabel}>Bar Split</label>
+          <div className={styles.contractInput}>
+            <button type="button" className={styles.contracticon}>
+              <Image
+                src="/contracts-Icons/Percent icon.svg"
+                alt="percent"
+                width={24}
+                height={24}
+              />
+            </button>
+            <input
+              type="text"
+              placeholder="30%"
+              onChange={(e) => setBarsplitInput(e.target.value)}
+              className={styles.input}
+              required
+            />
+            <Image
+              src="/contracts-Icons/Dropdown.svg"
+              alt="Dropdown"
+              width={24}
+              height={24}
+              style={{ cursor: "pointer" }}
+              onClick={() =>
+                setActiveDropdown(activeDropdown === "barsplitInput" ? null : "barsplitInput")
+              }
+            />
+            {activeDropdown === "barsplitInput" && (
+              <div className={styles.dropdownMenu}>
+                {dropdownOptions.map((option) => (
+                  <div
+                    key={option}
+                    className={styles.dropdownOption}
+                    onClick={() => {
+                      setBarsplitInput(option);
+                      setActiveDropdown(null);
+                    }}
+                  >
+                    {option}
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
+          </div>
+        </div>
+        <div className={styles.ticketColumn}>
+          <label className={styles.ticketColumnLabel}>Merch Split</label>
+          <div className={styles.contractInput}>
+            <button type="button" className={styles.contracticon}>
+              <Image
+                src="/contracts-Icons/Percent icon.svg"
+                alt="percent"
+                width={24}
+                height={24}
+              />
+            </button>
+            <input
+              type="text"
+              placeholder="30%"
+              onChange={(e) => setMerchSplitInput(e.target.value)}
+              className={styles.input}
+              required
+            />
+            <Image
+              src="/contracts-Icons/Dropdown.svg"
+              alt="Dropdown"
+              width={24}
+              height={24}
+              style={{ cursor: "pointer" }}
+              onClick={() =>
+                setActiveDropdown(activeDropdown === "merchSplitInput" ? null : "merchSplitInput")
+              }
+            />
+            {activeDropdown === "merchSplitInput" && (
+              <div className={styles.dropdownMenu}>
+                {dropdownOptions.map((option) => (
+                  <div
+                    key={option}
+                    className={styles.dropdownOption}
+                    onClick={() => {
+                      setMerchSplitInput(option);
+                      setActiveDropdown(null);
+                    }}
+                  >
+                    {option}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
             </>
             )}
             </div>
@@ -1263,114 +1661,345 @@ const CreateContractsection = ({}) => {
 
             {isPaymentsOpen && (
               <>
-                <label className={`${styles.LeftLabel} ${isPaymentsOpen ? styles.open : ''}`}>Venue</label>
-                <div className={styles.contractRow}>
-                        <div className={styles.contractInput}>
-                          <button type="button" className={styles.contracticon}>
-                            <Image
-                              src="/contracts-Icons/calendar.svg"
-                              alt="moneyInput"
-                              width={24}
-                              height={24}
-                            />
-                          </button>
-                          <input
-                            type="text"
-                            placeholder="30%"
-                            onChange={(e) => setmoneyInput(e.target.value)}
-                            className={styles.input}
-                            required
-                          />
+                <label className={`${styles.LeftLabel} ${isPaymentsOpen ? styles.open : ''}`}>Party 1</label>
+                
+                  <div className={styles.ticketDetailsRow}>
+                    <div className={styles.ticketColumn}>
+                      <label className={styles.ticketColumnLabel}>Date & Time</label>
+                      <div className={styles.contractInput}>
+                        <button type="button" className={styles.contracticon}>
                           <Image
-                            src="/contracts-Icons/Dropdown.svg"
-                            alt="Dropdown"
+                            src="/contracts-Icons/Calendar.svg"
+                            alt="Calendar"
                             width={24}
                             height={24}
                           />
-                        </div>
-                        <div className={styles.contractInput}>
-                          <input
-                            type="text"
-                            placeholder="$ 500"
-                            className={styles.input}
-                            readOnly
-                          />
-                          
-                        </div>
-                      </div>
-                      <div className={`${styles.contractInput} ${styles.addInput}`}>
-                    <button type="button" className={styles.contracticon}>
+                        </button>
+                        <input
+                          type="text"
+                          placeholder="Date and time"
+                          value={payoutDateTime}
+                          onChange={(e) => setPayoutDateTime(e.target.value)}
+                          className={styles.input}
+                          required
+                        />
                         <Image
+                          src="/contracts-Icons/Dropdown.svg"
+                          alt="Dropdown"
+                          width={24}
+                          height={24}
+                          style={{ cursor: "pointer" }}
+                          onClick={() =>
+                            setActiveDropdown(
+                              activeDropdown === "payoutDateTime" ? null : "payoutDateTime"
+                            )
+                          }
+                        />
+                        {activeDropdown === "payoutDateTime" && (
+                          <div className={styles.dropdownMenu}>
+                            {dropdownOptions.map((option) => (
+                              <div
+                                key={option}
+                                className={styles.dropdownOption}
+                                onClick={() => {
+                                  setPayoutDateTime(option);
+                                  setActiveDropdown(null);
+                                }}
+                              >
+                                {option}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className={styles.ticketColumn}>
+                      <label className={styles.ticketColumnLabel}>Percentage</label>
+                      <div className={styles.contractInput}>
+                        <button type="button" className={styles.contracticon}>
+                          <Image
+                            src="/contracts-Icons/Percent icon.svg"
+                            alt="percent"
+                            width={24}
+                            height={24}
+                          />
+                        </button>
+                        <input
+                          type="text"
+                          placeholder="30%"
+                          value={payoutPercentage}
+                          onChange={(e) => setPayoutPercentage(e.target.value)}
+                          className={styles.input}
+                          required
+                        />
+                        <Image
+                          src="/contracts-Icons/Dropdown.svg"
+                          alt="Dropdown"
+                          width={24}
+                          height={24}
+                          style={{ cursor: "pointer" }}
+                          onClick={() =>
+                            setActiveDropdown(
+                              activeDropdown === "payoutPercentage" ? null : "payoutPercentage"
+                            )
+                          }
+                        />
+                        {activeDropdown === "payoutPercentage" && (
+                          <div className={styles.dropdownMenu}>
+                            {dropdownOptions.map((option) => (
+                              <div
+                                key={option}
+                                className={styles.dropdownOption}
+                                onClick={() => {
+                                  setPayoutPercentage(option);
+                                  setActiveDropdown(null);
+                                }}
+                              >
+                                {option}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className={styles.ticketColumn}>
+                      <label className={styles.ticketColumnLabel}>Dollar Amount</label>
+                      <div className={styles.contractInput}>
+                        <Image
+                          src="/contracts-Icons/Dollar sign.svg"
+                          alt="Dollar"
+                          width={24}
+                          height={24}
+                        />
+                        <input
+                          type="text"
+                          placeholder="$ 500"
+                          value={payoutDollarAmount}
+                          onChange={(e) => setPayoutDollarAmount(e.target.value)}
+                          className={styles.input}
+                          required
+                        />
+                        <Image
+                          src="/contracts-Icons/Dropdown.svg"
+                          alt="Dropdown"
+                          width={24}
+                          height={24}
+                          style={{ cursor: "pointer" }}
+                          onClick={() =>
+                            setActiveDropdown(
+                              activeDropdown === "payoutDollarAmount" ? null : "payoutDollarAmount"
+                            )
+                          }
+                        />
+                        {activeDropdown === "payoutDollarAmount" && (
+                          <div className={styles.dropdownMenu}>
+                            {dropdownOptions.map((option) => (
+                              <div
+                                key={option}
+                                className={styles.dropdownOption}
+                                onClick={() => {
+                                  setPayoutDollarAmount(option);
+                                  setActiveDropdown(null);
+                                }}
+                              >
+                                {option}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.contractRow}>
+                    <div className={`${styles.contractInput} ${styles.addInput}`}>
+                      <button type="button" className={styles.contracticon}>
+                        <Image
+                          src="/contracts-Icons/Add_Plus.svg"
+                          alt="add"
+                          width={24}
+                          height={24}
+                        />
+                      </button>
+                      <input
+                        type="text"
+                        placeholder="Add"
+                        onChange={(e) => setvenueCanceledBy(e.target.value)}
+                        className={styles.input}
+                        required
+                      />
+                    </div>
+                  </div>
+                
+                <label className={`${styles.LeftLabel} ${isPaymentsOpen ? styles.open : ''}`}>Party 2</label>
+                <div className={styles.ticketDetailsRow}>
+                  <div className={styles.ticketColumn}>
+                    <label className={styles.ticketColumnLabel}>Date & Time</label>
+                    <div className={styles.contractInput}>
+                      <button type="button" className={styles.contracticon}>
+                        <Image
+                          src="/contracts-Icons/Calendar.svg"
+                          alt="Calendar"
+                          width={24}
+                          height={24}
+                        />
+                      </button>
+                      <input
+                        type="text"
+                        placeholder="Date and time"
+                        value={payout2DateTime}
+                        onChange={(e) => setPayout2DateTime(e.target.value)}
+                        className={styles.input}
+                        required
+                      />
+                      <Image
+                        src="/contracts-Icons/Dropdown.svg"
+                        alt="Dropdown"
+                        width={24}
+                        height={24}
+                        style={{ cursor: "pointer" }}
+                        onClick={() =>
+                          setActiveDropdown(
+                            activeDropdown === "payout2DateTime" ? null : "payout2DateTime"
+                          )
+                        }
+                      />
+                      {activeDropdown === "payout2DateTime" && (
+                        <div className={styles.dropdownMenu}>
+                          {dropdownOptions.map((option) => (
+                            <div
+                              key={option}
+                              className={styles.dropdownOption}
+                              onClick={() => {
+                                setPayout2DateTime(option);
+                                setActiveDropdown(null);
+                              }}
+                            >
+                              {option}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.ticketColumn}>
+                    <label className={styles.ticketColumnLabel}>Percentage</label>
+                    <div className={styles.contractInput}>
+                      <button type="button" className={styles.contracticon}>
+                        <Image
+                          src="/contracts-Icons/Percent icon.svg"
+                          alt="percent"
+                          width={24}
+                          height={24}
+                        />
+                      </button>
+                      <input
+                        type="text"
+                        placeholder="30%"
+                        value={payout2Percentage}
+                        onChange={(e) => setPayout2Percentage(e.target.value)}
+                        className={styles.input}
+                        required
+                      />
+                      <Image
+                        src="/contracts-Icons/Dropdown.svg"
+                        alt="Dropdown"
+                        width={24}
+                        height={24}
+                        style={{ cursor: "pointer" }}
+                        onClick={() =>
+                          setActiveDropdown(
+                            activeDropdown === "payout2Percentage" ? null : "payout2Percentage"
+                          )
+                        }
+                      />
+                      {activeDropdown === "payout2Percentage" && (
+                        <div className={styles.dropdownMenu}>
+                          {dropdownOptions.map((option) => (
+                            <div
+                              key={option}
+                              className={styles.dropdownOption}
+                              onClick={() => {
+                                setPayout2Percentage(option);
+                                setActiveDropdown(null);
+                              }}
+                            >
+                              {option}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.ticketColumn}>
+                    <label className={styles.ticketColumnLabel}>Dollar Amount</label>
+                    <div className={styles.contractInput}>
+                      <Image
+                        src="/contracts-Icons/Dollar sign.svg"
+                        alt="Dollar"
+                        width={24}
+                        height={24}
+                      />
+                      <input
+                        type="text"
+                        placeholder="$ 500"
+                        value={payout2DollarAmount}
+                        onChange={(e) => setPayout2DollarAmount(e.target.value)}
+                        className={styles.input}
+                        required
+                      />
+                      <Image
+                        src="/contracts-Icons/Dropdown.svg"
+                        alt="Dropdown"
+                        width={24}
+                        height={24}
+                        style={{ cursor: "pointer" }}
+                        onClick={() =>
+                          setActiveDropdown(
+                            activeDropdown === "payout2DollarAmount" ? null : "payout2DollarAmount"
+                          )
+                        }
+                      />
+                      {activeDropdown === "payout2DollarAmount" && (
+                        <div className={styles.dropdownMenu}>
+                          {dropdownOptions.map((option) => (
+                            <div
+                              key={option}
+                              className={styles.dropdownOption}
+                              onClick={() => {
+                                setPayout2DollarAmount(option);
+                                setActiveDropdown(null);
+                              }}
+                            >
+                              {option}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.contractRow}>
+                  <div className={`${styles.contractInput} ${styles.addInput}`}>
+                    <button type="button" className={styles.contracticon}>
+                      <Image
                         src="/contracts-Icons/Add_Plus.svg"
                         alt="add"
                         width={24}
                         height={24}
-                        />
+                      />
                     </button>
                     <input
-                        type="text"
-                        placeholder="Add"
-                        onChange={(e) => setcanceledbyAdd(e.target.value)}
-                        className={styles.input}
-                        required
+                      type="text"
+                      placeholder="Add"
+                      onChange={(e) => setRiderAdd(e.target.value)}
+                      className={styles.input}
+                      required
                     />
-                    </div>
-
-                <label className={`${styles.LeftLabel} ${isPaymentsOpen ? styles.open : ''}`}>Artists</label>
-                <div className={styles.contractRow}>
-                        <div className={styles.contractInput}>
-                          <button type="button" className={styles.contracticon}>
-                            <Image
-                              src="/contracts-Icons/calendar.svg"
-                              alt="moneyInput"
-                              width={24}
-                              height={24}
-                            />
-                          </button>
-                          <input
-                            type="text"
-                            placeholder="30%"
-                            onChange={(e) => setmoneyInput(e.target.value)}
-                            className={styles.input}
-                            required
-                          />
-                          <Image
-                            src="/contracts-Icons/Dropdown.svg"
-                            alt="Dropdown"
-                            width={24}
-                            height={24}
-                          />
-                        </div>
-                        <div className={styles.contractInput}>
-                          <input
-                            type="text"
-                            placeholder="$ 500"
-                            className={styles.input}
-                            readOnly
-                          />
-                          
-                        </div>
-                      </div>
-                     <div className={`${styles.contractInput} ${styles.addInput}`}>
-                  <button type="button" className={styles.contracticon}>
-                    <Image
-                      src="/contracts-Icons/Add_Plus.svg"
-                      alt="add"
-                      width={24}
-                      height={24}
-                    />
-                  </button>
-                  <input
-                    type="text"
-                    placeholder="Add"
-                    onChange={(e) => setcanceledbyAdd(e.target.value)}
-                    className={styles.input}
-                    required
-                  />
-                </div>
-                      </>
-                    )}
                   </div>
+                </div>
+              </>
+            )}
+          </div>
           <div className={`${styles.docContainer} ${isPromotionOpen ? styles.open : styles.closed}`}>
           <SectionHeader
                   label="Promotion"

@@ -66,6 +66,7 @@ const CreateContractsection = ({}) => {
     { ticketType: "", onSaleDate: "", numberOfTickets: "", ticketPrice: "" }
   ]);
 
+  
   const [securityDepositRows, setSecurityDepositRows] = useState<SecurityDepositRow[]>([
   { dateTime: "", percentage: "", dollarAmount: "" }
 ]);
@@ -126,6 +127,10 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
   const dateInputRef = useRef<HTMLInputElement | null>(null);
   const ticketsSaleDateInputRef = useRef<HTMLInputElement | null>(null);
   const showDateInputRef = useRef<HTMLInputElement | null>(null);
+  const loadInInputRef = useRef<HTMLInputElement>(null);
+  const doorsInputRef = useRef<HTMLInputElement>(null);
+  const setTimeInputRef = useRef<HTMLInputElement>(null);
+  const setLengthInputRef = useRef<HTMLInputElement>(null);
 
   // Add ticket row function
   const addTicketRow = () => {
@@ -229,6 +234,10 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
         setSetTime={setSetTime}
         setLength={setLength}
         setSetLength={setSetLength}
+        loadInInputRef={loadInInputRef}
+        doorsInputRef={doorsInputRef}
+        setTimeInputRef={setTimeInputRef}
+        setLengthInputRef={setLengthInputRef}
       />
       <LocationSection
         isOpen={isLocationOpen}

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import Image from "next/image";
 import styles from "../../styles/CreateContract.module.css";
 
@@ -34,157 +34,165 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
   party2Rows,
   addParty2Row,
   updateParty2Row,
-}) => (
-  <div className={`${styles.docContainer} ${isOpen ? styles.open : styles.closed}`}>
-    <div
-      className={`${styles.datesTimesHeader} ${isOpen ? styles.open : ''}`}
-      onClick={onToggle}
-      style={{ cursor: "pointer" }}
-    >
-      <label className={`${styles.label} ${isOpen ? styles.open : ''}`}>Payments</label>
-      {!isOpen && (
-        <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={24} height={24} className={styles.dropdownIcon} />
+}) => {
+  // Refs for Party 1 and Party 2 Date & Time inputs
+  const party1DateRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const party2DateRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  return (
+    <div className={`${styles.docContainer} ${isOpen ? styles.open : styles.closed}`}>
+      <div
+        className={`${styles.datesTimesHeader} ${isOpen ? styles.open : ''}`}
+        onClick={onToggle}
+        style={{ cursor: "pointer" }}
+      >
+        <label className={`${styles.label} ${isOpen ? styles.open : ''}`}>Payments</label>
+        {!isOpen && (
+          <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={24} height={24} className={styles.dropdownIcon} />
+        )}
+      </div>
+      {isOpen && (
+        <>
+          <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>Party 1</label>
+          {party1Rows.map((row, index) => (
+            <div key={index} className={styles.ticketDetailsRow}>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Date & Time</label>
+                <div className={styles.contractInput}>
+                  <button
+                    type="button"
+                    className={styles.contracticon}
+                    onClick={() => party1DateRefs.current[index]?.showPicker?.()}
+                  >
+                    <Image src="/contracts-Icons/Calendar.svg" alt="Calendar" width={24} height={24} />
+                  </button>
+                  <input
+                    type="date"
+                    ref={el => { party1DateRefs.current[index] = el; }}
+                    value={row.dateTime}
+                    onChange={e => updateParty1Row(index, "dateTime", e.target.value)}
+                    className={styles.input}
+                    required
+                  />
+                </div>
+              </div>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Percentage</label>
+                <div className={styles.contractInput}>
+                  <button type="button" className={styles.contracticon}>
+                    <Image src="/contracts-Icons/percent icon.svg" alt="percent" width={24} height={24} />
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="30%"
+                    value={row.percentage}
+                    onChange={e => updateParty1Row(index, "percentage", e.target.value)}
+                    className={styles.input}
+                    required
+                  />
+                </div>
+              </div>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Dollar Amount</label>
+                <div className={styles.contractInput}>
+                  <Image src="/contracts-Icons/Dollar sign.svg" alt="Dollar" width={24} height={24} />
+                  <input
+                    type="text"
+                    placeholder="$ 500"
+                    value={row.dollarAmount}
+                    onChange={e => updateParty1Row(index, "dollarAmount", e.target.value)}
+                    className={styles.input}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+          <div className={styles.contractRow}>
+            <div className={`${styles.contractInput} ${styles.addInput}`}>
+              <button type="button" className={styles.contracticon} onClick={addParty1Row}>
+                <Image src="/contracts-Icons/Add_Plus.svg" alt="add" width={24} height={24} />
+              </button>
+              <input
+                type="text"
+                placeholder="Add"
+                className={styles.input}
+                readOnly
+              />
+            </div>
+          </div>
+          <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>Party 2</label>
+          {party2Rows.map((row, index) => (
+            <div key={index} className={styles.ticketDetailsRow}>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Date & Time</label>
+                <div className={styles.contractInput}>
+                  <button
+                    type="button"
+                    className={styles.contracticon}
+                    onClick={() => party2DateRefs.current[index]?.showPicker?.()}
+                  >
+                    <Image src="/contracts-Icons/Calendar.svg" alt="Calendar" width={24} height={24} />
+                  </button>
+                  <input
+                    type="date"
+                    ref={el => { party2DateRefs.current[index] = el; }}
+                    value={row.dateTime}
+                    onChange={e => updateParty2Row(index, "dateTime", e.target.value)}
+                    className={styles.input}
+                    required
+                  />
+                </div>
+              </div>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Percentage</label>
+                <div className={styles.contractInput}>
+                  <button type="button" className={styles.contracticon}>
+                    <Image src="/contracts-Icons/percent icon.svg" alt="percent" width={24} height={24} />
+                  </button>
+                  <input
+                    type="text"
+                    placeholder="30%"
+                    value={row.percentage}
+                    onChange={e => updateParty2Row(index, "percentage", e.target.value)}
+                    className={styles.input}
+                    required
+                  />
+                </div>
+              </div>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Dollar Amount</label>
+                <div className={styles.contractInput}>
+                  <Image src="/contracts-Icons/Dollar sign.svg" alt="Dollar" width={24} height={24} />
+                  <input
+                    type="text"
+                    placeholder="$ 500"
+                    value={row.dollarAmount}
+                    onChange={e => updateParty2Row(index, "dollarAmount", e.target.value)}
+                    className={styles.input}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+          <div className={styles.contractRow}>
+            <div className={`${styles.contractInput} ${styles.addInput}`}>
+              <button type="button" className={styles.contracticon} onClick={addParty2Row}>
+                <Image src="/contracts-Icons/Add_Plus.svg" alt="add" width={24} height={24} />
+              </button>
+              <input
+                type="text"
+                placeholder="Add"
+                className={styles.input}
+                readOnly
+              />
+            </div>
+          </div>
+        </>
       )}
     </div>
-    {isOpen && (
-      <>
-        <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>Party 1</label>
-        {party1Rows.map((row, index) => (
-          <div key={index} className={styles.ticketDetailsRow}>
-            <div className={styles.ticketColumn}>
-              <label className={styles.ticketColumnLabel}>Date & Time</label>
-              <div className={styles.contractInput}>
-                <button type="button" className={styles.contracticon}>
-                  <Image src="/contracts-Icons/Calendar.svg" alt="Calendar" width={24} height={24} />
-                </button>
-                <input
-                  type="text"
-                  placeholder="Date and time"
-                  value={row.dateTime}
-                  onChange={e => updateParty1Row(index, "dateTime", e.target.value)}
-                  className={styles.input}
-                  required
-                />
-                
-              </div>
-            </div>
-            <div className={styles.ticketColumn}>
-              <label className={styles.ticketColumnLabel}>Percentage</label>
-              <div className={styles.contractInput}>
-                <button type="button" className={styles.contracticon}>
-                  <Image src="/contracts-Icons/percent icon.svg" alt="percent" width={24} height={24} />
-                </button>
-                <input
-                  type="text"
-                  placeholder="30%"
-                  value={row.percentage}
-                  onChange={e => updateParty1Row(index, "percentage", e.target.value)}
-                  className={styles.input}
-                  required
-                />
-                
-              </div>
-            </div>
-            <div className={styles.ticketColumn}>
-              <label className={styles.ticketColumnLabel}>Dollar Amount</label>
-              <div className={styles.contractInput}>
-                <Image src="/contracts-Icons/Dollar sign.svg" alt="Dollar" width={24} height={24} />
-                <input
-                  type="text"
-                  placeholder="$ 500"
-                  value={row.dollarAmount}
-                  onChange={e => updateParty1Row(index, "dollarAmount", e.target.value)}
-                  className={styles.input}
-                  required
-                />
-                
-              </div>
-            </div>
-          </div>
-        ))}
-        <div className={styles.contractRow}>
-          <div className={`${styles.contractInput} ${styles.addInput}`}>
-            <button type="button" className={styles.contracticon} onClick={addParty1Row}>
-              <Image src="/contracts-Icons/Add_Plus.svg" alt="add" width={24} height={24} />
-            </button>
-            <input
-              type="text"
-              placeholder="Add"
-              className={styles.input}
-              readOnly
-            />
-          </div>
-        </div>
-        <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>Party 2</label>
-        {party2Rows.map((row, index) => (
-          <div key={index} className={styles.ticketDetailsRow}>
-            <div className={styles.ticketColumn}>
-              <label className={styles.ticketColumnLabel}>Date & Time</label>
-              <div className={styles.contractInput}>
-                <button type="button" className={styles.contracticon}>
-                  <Image src="/contracts-Icons/Calendar.svg" alt="Calendar" width={24} height={24} />
-                </button>
-                <input
-                  type="text"
-                  placeholder="Date and time"
-                  value={row.dateTime}
-                  onChange={e => updateParty2Row(index, "dateTime", e.target.value)}
-                  className={styles.input}
-                  required
-                />
-                
-              </div>
-            </div>
-            <div className={styles.ticketColumn}>
-              <label className={styles.ticketColumnLabel}>Percentage</label>
-              <div className={styles.contractInput}>
-                <button type="button" className={styles.contracticon}>
-                  <Image src="/contracts-Icons/percent icon.svg" alt="percent" width={24} height={24} />
-                </button>
-                <input
-                  type="text"
-                  placeholder="30%"
-                  value={row.percentage}
-                  onChange={e => updateParty2Row(index, "percentage", e.target.value)}
-                  className={styles.input}
-                  required
-                />
-                
-              </div>
-            </div>
-            <div className={styles.ticketColumn}>
-              <label className={styles.ticketColumnLabel}>Dollar Amount</label>
-              <div className={styles.contractInput}>
-                <Image src="/contracts-Icons/Dollar sign.svg" alt="Dollar" width={24} height={24} />
-                <input
-                  type="text"
-                  placeholder="$ 500"
-                  value={row.dollarAmount}
-                  onChange={e => updateParty2Row(index, "dollarAmount", e.target.value)}
-                  className={styles.input}
-                  required
-                />
-                
-              </div>
-            </div>
-          </div>
-        ))}
-        <div className={styles.contractRow}>
-          <div className={`${styles.contractInput} ${styles.addInput}`}>
-            <button type="button" className={styles.contracticon} onClick={addParty2Row}>
-              <Image src="/contracts-Icons/Add_Plus.svg" alt="add" width={24} height={24} />
-            </button>
-            <input
-              type="text"
-              placeholder="Add"
-              className={styles.input}
-              readOnly
-            />
-          </div>
-        </div>
-      </>
-    )}
-  </div>
-);
+  );
+};
 
 export default PaymentsSection;

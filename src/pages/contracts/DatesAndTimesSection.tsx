@@ -26,6 +26,10 @@ export interface DatesAndTimesProps {
   setSetTime: (v: string) => void;
   setLength: string;
   setSetLength: (v: string) => void;
+  loadInInputRef: React.RefObject<HTMLInputElement | null>;
+  doorsInputRef: React.RefObject<HTMLInputElement | null>;
+  setTimeInputRef: React.RefObject<HTMLInputElement | null>;
+  setLengthInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
@@ -50,6 +54,10 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
   setSetTime,
   setLength,
   setSetLength,
+  loadInInputRef,
+  doorsInputRef,
+  setTimeInputRef,
+  setLengthInputRef,
 }) => (
   <div className={`${styles.docContainer} ${isOpen ? styles.open : styles.closed}`}>
     <div
@@ -86,10 +94,10 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
           <div className={styles.ticketInputWrapper}>
             <label className={styles.ticketsLabel}>Load In</label>  
           <div className={styles.contractInput}>
-            <button type="button" className={styles.contracticon}>
+            <button type="button" className={styles.contracticon} onClick={() => loadInInputRef.current?.showPicker?.()}>
               <Image src="/contracts-Icons/Clock.svg" alt="Clock" width={24} height={24} />
             </button>
-            <input type="text" placeholder="Load In" value={loadIn} onChange={e => setLoadIn(e.target.value)} className={styles.input} required />
+            <input type="time" ref={loadInInputRef} placeholder="Load In" value={loadIn} onChange={e => setLoadIn(e.target.value)} className={styles.input} required />
             
           </div>
           </div>
@@ -97,10 +105,10 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
           <div className={styles.ticketInputWrapper}>
             <label className={styles.ticketsLabel}>Doors</label>  
           <div className={styles.contractInput}>
-            <button type="button" className={styles.contracticon}>
+            <button type="button" className={styles.contracticon} onClick={() => doorsInputRef.current?.showPicker?.()}>
               <Image src="/contracts-Icons/Clock.svg" alt="Clock" width={24} height={24} />
             </button>
-            <input type="text" placeholder="Doors" value={doors} onChange={e => setDoors(e.target.value)} className={styles.input} required />
+            <input type="time" ref={doorsInputRef} placeholder="Doors" value={doors} onChange={e => setDoors(e.target.value)} className={styles.input} required />
             
           </div>
           </div>
@@ -130,20 +138,20 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
          <div className={styles.ticketInputWrapper}>
             <label className={styles.ticketsLabel}>Set Time</label>    
           <div className={styles.contractInput}>
-            <button type="button" className={styles.contracticon}>
+            <button type="button" className={styles.contracticon} onClick={() => setTimeInputRef.current?.showPicker?.()}>
               <Image src="/contracts-Icons/Clock.svg" alt="Clock" width={24} height={24} />
             </button>
-            <input type="text" placeholder="Set Time" value={setTime} onChange={e => setSetTime(e.target.value)} className={styles.input} required />
+            <input type="time" ref={setTimeInputRef} placeholder="Set Time" value={setTime} onChange={e => setSetTime(e.target.value)} className={styles.input} required />
            
           </div>
         </div>
         <div className={styles.ticketInputWrapper}>
             <label className={styles.ticketsLabel}>Set Length</label> 
           <div className={styles.contractInput}>
-            <button type="button" className={styles.contracticon}>
+            <button type="button" className={styles.contracticon} onClick={() => setLengthInputRef.current?.showPicker?.()}>
               <Image src="/contracts-Icons/Clock.svg" alt="Clock" width={24} height={24} />
             </button>
-            <input type="text" placeholder="Set Length" value={setLength} onChange={e => setSetLength(e.target.value)} className={styles.input} required />
+            <input type="time" ref={setLengthInputRef} placeholder="Set Length" value={setLength} onChange={e => setSetLength(e.target.value)} className={styles.input} required />
             
           </div>
         </div>

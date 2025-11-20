@@ -45,14 +45,7 @@ const LocationSection: React.FC<LocationProps> = ({
               <Image src="/contracts-Icons/Building_01.svg" alt="Building" width={24} height={24} />
             </button>
             <input type="text" onChange={e => setVenueName(e.target.value)} value={venueName} placeholder="Venue Name" className={styles.input} required />
-            <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={24} height={24} style={{ cursor: "pointer" }} onClick={() => setActiveDropdown(activeDropdown === "venueName" ? null : "venueName")} />
-            {activeDropdown === "venueName" && (
-              <div className={styles.dropdownMenu}>
-                {dropdownOptions.map(option => (
-                  <div key={option} className={styles.dropdownOption} onClick={() => { setVenueName(option); setActiveDropdown(null); }}>{option}</div>
-                ))}
-              </div>
-            )}
+            
           </div>
         </div>
         <div className={styles.ticketInputWrapper}>
@@ -62,14 +55,7 @@ const LocationSection: React.FC<LocationProps> = ({
               <Image src="/contracts-Icons/Map_Pin.svg" alt="Map Pin" width={24} height={24} />
             </button>
             <input type="text" onChange={e => setAddress(e.target.value)} value={address} placeholder="Address" className={styles.input} required />
-            <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={24} height={24} style={{ cursor: "pointer" }} onClick={() => setActiveDropdown(activeDropdown === "address" ? null : "address")} />
-            {activeDropdown === "address" && (
-              <div className={styles.dropdownMenu}>
-                {dropdownOptions.map(option => (
-                  <div key={option} className={styles.dropdownOption} onClick={() => { setAddress(option); setActiveDropdown(null); }}>{option}</div>
-                ))}
-              </div>
-            )}
+            
           </div>
         </div>
       </>

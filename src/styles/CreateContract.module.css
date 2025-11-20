@@ -175,6 +175,7 @@
 }
 
 .contractInput {
+  position:relative;
   flex: 1;
   display: flex;
   align-items: center;
@@ -711,6 +712,7 @@
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 4px;
+  margin-left: 18px;
 }
 
 .ticketDetailsContainer {
@@ -811,6 +813,9 @@
   flex-direction: column;
   gap: 8px;
   flex: 1;
+  min-width:0;
+  width:100%;
+  box-sizing:border-box;
 }
 
 .ticketInputWrapper .ticketsLabel {
@@ -843,4 +848,59 @@
     var(--main-gradient);
   background-origin: border-box;
   background-clip: padding-box, border-box;
+}
+.infoLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  position: relative;
+  min-height: 32px;
+}
+.centeredLabel {
+  flex: 1;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 500;
+  color: white;
+}
+.infoIcon {
+  margin-right: 10px;
+  cursor: pointer;
+}
+.formGroup {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.formLabel {
+  font-size: 14px;
+  color: #ffffff;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.genrePillsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.genrePill {
+  padding: 6px 1px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 0 0 calc(33.333% - 6px);
+  text-align: center;
+}
+
+.genrePillSelected {
+  background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  border: none;
 }

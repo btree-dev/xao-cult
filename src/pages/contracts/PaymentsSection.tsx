@@ -65,34 +65,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
                   className={styles.input}
                   required
                 />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                    setActiveDropdown(
-                      activeDropdown === `party1DateTime-${index}` ? null : `party1DateTime-${index}`
-                    )
-                  }
-                />
-                {activeDropdown === `party1DateTime-${index}` && (
-                  <div className={styles.dropdownMenu}>
-                    {dropdownOptions.map(option => (
-                      <div
-                        key={option}
-                        className={styles.dropdownOption}
-                        onClick={() => {
-                          updateParty1Row(index, "dateTime", option);
-                          setActiveDropdown(null);
-                        }}
-                      >
-                        {option}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                
               </div>
             </div>
             <div className={styles.ticketColumn}>
@@ -109,34 +82,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
                   className={styles.input}
                   required
                 />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                    setActiveDropdown(
-                      activeDropdown === `party1Percentage-${index}` ? null : `party1Percentage-${index}`
-                    )
-                  }
-                />
-                {activeDropdown === `party1Percentage-${index}` && (
-                  <div className={styles.dropdownMenu}>
-                    {dropdownOptions.map(option => (
-                      <div
-                        key={option}
-                        className={styles.dropdownOption}
-                        onClick={() => {
-                          updateParty1Row(index, "percentage", option);
-                          setActiveDropdown(null);
-                        }}
-                      >
-                        {option}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                
               </div>
             </div>
             <div className={styles.ticketColumn}>
@@ -151,34 +97,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
                   className={styles.input}
                   required
                 />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                    setActiveDropdown(
-                      activeDropdown === `party1DollarAmount-${index}` ? null : `party1DollarAmount-${index}`
-                    )
-                  }
-                />
-                {activeDropdown === `party1DollarAmount-${index}` && (
-                  <div className={styles.dropdownMenu}>
-                    {dropdownOptions.map(option => (
-                      <div
-                        key={option}
-                        className={styles.dropdownOption}
-                        onClick={() => {
-                          updateParty1Row(index, "dollarAmount", option);
-                          setActiveDropdown(null);
-                        }}
-                      >
-                        {option}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                
               </div>
             </div>
           </div>
@@ -213,34 +132,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
                   className={styles.input}
                   required
                 />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                    setActiveDropdown(
-                      activeDropdown === `party2DateTime-${index}` ? null : `party2DateTime-${index}`
-                    )
-                  }
-                />
-                {activeDropdown === `party2DateTime-${index}` && (
-                  <div className={styles.dropdownMenu}>
-                    {dropdownOptions.map(option => (
-                      <div
-                        key={option}
-                        className={styles.dropdownOption}
-                        onClick={() => {
-                          updateParty2Row(index, "dateTime", option);
-                          setActiveDropdown(null);
-                        }}
-                      >
-                        {option}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                
               </div>
             </div>
             <div className={styles.ticketColumn}>
@@ -257,34 +149,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
                   className={styles.input}
                   required
                 />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                    setActiveDropdown(
-                      activeDropdown === `party2Percentage-${index}` ? null : `party2Percentage-${index}`
-                    )
-                  }
-                />
-                {activeDropdown === `party2Percentage-${index}` && (
-                  <div className={styles.dropdownMenu}>
-                    {dropdownOptions.map(option => (
-                      <div
-                        key={option}
-                        className={styles.dropdownOption}
-                        onClick={() => {
-                          updateParty2Row(index, "percentage", option);
-                          setActiveDropdown(null);
-                        }}
-                      >
-                        {option}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                
               </div>
             </div>
             <div className={styles.ticketColumn}>
@@ -299,34 +164,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
                   className={styles.input}
                   required
                 />
-                <Image
-                  src="/contracts-Icons/Dropdown.svg"
-                  alt="Dropdown"
-                  width={24}
-                  height={24}
-                  style={{ cursor: "pointer" }}
-                  onClick={() =>
-                    setActiveDropdown(
-                      activeDropdown === `party2DollarAmount-${index}` ? null : `party2DollarAmount-${index}`
-                    )
-                  }
-                />
-                {activeDropdown === `party2DollarAmount-${index}` && (
-                  <div className={styles.dropdownMenu}>
-                    {dropdownOptions.map(option => (
-                      <div
-                        key={option}
-                        className={styles.dropdownOption}
-                        onClick={() => {
-                          updateParty2Row(index, "dollarAmount", option);
-                          setActiveDropdown(null);
-                        }}
-                      >
-                        {option}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                
               </div>
             </div>
           </div>

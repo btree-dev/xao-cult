@@ -67,14 +67,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
                 <Image src="/contracts-Icons/hash icon.svg" alt="hash" width={24} height={24} />
               </button>
               <input type="text" placeholder="Total Capacity" value={totalCapacity} onChange={e => setTotalCapacity(e.target.value)} className={styles.input} required />
-              <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={24} height={24} style={{ cursor: "pointer" }} onClick={() => setActiveDropdown(activeDropdown === "totalCapacity" ? null : "totalCapacity")} />
-              {activeDropdown === "totalCapacity" && (
-                <div className={styles.dropdownMenu}>
-                  {dropdownOptions.map(option => (
-                    <div key={option} className={styles.dropdownOption} onClick={() => { setTotalCapacity(option); setActiveDropdown(null); }}>{option}</div>
-                  ))}
-                </div>
-              )}
+              
             </div>
           </div>
           <div className={styles.ticketInputWrapper}>
@@ -84,14 +77,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
                 <Image src="/contracts-Icons/Percent icon.svg" alt="percent" width={24} height={24} />
               </button>
               <input type="text" placeholder="Sales Tax %" value={comps} onChange={e => setComps(e.target.value)} className={styles.input} required />
-              <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={24} height={24} style={{ cursor: "pointer" }} onClick={() => setActiveDropdown(activeDropdown === "salesTax" ? null : "salesTax")} />
-              {activeDropdown === "salesTax" && (
-                <div className={styles.dropdownMenu}>
-                  {Array.from({ length: 100 }, (_, i) => i + 1).map(num => (
-                    <div key={num} className={styles.dropdownOption} onClick={() => { setComps(`${num}%`); setActiveDropdown(null); }}>{num}%</div>
-                  ))}
-                </div>
-              )}
+              
             </div>
           </div>
         </div>
@@ -119,14 +105,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
                     <Image src="/contracts-Icons/Calendar.svg" alt="Calendar" width={20} height={20} />
                   </button>
                   <input type="text" placeholder="General" value={row.onSaleDate} onChange={e => updateTicketRow(index, "onSaleDate", e.target.value)} className={styles.input} required />
-                  <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={20} height={20} style={{ cursor: "pointer" }} onClick={() => setActiveDropdown(activeDropdown === `onSaleDate-${index}` ? null : `onSaleDate-${index}`)} />
-                  {activeDropdown === `onSaleDate-${index}` && (
-                    <div className={styles.dropdownMenu}>
-                      {dropdownOptions.map(option => (
-                        <div key={option} className={styles.dropdownOption} onClick={() => { updateTicketRow(index, "onSaleDate", option); setActiveDropdown(null); }}>{option}</div>
-                      ))}
-                    </div>
-                  )}
+                 
                 </div>
               </div>
             </div>
@@ -138,14 +117,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
                     <Image src="/contracts-Icons/hash icon.svg" alt="hash" width={20} height={20} />
                   </button>
                   <input type="text" placeholder="500" value={row.numberOfTickets} onChange={e => updateTicketRow(index, "numberOfTickets", e.target.value)} className={styles.input} required />
-                  <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={20} height={20} style={{ cursor: "pointer" }} onClick={() => setActiveDropdown(activeDropdown === `numberOfTickets-${index}` ? null : `numberOfTickets-${index}`)} />
-                  {activeDropdown === `numberOfTickets-${index}` && (
-                    <div className={styles.dropdownMenu}>
-                      {dropdownOptions.map(option => (
-                        <div key={option} className={styles.dropdownOption} onClick={() => { updateTicketRow(index, "numberOfTickets", option); setActiveDropdown(null); }}>{option}</div>
-                      ))}
-                    </div>
-                  )}
+                  
                 </div>
               </div>
               <div className={styles.ticketColumn}>
@@ -155,14 +127,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
                     <Image src="/contracts-Icons/Dollar sign.svg" alt="dollar" width={20} height={20} />
                   </button>
                   <input type="text" placeholder="50.00" value={row.ticketPrice} onChange={e => updateTicketRow(index, "ticketPrice", e.target.value)} className={styles.input} required />
-                  <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={20} height={20} style={{ cursor: "pointer" }} onClick={() => setActiveDropdown(activeDropdown === `ticketPrice-${index}` ? null : `ticketPrice-${index}`)} />
-                  {activeDropdown === `ticketPrice-${index}` && (
-                    <div className={styles.dropdownMenu}>
-                      {dropdownOptions.map(option => (
-                        <div key={option} className={styles.dropdownOption} onClick={() => { updateTicketRow(index, "ticketPrice", option); setActiveDropdown(null); }}>{option}</div>
-                      ))}
-                    </div>
-                  )}
+                  
                 </div>
               </div>
             </div>

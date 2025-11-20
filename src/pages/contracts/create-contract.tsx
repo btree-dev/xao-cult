@@ -57,7 +57,18 @@ const handleSign = () => {
             ) : (
               <>
                 <div className={styles.docContainer}>
-                  <label className={`${styles.label} ${styles.open}`}>Parties</label>
+                  <div className={styles.infoLabelRow}>
+                    <label className={`${styles.centeredLabel } ${styles.open}`}>Parties</label>
+                    <Image
+                      src="/contracts-Icons/Info.svg"
+                      alt="Info"
+                      width={20}
+                      height={20}
+                      className={styles.infoIcon}
+                    />
+                  </div>
+                  <div className={styles.ticketInputWrapper}>
+                  <label className={styles.ticketsLabel}>Party 1</label> 
                   <div className={styles.inputRow}>
                     <input
                       type="text"
@@ -67,6 +78,10 @@ const handleSign = () => {
                       required
                     />
                   </div>
+                  </div>
+
+                  <div className={styles.ticketInputWrapper}>
+                  <label className={styles.ticketsLabel}>Party 2</label> 
                   <div className={styles.inputRow}>
                     <input
                       type="text"
@@ -76,6 +91,8 @@ const handleSign = () => {
                       required
                     />
                   </div>
+                  </div>
+
                 </div>
 
                 <CreateContractsection/>

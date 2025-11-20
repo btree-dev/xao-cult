@@ -7,6 +7,7 @@ import MoneySection, { SecurityDepositRow, CancelPartyRow } from "./MoneySection
 import PaymentsSection, { PaymentRow } from "./PaymentsSection";
 import styles from "../../styles/CreateContract.module.css";
 import { EventDocs } from "../../backend/eventsdata";
+import { Genres } from "../../backend/public-information-services/publicinfodata";
 
 const dropdownOptions = ["Option 1", "Option 2", "Option 3"];
 
@@ -194,6 +195,16 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
     };
   }, [activeDropdown]);
 
+  const [promotionGenres, setPromotionGenres] = useState<string[]>([]);
+
+  const togglePromotionGenre = (genre: string) => {
+    setPromotionGenres((prev) =>
+      prev.includes(genre)
+        ? prev.filter((g) => g !== genre)
+        : [...prev, genre]
+    );
+  };
+
   return (
     <div className={styles.sectioncontainer}>
       <DatesAndTimesSection
@@ -327,6 +338,23 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
                     className={styles.input}
                     required
                   />
+                </div>
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Genre</label>
+                <div className={styles.genrePillsContainer}>
+                  {Genres.map((genre) => (
+                    <button
+                      key={genre}
+                      type="button"
+                      className={`${styles.genrePill} ${
+                        promotionGenres.includes(genre) ? styles.genrePillSelected : ""
+                      }`}
+                      onClick={() => togglePromotionGenre(genre)}
+                    >
+                      {genre}
+                    </button>
+                  ))}
                 </div>
               </div>
             </>

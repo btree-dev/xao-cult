@@ -99,7 +99,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
               <label className={styles.ticketColumnLabel}>Percentage</label>
               <div className={styles.contractInput}>
                 <button type="button" className={styles.contracticon}>
-                  <Image src="/contracts-Icons/Percent icon.svg" alt="percent" width={24} height={24} />
+                  <Image src="/contracts-Icons/percent icon.svg" alt="percent" width={24} height={24} />
                 </button>
                 <input
                   type="text"
@@ -247,7 +247,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
               <label className={styles.ticketColumnLabel}>Percentage</label>
               <div className={styles.contractInput}>
                 <button type="button" className={styles.contracticon}>
-                  <Image src="/contracts-Icons/Percent icon.svg" alt="percent" width={24} height={24} />
+                  <Image src="/contracts-Icons/percent icon.svg" alt="percent" width={24} height={24} />
                 </button>
                 <input
                   type="text"

@@ -17,7 +17,9 @@ const CreateContract = () => {
   const handleSave = () => {
     router.push("/dashboard");
   };
-
+const handleSign = () => {
+    router.push("/dashboard");
+  };
   return (
     <Layout>
       <div className={styles.container}>
@@ -79,6 +81,9 @@ const CreateContract = () => {
                 <CreateContractsection/>
               <button type="button" onClick={handleSave}   className={styles.confirmButton}>
                   Save
+              </button>
+              <button type="button" onClick={handleSign} className={styles.documentButton}>
+                sign
               </button>
 
             </>

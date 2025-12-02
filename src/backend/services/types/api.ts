@@ -153,3 +153,33 @@ export interface IGenre {
   createdAt?: Date;
   updatedAt?: Date;
 }
+export interface IContract {
+  _id?: string;
+  eventId?: string;
+  party1?: string;
+  party2?: string;
+  status?: string;
+  terms?: string;
+  datesAndTimes?: {
+    startTime?: string;
+    endTime?: string;
+    loadIn?: string;
+    doors?: string;
+    setTime?: string;
+    setLength?: string;
+    ticketsSale?: string;
+    showDate?: string;
+  };
+  location?: {
+    venueName?: string;
+    address?: string;
+  };
+  tickets?: any; // Replace 'any' with your TicketRow[] type if available
+  money?: any;   // Replace 'any' with your MoneySection type if available
+  payments?: any;
+  promotion?: any;
+  rider?: any;
+  legalAgreement?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}

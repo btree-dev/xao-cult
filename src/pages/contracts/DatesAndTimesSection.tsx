@@ -4,6 +4,15 @@ import styles from "../../styles/CreateContract.module.css";
 
 const dropdownOptions = ["Option 1", "Option 2", "Option 3"];
 
+const setLengthOptions = Array.from({ length: 24 }, (_, i) => {
+  const totalMinutes = (i + 1) * 15;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0
+    ? `${hours}h${minutes > 0 ? ` ${minutes}m` : ""}`
+    : `${minutes}m`;
+});
+
 export interface DatesAndTimesProps {
   isOpen: boolean;
   onToggle: () => void;
@@ -73,12 +82,12 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
     {isOpen && (
       <>
         <div className={styles.ticketInputWrapper}>
-          <label className={styles.ticketsLabel}>Event Anouncement Date</label>
+          <label className={styles.ticketsLabel}>Event Announcement Date</label>
             <div className={styles.inputRow}>
             <button type="button" className={styles.contracticon} onClick={() => dateInputRef.current?.showPicker?.()}>
                 <Image src="/contracts-Icons/Calendar.svg" alt="Calendar" width={24} height={24} />
             </button>
-            <input type="date" placeholder="Event Announcement" ref={dateInputRef} onClick={() => dateInputRef.current?.showPicker?.()} className={styles.input} required />
+            <input type="datetime-local" placeholder="Event Announcement" ref={dateInputRef} onClick={() => dateInputRef.current?.showPicker?.()} className={styles.input} required />
             </div>
         </div>
         <div className={styles.ticketInputWrapper}>
@@ -87,7 +96,7 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
             <button type="button" className={styles.contracticon} onClick={() => showDateInputRef.current?.showPicker?.()}>
                 <Image src="/contracts-Icons/Calendar.svg" alt="Calendar" width={24} height={24} />
             </button>
-            <input type="date" placeholder="Show Date" ref={showDateInputRef} onClick={() => showDateInputRef.current?.showPicker?.()} className={styles.input} required />
+            <input type="datetime-local" placeholder="Show Date" ref={showDateInputRef} onClick={() => showDateInputRef.current?.showPicker?.()} className={styles.input} required />
             </div>
         </div>
         <div className={styles.contractRow}>
@@ -97,7 +106,7 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
             <button type="button" className={styles.contracticon} onClick={() => loadInInputRef.current?.showPicker?.()}>
               <Image src="/contracts-Icons/Clock.svg" alt="Clock" width={24} height={24} />
             </button>
-            <input type="time" ref={loadInInputRef} placeholder="Load In" value={loadIn} onChange={e => setLoadIn(e.target.value)} className={styles.input} required />
+            <input type="time" ref={loadInInputRef} placeholder="Load In" value={loadIn} onChange={e => setLoadIn(e.target.value)} className={styles.input} step="60" required />
             
           </div>
           </div>
@@ -108,7 +117,7 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
             <button type="button" className={styles.contracticon} onClick={() => doorsInputRef.current?.showPicker?.()}>
               <Image src="/contracts-Icons/Clock.svg" alt="Clock" width={24} height={24} />
             </button>
-            <input type="time" ref={doorsInputRef} placeholder="Doors" value={doors} onChange={e => setDoors(e.target.value)} className={styles.input} required />
+            <input type="time" ref={doorsInputRef} placeholder="Doors" value={doors} onChange={e => setDoors(e.target.value)} className={styles.input} step="60" required />
             
           </div>
           </div>
@@ -120,7 +129,7 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
             <button type="button" className={styles.contracticon} onClick={() => startTimeInputRef.current?.showPicker?.()}>
               <Image src="/contracts-Icons/Clock.svg" alt="Clock" width={24} height={24} />
             </button>
-            <input type="time" ref={startTimeInputRef} placeholder="Start Time" value={startTime} onChange={e => setStartTime(e.target.value)} className={styles.input} required />
+            <input type="time" ref={startTimeInputRef} placeholder="Start Time" value={startTime} onChange={e => setStartTime(e.target.value)} className={styles.input} step="60" required />
           </div>
         </div>  
         <div className={styles.ticketInputWrapper}>
@@ -129,7 +138,7 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
             <button type="button" className={styles.contracticon} onClick={() => endTimeInputRef.current?.showPicker?.()}>
               <Image src="/contracts-Icons/Clock.svg" alt="Clock" width={24} height={24} />
             </button>
-            <input type="time" placeholder="End Time" ref={endTimeInputRef} value={endTime} onChange={e => setEndTime(e.target.value)} className={styles.input} required />
+            <input type="time" placeholder="End Time" ref={endTimeInputRef} value={endTime} onChange={e => setEndTime(e.target.value)} className={styles.input} step="60" required />
             
           </div>
           </div>
@@ -141,20 +150,59 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
             <button type="button" className={styles.contracticon} onClick={() => setTimeInputRef.current?.showPicker?.()}>
               <Image src="/contracts-Icons/Clock.svg" alt="Clock" width={24} height={24} />
             </button>
-            <input type="time" ref={setTimeInputRef} placeholder="Set Time" value={setTime} onChange={e => setSetTime(e.target.value)} className={styles.input} required />
+            <input type="time" ref={setTimeInputRef} placeholder="Set Time" value={setTime} onChange={e => setSetTime(e.target.value)} className={styles.input} step="60" required />
            
           </div>
         </div>
         <div className={styles.ticketInputWrapper}>
-            <label className={styles.ticketsLabel}>Set Length</label> 
-          <div className={styles.contractInput}>
-            <button type="button" className={styles.contracticon} onClick={() => setLengthInputRef.current?.showPicker?.()}>
-              <Image src="/contracts-Icons/Clock.svg" alt="Clock" width={24} height={24} />
-            </button>
-            <input type="time" ref={setLengthInputRef} placeholder="Set Length" value={setLength} onChange={e => setSetLength(e.target.value)} className={styles.input} required />
-            
+            <label className={styles.ticketsLabel}>Set Length</label>
+            <div className={styles.contractInput} style={{ position: "relative" }}>
+              <button
+                type="button"
+                className={styles.contracticon}
+                onClick={() =>
+                  setActiveDropdown(
+                    activeDropdown === "setLength" ? null : "setLength"
+                  )
+                }
+              >
+                <Image src="/contracts-Icons/Clock.svg" alt="Clock" width={24} height={24} />
+              </button>
+              <input
+                type="text"
+                className={styles.input}
+                placeholder="Select Length"
+                value={setLength}
+                readOnly
+                onClick={() =>
+                  setActiveDropdown(
+                    activeDropdown === "setLength" ? null : "setLength"
+                  )
+                }
+                style={{ cursor: "pointer" }}
+              />
+              {activeDropdown === "setLength" && (
+                <div
+                  className={styles.dropdownMenu}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  {setLengthOptions.map(option => (
+                    <div
+                      key={option}
+                      className={styles.dropdownOption}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSetLength(option);
+                        setActiveDropdown(null);
+                      }}
+                    >
+                      {option}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
         </div>
       </>
     )}

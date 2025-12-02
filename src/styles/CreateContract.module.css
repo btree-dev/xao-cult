@@ -102,20 +102,52 @@
 
 .input {
   flex: 1;
-  min-width: 0; 
+  min-width: 0;
   background: transparent;
   border: none;
   outline:none;
   color: white;
-  font-size: clamp(14px, 2.5vw, 18px); 
-  overflow-wrap: break-word; /* Wrap content */
+  font-size: clamp(8px, 2.5vw, 12px);
+  overflow-wrap: break-word;
   word-break: break-word;
-  white-space: normal; /* Allow wrapping */
-  box-sizing: border-box; 
+  white-space: normal;
+  box-sizing: border-box;
 }
 .input:disabled {
-  color: white; 
+  color: white;
   -webkit-text-fill-color: white;
+}
+.input[type="datetime-local"] {
+  color-scheme: dark;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  font-size: clamp(8px, 2.5vw, 11px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  display: none;
+}
+.input[type="time"] {
+  color-scheme: dark;
+}
+.input[type="time"]::-webkit-calendar-picker-indicator {
+  display: none;
+}
+.input[type="date"]::-webkit-calendar-picker-indicator {
+  display: none;
+}
+.input[type="number"]::-webkit-inner-spin-button,
+.input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+.input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 .toggleWrapper {
   display: flex;
@@ -159,9 +191,15 @@
 .contracticon {
   background: none;
   border: none;
-  padding: 0;
-  margin-right: 8px;
+  padding: 1px;
+  margin-right: 3px;
   cursor: pointer;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  max-width: 44px;
+  max-height: 55px
 }
 
 .contracticon:focus {
@@ -338,6 +376,26 @@
   object-fit: cover;
   border-radius: 30px;
   display: block;
+}
+
+.promotionImagePlaceholder {
+  width: 100%;
+  height: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 30px;
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.promotionImagePlaceholder:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .promotionDetailsOverlay {
@@ -733,6 +791,7 @@
   flex-direction: column;
   gap: 16px;
   margin-top: 12px;
+  margin-bottom: 12px;
 }
 
 .ticketDetailsRow {
@@ -918,3 +977,18 @@
   justify-content: center;
   cursor: pointer;
 }
+.datetime{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1 1;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .securityDepositrow{
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    margin-top: 16px;
+  }

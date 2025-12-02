@@ -31,7 +31,7 @@ const FloatingNav = () => {
     {
       id: 'chat',
       title: 'Chat',
-      routes: ['/assets/transaction-history'],
+      routes: ['/chat-Section/Filter'],
       icon: '/floating-nav/chat.svg',
       iconSelected: '/floating-nav/chat-selected.svg',
     },

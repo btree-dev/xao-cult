@@ -21,6 +21,7 @@
     "mongodb": "^6.20.0",
     "mongoose": "^8.19.2",
     "next": "^15.2.4",
+    "next-auth": "^4.24.13",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
@@ -32,6 +33,7 @@
   "devDependencies": {
     "@types/formidable": "^3.4.5",
     "@types/mongodb": "^4.0.6",
+    "@types/next-auth": "^3.13.0",
     "@types/node": "^20.14.8",
     "@types/react": "^19.0.6",
     "@types/react-redux": "^7.1.34",

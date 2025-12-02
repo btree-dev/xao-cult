@@ -108,3 +108,260 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+.filterdocContainer {
+  display: flex;
+  flex-direction: column;
+  border-radius: 46px;
+  margin-top: 14px;
+  margin-bottom: 14px;
+  padding: 12px;
+  padding-bottom: 20px;
+  gap: 8px;
+  background: black;
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(black, black),
+    linear-gradient(to right, #ff9900, #e100ff);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.filterMainHeading {
+  color: white;
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center;
+  margin: 0 0 8px 0;
+}
+
+.filterSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filterTitle {
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.filterList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.filterItem {
+  margin: 0;
+  padding: 0;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: white;
+  font-size: 14px;
+}
+
+.filterCheckbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  background: black;
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(black, black),
+    linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.filterCheckbox:checked {
+  background: black;
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(black, black),
+    linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.filterCheckbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.checkboxText {
+  user-select: none;
+}
+
+.searchButton {
+    width: 100%;
+    height: 60px;
+    border-radius: 40px;
+    border: none;
+    background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding-left: 30px;
+    padding-right: 30px;
+    margin-bottom: 20px;
+    margin-top: 5px;
+}
+.searchhomeContainer {
+    min-height: 100vh;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: center;
+    margin-top: 14px;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.searchBarContainer {
+  position: relative;
+  width: 100%;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  border-radius: 30px;
+  padding: 12px 20px;
+  background: black;
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(black, black),
+    linear-gradient(to right, #ff9900, #e100ff);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.searchIcon {
+  width:24px;
+  height:24px;
+  margin-right: 12px;
+  
+}
+
+.searchInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: white;
+  font-size: 14px;
+  padding: 0;
+}
+
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.searchResultsContainer {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.searchResultCard {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  border-radius: 24px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.searchResultCard:hover {
+  transform: translateY(-2px);
+}
+
+.searchResultImage {
+  flex-shrink: 0;
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resultImage {
+  object-fit: cover;
+}
+
+.searchResultContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.searchResultTitle {
+  color: white;
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.searchResultEvents {
+  color: #9ca3af;
+  font-size: 14px;
+  margin: 0;
+}
+
+.searchResultAction {
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.searchResultAction:hover {
+  transform: scale(1.1);
+}
+
+.notifyIcon {
+  filter: brightness(0) invert(1);
+}
+
+@media (max-width: 480px){
+.searchhomeContainer{
+  margin-top: 140px;
+}
+}

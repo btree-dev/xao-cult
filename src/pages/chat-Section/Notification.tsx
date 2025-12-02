@@ -3,14 +3,17 @@ import Head from "next/head";
 import Layout from "../../components/Layout";
 import Navbar from "../../components/Navbar";
 import styles from "../../styles/Home.module.css";
-import docStyles from "../../styles/ChatSection.module.css"; 
-import { notificationDocs } from "../../backend/notificationdata";
+import docStyles from "../../styles/ChatSection.module.css";
+import { notificationDocs } from "../../backend/Chat-Services/notificationdata";
 import { useRouter } from "next/router";
 import BackNavbar from "../../components/BackNav";
 import Scrollbar from "../../components/Scrollbar";
+import { useState } from "react";
+
 
 export default function Notification() {
   const router = useRouter();
+ 
 
   const handleClick = (id: string) => {
     router.push(`/chat-Section/notification`);
@@ -29,6 +32,7 @@ export default function Notification() {
         <BackNavbar pageTitle="Notifications"/>
         <Scrollbar/>
         <main className={docStyles.notificationcontainer}>
+          
           {notificationDocs.map((doc, index) => (
             <div key={index} className={docStyles.notificationrow}>
               <div className={docStyles.notificationCard} onClick={() => handleClick(doc.id)} style={{ cursor: "pointer" }}>

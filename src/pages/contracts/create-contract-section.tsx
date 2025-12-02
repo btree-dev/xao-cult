@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import Image from "next/image";
 import DatesAndTimesSection from "./DatesAndTimesSection";
 import LocationSection from "./LocationSection";
@@ -8,10 +8,15 @@ import PaymentsSection, { PaymentRow } from "./PaymentsSection";
 import styles from "../../styles/CreateContract.module.css";
 import { EventDocs } from "../../backend/eventsdata";
 import { Genres } from "../../backend/public-information-services/publicinfodata";
-
+import { contractAPI } from "../../backend/services/Contract";
+import { IContract } from "../../backend/services/types/api";
 const dropdownOptions = ["Option 1", "Option 2", "Option 3"];
+interface CreateContractsectionProps {
+  party1: string;
+  party2: string;
+}
 
-const CreateContractsection = ({}) => {
+const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props, ref) => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [dateTime, setDateTime] = useState("");
   const [startTime, setStartTime] = useState("");
@@ -38,7 +43,7 @@ const CreateContractsection = ({}) => {
   const [general, setGeneral] = useState("");
   const [presale, setPresale] = useState("");
   const [add, setAdd] = useState("");
-  const [isTicketEnabled, setticketsEnabled] = useState(false);
+  const [isTicketEnabled, setticketsEnabled] = useState(true);
   const [moneyInput, setmoneyInput] = useState("");
   const [venueCanceledBy, setvenueCanceledBy] = useState("");
   const [securitydepositAdd, setsecuritydepositAdd] = useState("");
@@ -54,6 +59,13 @@ const CreateContractsection = ({}) => {
   const [RiderAdd, setRiderAdd] = useState("");
   const [RiderValue, setRiderValue] = useState("");
   const [promotionValue, setPromotionValue] = useState("");
+
+  // Rider rows state
+  interface RiderRow {
+    value: string;
+  }
+  const [riderRows, setRiderRows] = useState<RiderRow[]>([{ value: "" }]);
+  const [promotionImage, setPromotionImage] = useState<string | null>(null);
   const [payoutDateTime, setPayoutDateTime] = useState("");
   const [payoutPercentage, setPayoutPercentage] = useState("");
   const [payoutDollarAmount, setPayoutDollarAmount] = useState("");
@@ -122,6 +134,14 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
   setPayout2Rows(updated);
 };
 
+// Rider row functions
+const addRiderRow = () => setRiderRows([...riderRows, { value: "" }]);
+const updateRiderRow = (index: number, value: string) => {
+  const updated = [...riderRows];
+  updated[index].value = value;
+  setRiderRows(updated);
+};
+
   const startTimeInputRef = useRef<HTMLInputElement | null>(null);
   const endTimeInputRef = useRef<HTMLInputElement | null>(null);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
@@ -142,10 +162,12 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
 
   // Update ticket row function
   const updateTicketRow = (index: number, field: keyof TicketRow, value: string) => {
-    const updatedRows = [...ticketRows];
+  setTicketRows(prevRows => {
+    const updatedRows = [...prevRows];
     updatedRows[index][field] = value;
-    setTicketRows(updatedRows);
-  };
+    return updatedRows;
+  });
+};
 
   // Add security deposit row function
   const addSecurityDepositRow = () => {
@@ -201,6 +223,7 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
   }, [activeDropdown]);
 
   const [promotionGenres, setPromotionGenres] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const togglePromotionGenre = (genre: string) => {
     setPromotionGenres((prev) =>
@@ -209,6 +232,74 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
         : [...prev, genre]
     );
   };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPromotionImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImageClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Collect all contract data
+  const getContractData = (): Partial<IContract> => ({
+    party1: props.party1,
+    party2: props.party2,
+    datesAndTimes: {
+      startTime,
+      endTime,
+      loadIn,
+      doors,
+      setTime,
+      setLength,
+      ticketsSale,
+      showDate,
+    },
+    location: {
+      venueName,
+      address,
+    },
+    tickets: ticketRows,
+    money: {
+      securityDepositRows,
+      cancelParty1Rows,
+      depositbandInput,
+      bandCanceledBy,
+      guaranteeInput,
+      backendInput,
+      barsplitInput,
+      merchSplitInput,
+      cancelParty2DateTime,
+      securitydepositAdd,
+      securityDeposit2Rows,
+      cancelParty2Rows,
+    },
+    payments: {
+      party1: payoutRows,
+      party2: payout2Rows,
+    },
+    promotion: {
+      value: promotionValue,
+      genres: promotionGenres,
+    },
+    rider: {
+      rows: riderRows,
+    },
+    legalAgreement: LegalAgreementValue,
+    updatedAt: new Date(),
+  });
+
+  // Expose getContractData to parent
+  useImperativeHandle(ref, () => ({
+    getContractData,
+  }));
 
   return (
     <div className={styles.sectioncontainer}>
@@ -232,8 +323,8 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
         setEndTime={setEndTime}
         setTime={setTime}
         setSetTime={setSetTime}
-        setLength={setLength}
-        setSetLength={setSetLength}
+        setLength={setLength}         
+        setSetLength={setSetLength}  
         loadInInputRef={loadInInputRef}
         doorsInputRef={doorsInputRef}
         setTimeInputRef={setTimeInputRef}
@@ -310,6 +401,7 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
         addParty2Row={addPayout2Row}
         updateParty2Row={updatePayout2Row}
       />
+      { /* Promotion section   */}
       <div className={`${styles.docContainer} ${isPromotionOpen ? styles.open : styles.closed}`}>
           <SectionHeader
                   label="Promotion"
@@ -318,23 +410,48 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
                 />
           {isPromotionOpen && (
             <>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                style={{ display: 'none' }}
+              />
               <div className={styles.promotionImageContainer}>
-                <img
-                  src={EventDocs[0].image}
-                  alt={EventDocs[0].title}
-                  className={styles.promotionImage}
-                />
-                <div className={styles.promotionDetailsOverlay}>
-                  <h2 className={styles.promotionTitle}>{EventDocs[0].title}</h2>
-                  <span className={styles.promotionLocation}>
-                    <img src="/contracts-Icons/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
-                    Wembley Stadium London
-                  </span>
-                  <span className={styles.promotionDate}>
-                    <img src="/contracts-Icons/Calendar.svg" alt="Date" className={styles.promotionIcon} />
-                    Sat. 19 December
-                  </span>
-                </div>
+                {promotionImage ? (
+                  <>
+                    <img
+                      src={promotionImage}
+                      alt="Uploaded promotion"
+                      className={styles.promotionImage}
+                    />
+                    <div className={styles.promotionDetailsOverlay}>
+                      <h2 className={styles.promotionTitle}>{EventDocs[0].title}</h2>
+                      <span className={styles.promotionLocation}>
+                        <img src="/contracts-Icons/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
+                        Wembley Stadium London
+                      </span>
+                      <span className={styles.promotionDate}>
+                        <img src="/contracts-Icons/Calendar.svg" alt="Date" className={styles.promotionIcon} />
+                        Sat. 19 December
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div
+                    className={styles.promotionImagePlaceholder}
+                    onClick={handleImageClick}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <Image
+                      src="/contracts-Icons/Add_Plus.svg"
+                      alt="Add Image"
+                      width={48}
+                      height={48}
+                    />
+                    <span>Add Image</span>
+                  </div>
+                )}
               </div>
               <label className={`${styles.LeftLabel}`}>Event Name</label>
               <div className={styles.contractRow}>
@@ -369,6 +486,7 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
             </>
           )}
         </div>
+        {/* Rider section */}
 
       <div className={`${styles.docContainer} ${isRiderOpen ? styles.open : styles.closed}`}>
           <SectionHeader
@@ -378,20 +496,27 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
                 />
           {isRiderOpen && (
             <>
-              <div className={styles.contractRow}>
-                <div className={styles.contractInput}>
-                  <input
-                    type="text"
-                    placeholder="Value"
-                    onChange={(e) => setRiderValue(e.target.value)}
-                    className={styles.input}
-                    required
-                  />
+              {riderRows.map((row, index) => (
+                <div key={index} className={styles.contractRow}>
+                  <div className={styles.contractInput}>
+                    <input
+                      type="text"
+                      placeholder="Value"
+                      value={row.value}
+                      onChange={(e) => updateRiderRow(index, e.target.value)}
+                      className={styles.input}
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
+              ))}
               <div className={styles.contractRow}>
-                <div className={styles.contractInput}>
-                  <button type="button" className={styles.contracticon}>
+                <div className={`${styles.contractInput} ${styles.addInput}`}>
+                  <button
+                    type="button"
+                    className={styles.contracticon}
+                    onClick={addRiderRow}
+                  >
                     <Image
                       src="/contracts-Icons/Add_Plus.svg"
                       alt="add"
@@ -402,9 +527,8 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
                   <input
                     type="text"
                     placeholder="Add"
-                    onChange={(e) => setRiderAdd(e.target.value)}
                     className={styles.input}
-                    required
+                    readOnly
                   />
                 </div>
               </div>
@@ -434,6 +558,6 @@ const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string)
 </div>
     </div>
   );
-};
+});
 
 export default CreateContractsection;

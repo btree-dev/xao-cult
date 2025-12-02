@@ -5,7 +5,7 @@ import styles from "../../styles/CreateContract.module.css";
 import ContractsNav from "../../components/ContractsNav";
 import Image from "next/image";
 import router from "next/router";
-import { EventDocs } from "../../backend/eventsdata";
+import { contractAPI } from "../../backend/services/Contract";
 import CreateContractsection from "./create-contract-section";
 import Scrollbar from "../../components/Scrollbar";
 
@@ -13,13 +13,32 @@ const CreateContract = () => {
   const [selected, setSelected] = useState<"chat" | "contract">("contract");
   const [party1, setParty1] = useState("");
   const [party2, setParty2] = useState("");
+  const contractSectionRef = useRef<any>(null);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (contractSectionRef.current) {
+      // Get all other contract data from child
+      const contractData = contractSectionRef.current.getContractData();
+      // Combine with party1 and party2 from parent
+      const fullContractData = {
+        ...contractData,
+        party1,
+        party2,
+      };
+      try {
+        await contractAPI.createContract(fullContractData);
+        alert("Contract created successfully!");
+        router.push("/dashboard");
+      } catch (error) {
+        alert("Error creating contract: " + (error as Error).message);
+      }
+    }
+  };
+
+  const handleSign = () => {
     router.push("/dashboard");
   };
-const handleSign = () => {
-    router.push("/dashboard");
-  };
+
   return (
     <Layout>
       <div className={styles.container}>
@@ -47,7 +66,7 @@ const handleSign = () => {
                 }`}
                 onClick={() => setSelected("contract")}
               >
-                Contract 
+                Contract
               </button>
             </div>
           </div>
@@ -58,7 +77,11 @@ const handleSign = () => {
               <>
                 <div className={styles.docContainer}>
                   <div className={styles.infoLabelRow}>
-                    <label className={`${styles.centeredLabel } ${styles.open}`}>Parties</label>
+                    <label
+                      className={`${styles.centeredLabel} ${styles.open}`}
+                    >
+                      Parties
+                    </label>
                     <Image
                       src="/contracts-Icons/Info.svg"
                       alt="Info"
@@ -68,44 +91,54 @@ const handleSign = () => {
                     />
                   </div>
                   <div className={styles.ticketInputWrapper}>
-                  <label className={styles.ticketsLabel}>Party 1</label> 
-                  <div className={styles.inputRow}>
-                    <input
-                      type="text"
-                      onChange={(e) => setParty1(e.target.value)}
-                      placeholder="Party1"
-                      className={styles.input}
-                      required
-                    />
-                  </div>
+                    <label className={styles.ticketsLabel}>Party 1</label>
+                    <div className={styles.inputRow}>
+                      <input
+                        type="text"
+                        onChange={(e) => setParty1(e.target.value)}
+                        placeholder="Party1"
+                        className={styles.input}
+                        required
+                      />
+                    </div>
                   </div>
 
                   <div className={styles.ticketInputWrapper}>
-                  <label className={styles.ticketsLabel}>Party 2</label> 
-                  <div className={styles.inputRow}>
-                    <input
-                      type="text"
-                      onChange={(e) => setParty2(e.target.value)}
-                      placeholder="Party2"
-                      className={styles.input}
-                      required
-                    />
+                    <label className={styles.ticketsLabel}>Party 2</label>
+                    <div className={styles.inputRow}>
+                      <input
+                        type="text"
+                        onChange={(e) => setParty2(e.target.value)}
+                        placeholder="Party2"
+                        className={styles.input}
+                        required
+                      />
+                    </div>
                   </div>
-                  </div>
-
                 </div>
 
-                <CreateContractsection/>
-              <button type="button" onClick={handleSave}   className={styles.confirmButton}>
+                <CreateContractsection
+                  ref={contractSectionRef}
+                  party1={party1}
+                  party2={party2}
+                />
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className={styles.confirmButton}
+                >
                   Save
-              </button>
-              <button type="button" onClick={handleSign} className={styles.documentButton}>
-                sign
-              </button>
-
-            </>
-          )}
-        </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSign}
+                  className={styles.documentButton}
+                >
+                  sign
+                </button>
+              </>
+            )}
+          </div>
         </main>
       </div>
     </Layout>

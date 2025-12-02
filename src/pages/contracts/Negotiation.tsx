@@ -1,19 +1,39 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import Layout from "../../components/Layout";
 import ContractsNav from "../../components/ContractsNav";
 import styles from "../../styles/CreateContract.module.css";
-import { AttentionList, WaitingList } from "../../backend/contract-services/negotiation";
+import { WaitingList } from "../../backend/contract-services/negotiation";
 import { useRouter } from "next/router";
+import apiClient from "../../backend/services/ApiClient";
 
 const Negotiation: React.FC = () => {
   const router = useRouter();
+  const [attentionContracts, setAttentionContracts] = useState<any[]>([]);
+  // Replace this with your actual user email logic
+  const userEmail = typeof window !== "undefined" ? localStorage.getItem("userEmail") : "";
+
+  useEffect(() => {
+    const fetchContracts = async () => {
+      try {
+        const response = await apiClient.get("http://localhost:3000/contracts");
+        // Filter contracts where party2 matches the logged-in user's email
+        const filtered = (response.data.data || []).filter(
+          (contract: any) => contract.party2 === userEmail
+        );
+        setAttentionContracts(filtered);
+      } catch (error) {
+        console.error("Error fetching contracts:", error);
+      }
+    };
+    if (userEmail) fetchContracts();
+  }, [userEmail]);
 
   const handleImageClick = (item: any) => {
     router.push({
       pathname: "/contracts/contracts-detail",
       query: {
-        id: item.id,
+        id: item._id,
         ticketsold: item.TicketsSold,
         totalrevenue: item.TotalRevenue,
         source: "negotiation",
@@ -33,28 +53,28 @@ const Negotiation: React.FC = () => {
           <div className={styles.topSection}>
             <h1 className={styles.heading}>Contract Under Negotiation</h1>
           </div>
-          {AttentionList.map((attention) => (
+          {attentionContracts.map((contract) => (
             <div
-              key={attention.id}
+              key={contract._id}
               className={styles.ImageContainer}
               style={{ cursor: "pointer" }}
-              onClick={() => handleImageClick(attention)}
+              onClick={() => handleImageClick(contract)}
             >
               <div className={styles.attentionTitle}>Requires Attention</div>
               <img
-                src={attention.image}
-                alt={attention.title}
+                src={contract.image || "/default-image.png"}
+                alt={contract.title || "Contract"}
                 className={styles.AttentionImage}
               />
               <div className={styles.AttentionDetailsOverlay}>
-                <h2 className={styles.promotionTitle}>{attention.title}</h2>
+                <h2 className={styles.promotionTitle}>{contract.title || contract._id}</h2>
                 <span className={styles.promotionLocation}>
                   <img src="/contracts-Icons/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
-                  {attention.Location}
+                  {contract.location?.venueName || "Unknown Venue"}
                 </span>
                 <span className={styles.promotionDate}>
                   <img src="/contracts-Icons/Calendar.svg" alt="Date" className={styles.promotionIcon} />
-                  {attention.Date}
+                  {contract.datesAndTimes?.showDate || "No Date"}
                 </span>
               </div>
             </div>

@@ -9,14 +9,14 @@ import { supabase } from '../lib/supabase';
 import Navbar from '../components/Navbar';
 import Layout from '../components/Layout';
 import Scrollbar from '../components/Scrollbar';
-import { loadEvents, EventDoc } from '../backend/services/Event';
+import { EventDocs } from '../backend/eventsdata';
+//import { loadEvents, EventDoc } from '../backend/services/Event';
 
 const Dashboard: NextPage = () => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState<EventDoc[]>([]);
-  const [eventsLoading, setEventsLoading] = useState(true);
+  const [events, setEvents] = useState<any[]>(EventDocs);
   
   const router = useRouter();
 
@@ -67,28 +67,8 @@ const Dashboard: NextPage = () => {
     getUser();
   }, [router]);
 
-  // Fetch events from backend API
-  useEffect(() => {
-    const fetchEvents = async () => {
-      setEventsLoading(true);
-      try {
-        console.log('🔄 Fetching events for dashboard...');
-        const loadedEvents = await loadEvents();
-        console.log('✅ Loaded events for dashboard:', loadedEvents);
-        setEvents(loadedEvents);
-      } catch (error) {
-        console.error('❌ Error loading events:', error);
-        setEvents([]);
-      } finally {
-        setEventsLoading(false);
-      }
-    };
-
-    fetchEvents();
-  }, []);
 
   const handleEventClick = (eventId: string) => {
-    console.log('🎯 Navigating to event:', eventId);
     router.push(`/event/${eventId}`);
   };
 
@@ -106,67 +86,58 @@ const Dashboard: NextPage = () => {
   return (
     <Layout>
       <div className={styles.dashboardContainer}>
-        <div className={styles.background} />
-        <Head>
-          <title>Dashboard - XAO Cult</title>
-          <meta content="Dashboard - XAO Cult" name="description" />
-          <link href="/favicon.ico" rel="icon" />
-        </Head>
+      <div className={styles.background} />
+      <Head>
+        <title>Dashboard - XAO Cult</title>
+        <meta content="Dashboard - XAO Cult" name="description" />
+        <link href="/favicon.ico" rel="icon" />
+      </Head>
 
-        <Navbar userProfile={{ 
-          username: profile?.username, 
-          avatar: profile?.profile_picture_url || '/profileIcon.svg'  
-        }} />
-        <Scrollbar />
+      <Navbar userProfile={{ 
+        username: profile?.username, 
+        avatar: profile?.profile_picture_url || '/profileIcon.svg'  
+      }} />
+      <Scrollbar />
 
         <div className={styles.walletCardContainer}>
-          <div 
-            className={styles.walletCard} 
-            style={{ 
-              background: 'linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%)'
-            }}
-          >
-            <div className={styles.walletCardHeader}>
-              <span className={styles.walletUsername}>@{profile?.username || 'yevhenii_d'}</span>
+        <div 
+          className={styles.walletCard} 
+          style={{ 
+            background: 'linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%)'
+          }}
+        >
+          <div className={styles.walletCardHeader}>
+            <span className={styles.walletUsername}>@{profile?.username || 'yevhenii_d'}</span>
+          </div>
+          <div className={styles.walletCurrencyRow}>
+            <div className={styles.walletCurrencyLeft}>
+              <div className={styles.walletCurrencyLogo}>
+                <Image src="/usdc-logo.svg" alt="USDC" width={24} height={24} />
+              </div>
+              <span className={styles.walletCurrencyName}>USDC</span>
             </div>
-            <div className={styles.walletCurrencyRow}>
-              <div className={styles.walletCurrencyLeft}>
-                <div className={styles.walletCurrencyLogo}>
-                  <Image src="/usdc-logo.svg" alt="USDC" width={24} height={24} />
-                </div>
-                <span className={styles.walletCurrencyName}>USDC</span>
-              </div>
-              <div className={styles.walletCurrencyRight}>
-                <span className={styles.walletCurrencyValue}>13,246.22</span>
-                <span className={styles.walletCurrencyUsd}>(13,246.22 usd)</span>
-              </div>
+            <div className={styles.walletCurrencyRight}>
+              <span className={styles.walletCurrencyValue}>13,246.22</span>
+              <span className={styles.walletCurrencyUsd}>(13,246.22 usd)</span>
             </div>
-            <div className={styles.walletCurrencyRow}>
-              <div className={styles.walletCurrencyLeft}>
-                <div className={styles.walletCurrencyLogo}>
-                  <Image src="/xao-logo.svg" alt="XAO" width={24} height={24} />
-                </div>
-                <span className={styles.walletCurrencyName}>XAO</span>
+          </div>
+          <div className={styles.walletCurrencyRow}>
+            <div className={styles.walletCurrencyLeft}>
+              <div className={styles.walletCurrencyLogo}>
+                <Image src="/xao-logo.svg" alt="XAO" width={24} height={24} />
               </div>
-              <div className={styles.walletCurrencyRight}>
-                <span className={styles.walletCurrencyValue}>1,280.99</span>
-                <span className={styles.walletCurrencyUsd}>(500,000 usd)</span>
-              </div>
+              <span className={styles.walletCurrencyName}>XAO</span>
+            </div>
+            <div className={styles.walletCurrencyRight}>
+              <span className={styles.walletCurrencyValue}>1,280.99</span>
+              <span className={styles.walletCurrencyUsd}>(500,000 usd)</span>
             </div>
           </div>
         </div>
+      </div>
 
         <div className={styles.feedContainer}>
-          {eventsLoading ? (
-            <div className={styles.loadingContainer}>
-              <p>Loading events...</p>
-            </div>
-          ) : events.length === 0 ? (
-            <div className={styles.noEventsContainer}>
-              <p>No events available</p>
-            </div>
-          ) : (
-            events.map((event, index) => (
+          {events.map((event, index) => (
               <div 
                 key={event.id || index} 
                 className={styles.feedItem}
@@ -225,8 +196,7 @@ const Dashboard: NextPage = () => {
                   </div>
                 </div>
               </div>
-            ))
-          )}
+              ))}
         </div>
       </div>
     </Layout>

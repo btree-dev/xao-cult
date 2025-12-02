@@ -120,7 +120,7 @@ const MoneySection: React.FC<MoneyProps> = ({
         onClick={onToggle}
         style={{ cursor: "pointer" }}
       >
-        <label className={`${styles.label} ${isOpen ? styles.open : ''}`}>Pay In's</label>
+        <label className={`${styles.label} ${isOpen ? styles.open : ''}`}>Pay In&apos;s</label>
         {!isOpen && (
           <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={24} height={24} className={styles.dropdownIcon} />
         )}

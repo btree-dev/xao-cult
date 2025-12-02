@@ -4,15 +4,12 @@ import Head from "next/head";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import styles from "../../../styles/Home.module.css";
-import { eventAPI, venueAPI, artistAPI } from '../../../backend/services/Event';
-import { IEvent, IVenue, IArtist } from '../../../backend/services/types/api';
+
 import Navbar from "../../../components/Navbar";
 
 const PurchaseConfirmation: NextPage = () => {
   const [loading, setLoading] = useState(true);
-  const [event, setEvent] = useState<IEvent | null>(null);
-  const [venue, setVenue] = useState<IVenue | null>(null);
-  const [artists, setArtists] = useState<IArtist[]>([]);
+  const [event, setEvent] = useState<any>(null);
   const [selectedTickets, setSelectedTickets] = useState<any[]>([]);
   const router = useRouter();
   const { id, tickets } = router.query;
@@ -31,55 +28,61 @@ const PurchaseConfirmation: NextPage = () => {
 
   // Fetch event from API
   useEffect(() => {
-    const fetchEventData = async () => {
-      if (!id || typeof id !== 'string') return;
-      
-      setLoading(true);
-      try {
-        console.log('🔍 Fetching event with ID:', id);
-        
-        // Fetch the main event
-        const eventData = await eventAPI.getEventById(id);
-        console.log('✅ Event data received:', eventData);
-        setEvent(eventData);
-
-        // Fetch venue data
-        if (eventData.venueId) {
-          try {
-            console.log('🏢 Fetching venue with ID:', eventData.venueId);
-            const venueData = await venueAPI.getVenueById(eventData.venueId);
-            console.log('✅ Venue data received:', venueData);
-            setVenue(venueData);
-          } catch (venueError: any) {
-            console.error('⚠️ Error fetching venue:', venueError);
-            setVenue(null);
-          }
-        }
-
-        // Fetch artists data
-        if (eventData.artistIds && eventData.artistIds.length > 0) {
-          try {
-            console.log('🎤 Fetching artists with IDs:', eventData.artistIds);
-            const artistPromises = eventData.artistIds.map(artistId => 
-              artistAPI.getArtistById(artistId)
-            );
-            const artistsData = await Promise.all(artistPromises);
-            console.log('✅ Artists data received:', artistsData);
-            setArtists(artistsData);
-          } catch (artistError: any) {
-            console.error('⚠️ Error fetching artists:', artistError);
-            setArtists([]);
-          }
-        }
-      } catch (error: any) {
-        console.error('❌ Error fetching event:', error);
-        console.error('❌ Error message:', error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEventData();
+     if (!id) return;
+    setLoading(true);
+    try {
+      let mockEvent;
+      if (id === "rivo-event-1") {
+        mockEvent = {
+          id,
+          title: "Rivo Open Air",
+          date: "5th December",
+          time: "06:30PM",
+          location: "Wembley Stadium, London",
+          image:
+            "https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop",
+          ticketPrice: 50.0,
+        };
+      } else if (id === "xao-event-1") {
+        mockEvent = {
+          id,
+          title: "XAO Festival",
+          date: "15th December",
+          time: "08:00PM",
+          location: "O2 Arena, London",
+          image:
+            "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80",
+          ticketPrice: 65.0,
+        };
+      } else if (id === "edm-event-1") {
+        mockEvent = {
+          id,
+          title: "Electric Dreams",
+          date: "20th January",
+          time: "09:00PM",
+          location: "Alexandra Palace, London",
+          image:
+            "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1740&q=80",
+          ticketPrice: 45.0,
+        };
+      } else {
+        mockEvent = {
+          id,
+          title: "Rivo Open Air",
+          date: "5th December",
+          time: "06:30PM",
+          location: "Wembley Stadium, London",
+          image:
+            "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80",
+          ticketPrice: 50.0,
+        };
+            }
+    setEvent(mockEvent);
+    } catch (error) {
+      console.error("Error fetching event:", error);
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
 
   // Format date helper
@@ -99,16 +102,15 @@ const PurchaseConfirmation: NextPage = () => {
 
   // Confirm purchase
   const handleConfirm = () => {
-    if (!event) return;
 
     router.push({
       pathname: `/event/${id}/ticket-confirmation`,
       query: {
         event: event.title,
-        date: formatDate(event.date),
-        time: formatTime(event.startTime),
-        image: event.eventPicUrl || '/default-event.png',
-        location: venue?.name || 'Venue',
+        date: event.date,
+        time: event.time,
+        image: event.image,
+        location: event.location,
         tickets: JSON.stringify(selectedTickets),
       },
     });
@@ -135,8 +137,8 @@ const PurchaseConfirmation: NextPage = () => {
     <div className={styles.confirmationContainer}>
       <div className={styles.background} />
       <Head>
-        <title>Purchase Confirmation - {event.title} - XAO Cult</title>
-        <meta content={`Purchase Confirmation - ${event.title}`} name="description" />
+        <title>Purchase Confirmation - XAO Cult</title>
+        <meta content="Purchase Confirmation - XAO Cult" name="description" />
         <link href="/favicon.ico" rel="icon" />
       </Head>
 
@@ -151,7 +153,7 @@ const PurchaseConfirmation: NextPage = () => {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundImage: `url('${event.eventPicUrl || '/default-event.png'}')`,
+             backgroundImage: `url('${event.image}')`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             zIndex: 1,

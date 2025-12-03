@@ -97,6 +97,7 @@ const MoneySection: React.FC<MoneyProps> = ({
 
   // Calculate total percentage for each section
   const calculateTotalPercentage = (rows: SecurityDepositRow[] | CancelPartyRow[]) => {
+    if (!rows || !Array.isArray(rows)) return 0;
     return rows.reduce((total, row) => {
       const percentage = parseFloat(row.percentage) || 0;
       return total + percentage;
@@ -506,7 +507,7 @@ const MoneySection: React.FC<MoneyProps> = ({
             <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>
               Security deposit Party 1
             </label>
-            {securityDepositRows.map((row, index) => (
+            {securityDepositRows?.map((row, index) => (
               <div key={index}>
                 <div className={styles.ticketDetailsRow}>
                   <div className={styles.datetime}>
@@ -653,7 +654,7 @@ const MoneySection: React.FC<MoneyProps> = ({
             <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>
               Party 1 receives if canceled by:
             </label>
-            {cancelParty1Rows.map((row, index) => (
+            {cancelParty1Rows?.map((row, index) => (
               <div key={index}>
                 <div className={styles.ticketDetailsRow}>
                   <div className={styles.datetime}>
@@ -801,7 +802,7 @@ const MoneySection: React.FC<MoneyProps> = ({
                   <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>
                   Security deposit Part 2
                   </label>
-                  {securityDeposit2Rows.map((row, index) => (
+                  {securityDeposit2Rows?.map((row, index) => (
                   <div key={index}>
                     <div className={styles.ticketDetailsRow}>
                       <div className={styles.datetime}>
@@ -947,7 +948,7 @@ const MoneySection: React.FC<MoneyProps> = ({
           <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>
             Party 2 receives if canceled by:
           </label>
-          {cancelParty2Rows.map((row, index) => (
+          {cancelParty2Rows?.map((row, index) => (
             <div key={index}>
               <div className={styles.ticketDetailsRow}>
                 <div className={styles.datetime}>

@@ -76,13 +76,15 @@ const TicketsSection: React.FC<TicketsProps> = ({
     let totalGas = 0;
     let totalXaoFee = 0;
 
-    ticketRows.forEach(row => {
-      const { grossSub, taxes, gas, xaoFee } = calculateTicketValues(row, salesTaxPercent);
-      totalGrossSub += grossSub;
-      totalTaxes += taxes;
-      totalGas += gas;
-      totalXaoFee += xaoFee;
-    });
+    if (ticketRows && Array.isArray(ticketRows)) {
+      ticketRows.forEach(row => {
+        const { grossSub, taxes, gas, xaoFee } = calculateTicketValues(row, salesTaxPercent);
+        totalGrossSub += grossSub;
+        totalTaxes += taxes;
+        totalGas += gas;
+        totalXaoFee += xaoFee;
+      });
+    }
 
     const totalNet = totalGrossSub + totalTaxes + totalGas + totalXaoFee;
 
@@ -100,6 +102,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
 
   // Calculate total tickets used across all ticket types
   const getTotalTicketsUsed = () => {
+    if (!ticketRows || !Array.isArray(ticketRows)) return 0;
     return ticketRows.reduce((total, row) => {
       return total + parseFormattedNumber(row.numberOfTickets);
     }, 0);
@@ -250,7 +253,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
               </div>
             </div>
           </div>
-          {ticketRows.map((row, index) => (
+          {ticketRows?.map((row, index) => (
             <div key={index} className={styles.ticketDetailsContainer}>
               <div className={styles.ticketDetailsRow}>
                 <div className={styles.ticketColumn}>

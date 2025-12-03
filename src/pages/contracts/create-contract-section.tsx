@@ -209,7 +209,6 @@ const updateRiderRow = (index: number, value: string) => {
       )}
     </div>
   );
-
   useEffect(() => {
     const handleClick = () => {
       if (activeDropdown) setActiveDropdown(null);
@@ -560,4 +559,5 @@ const updateRiderRow = (index: number, value: string) => {
   );
 });
 
+CreateContractsection.displayName = 'CreateContractsection';
 export default CreateContractsection;

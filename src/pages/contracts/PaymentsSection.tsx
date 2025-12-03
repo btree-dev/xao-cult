@@ -41,6 +41,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
 
   // Calculate total percentage for each party
   const calculateTotalPercentage = (rows: PaymentRow[]) => {
+    if (!rows || !Array.isArray(rows)) return 0;
     return rows.reduce((total, row) => {
       const percentage = parseFloat(row.percentage) || 0;
       return total + percentage;
@@ -69,7 +70,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
         <>
           <div className={styles.ticketDetailsContainer}>
             <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>Party 1</label>
-            {party1Rows.map((row, index) => (
+            {party1Rows?.map((row, index) => (
               <div key={index}>
                 <div className={styles.ticketDetailsRow}>
                   <div className={styles.datetime}>
@@ -215,7 +216,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
           </div>
           <div className={styles.ticketDetailsContainer}>
             <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>Party 2</label>
-            {party2Rows.map((row, index) => (
+            {party2Rows?.map((row, index) => (
               <div key={index}>
                 <div className={styles.ticketDetailsRow}>
                   <div className={styles.datetime}>

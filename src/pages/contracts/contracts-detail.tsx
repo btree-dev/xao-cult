@@ -101,7 +101,7 @@ const Contractsdetail: React.FC = () => {
               required
             />
           </div>
-          <CreateContractsection />
+          <CreateContractsection party1={party1} party2={party2} />
           {renderButtons()}
         </main>
       </div>

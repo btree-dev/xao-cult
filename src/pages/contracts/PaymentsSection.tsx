@@ -61,21 +61,34 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
         onClick={onToggle}
         style={{ cursor: "pointer" }}
       >
-        <label className={`${styles.label} ${isOpen ? styles.open : ''}`}>Pay Outs</label>
-        {!isOpen && (
-          <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={24} height={24} className={styles.dropdownIcon} />
+        {isOpen ? (
+          <div className={styles.infoLabelRow}>
+            <label className={`${styles.centeredLabel} ${styles.open}`}>Pay Outs</label>
+            <Image
+              src="/contracts-Icons/Info.svg"
+              alt="Info"
+              width={20}
+              height={20}
+              className={styles.infoIcon}
+            />
+          </div>
+        ) : (
+          <>
+            <label className={`${styles.label} ${styles.open}`}>Pay Outs</label>
+            <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={24} height={24} className={styles.dropdownIcon} />
+          </>
         )}
       </div>
       {isOpen && (
         <>
-          <div className={styles.ticketDetailsContainer}>
+          
             <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>Party 1</label>
             {party1Rows?.map((row, index) => (
               <div key={index}>
                 <div className={styles.ticketDetailsRow}>
                   <div className={styles.datetime}>
                     <label className={styles.ticketsLabel}>Date & Time</label>
-                    <div className={styles.contractInput}>
+                    <div className={styles.inputRow}>
                       <button
                         type="button"
                         className={styles.contracticon}
@@ -97,7 +110,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
                 <div className={styles.securityDepositrow}>
                   <div className={styles.datetime}>
                     <label className={styles.ticketsLabel}>Percentage</label>
-                    <div className={styles.contractInput} style={{ opacity: row.dollarAmount && row.dollarAmount !== "0" && row.dollarAmount !== "0.00" ? 0.5 : 1 }}>
+                    <div className={styles.inputRow} style={{ opacity: row.dollarAmount && row.dollarAmount !== "0" && row.dollarAmount !== "0.00" ? 0.5 : 1 }}>
                       <button type="button" className={styles.contracticon}>
                         <Image src="/contracts-Icons/percent icon.svg" alt="Percent" width={20} height={20} />
                       </button>
@@ -144,7 +157,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
                   </div>
                   <div className={styles.datetime}>
                     <label className={styles.ticketsLabel}>Dollar Amount</label>
-                    <div className={styles.contractInput} style={{ opacity: row.percentage && row.percentage !== "0" ? 0.5 : 1 }}>
+                    <div className={styles.inputRow} style={{ opacity: row.percentage && row.percentage !== "0" ? 0.5 : 1 }}>
                       <Image src="/contracts-Icons/Dollar sign.svg" alt="Dollar" width={24} height={24} />
                       <input
                         type="text"
@@ -213,15 +226,15 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
                 />
               </div>
             </div>
-          </div>
-          <div className={styles.ticketDetailsContainer}>
+         
+          
             <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>Party 2</label>
             {party2Rows?.map((row, index) => (
               <div key={index}>
                 <div className={styles.ticketDetailsRow}>
                   <div className={styles.datetime}>
                     <label className={styles.ticketsLabel}>Date & Time</label>
-                    <div className={styles.contractInput}>
+                    <div className={styles.inputRow}>
                       <button
                         type="button"
                         className={styles.contracticon}
@@ -359,7 +372,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
                 />
               </div>
             </div>
-          </div>
+        
         </>
       )}
     </div>

@@ -36,10 +36,17 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
   const [isPromotionOpen, setIsPromotionOpen] = useState(false);
   const [isRiderOpen, setIsRiderOpen] = useState(false);
   const [isLegalAgreementOpen, setIsLegalAgreementOpen] = useState(false);
+  const [isTicketLegalLanguageOpen, setIsTicketLegalLanguageOpen] = useState(false);
+  const [ticketLegalLanguageValue, setTicketLegalLanguageValue] = useState("");
   const [venueName, setVenueName] = useState("");
   const [address, setAddress] = useState("");
+  const [radiusDistance, setRadiusDistance] = useState("");
+  const [days, setDays] = useState("");
   const [totalCapacity, setTotalCapacity] = useState("");
   const [comps, setComps] = useState("");
+  const [resaleParty1, setResaleParty1] = useState("");
+  const [resaleParty2, setResaleParty2] = useState("");
+  const [resaleReseller, setResaleReseller] = useState("");
   const [general, setGeneral] = useState("");
   const [presale, setPresale] = useState("");
   const [add, setAdd] = useState("");
@@ -147,6 +154,7 @@ const updateRiderRow = (index: number, value: string) => {
   const dateInputRef = useRef<HTMLInputElement | null>(null);
   const ticketsSaleDateInputRef = useRef<HTMLInputElement | null>(null);
   const showDateInputRef = useRef<HTMLInputElement | null>(null);
+  const eventEndDateInputRef = useRef<HTMLInputElement | null>(null);
   const loadInInputRef = useRef<HTMLInputElement>(null);
   const doorsInputRef = useRef<HTMLInputElement>(null);
   const setTimeInputRef = useRef<HTMLInputElement>(null);
@@ -195,17 +203,22 @@ const updateRiderRow = (index: number, value: string) => {
       onClick={onToggle}
       style={{ cursor: "pointer" }}
     >
-      <label className={`${styles.label} ${isOpen ? styles.open : ''}`}>
-        {label}
-      </label>
-      {!isOpen && (
-        <Image
-          src="/contracts-Icons/Dropdown.svg"
-          alt="Dropdown"
-          width={24}
-          height={24}
-          className={styles.dropdownIcon}
-        />
+      {isOpen ? (
+        <div className={styles.infoLabelRow}>
+          <label className={`${styles.centeredLabel} ${styles.open}`}>{label}</label>
+          <Image
+            src="/contracts-Icons/Info.svg"
+            alt="Info"
+            width={20}
+            height={20}
+            className={styles.infoIcon}
+          />
+        </div>
+      ) : (
+        <>
+          <label className={`${styles.label} ${styles.open}`}>{label}</label>
+          <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={24} height={24} className={styles.dropdownIcon} />
+        </>
       )}
     </div>
   );
@@ -264,8 +277,17 @@ const updateRiderRow = (index: number, value: string) => {
     location: {
       venueName,
       address,
+      radiusDistance,
+      days,
     },
-    tickets: ticketRows,
+    tickets: {
+      ticketRows,
+      resale: {
+        party1: resaleParty1,
+        party2: resaleParty2,
+        reseller: resaleReseller,
+      },
+    },
     money: {
       securityDepositRows,
       cancelParty1Rows,
@@ -310,6 +332,7 @@ const updateRiderRow = (index: number, value: string) => {
         dateInputRef={dateInputRef}
         ticketsSaleDateInputRef={ticketsSaleDateInputRef}
         showDateInputRef={showDateInputRef}
+        eventEndDateInputRef={eventEndDateInputRef}
         startTimeInputRef={startTimeInputRef}
         endTimeInputRef={endTimeInputRef}
         loadIn={loadIn}
@@ -322,8 +345,8 @@ const updateRiderRow = (index: number, value: string) => {
         setEndTime={setEndTime}
         setTime={setTime}
         setSetTime={setSetTime}
-        setLength={setLength}         
-        setSetLength={setSetLength}  
+        setLength={setLength}
+        setSetLength={setSetLength}
         loadInInputRef={loadInInputRef}
         doorsInputRef={doorsInputRef}
         setTimeInputRef={setTimeInputRef}
@@ -338,6 +361,10 @@ const updateRiderRow = (index: number, value: string) => {
         setVenueName={setVenueName}
         address={address}
         setAddress={setAddress}
+        radiusDistance={radiusDistance}
+        setRadiusDistance={setRadiusDistance}
+        days={days}
+        setDays={setDays}
       />
       <TicketsSection
         isOpen={isTicketsOpen}
@@ -353,6 +380,12 @@ const updateRiderRow = (index: number, value: string) => {
         ticketRows={ticketRows}
         addTicketRow={addTicketRow}
         updateTicketRow={updateTicketRow}
+        resaleParty1={resaleParty1}
+        setResaleParty1={setResaleParty1}
+        resaleParty2={resaleParty2}
+        setResaleParty2={setResaleParty2}
+        resaleReseller={resaleReseller}
+        setResaleReseller={setResaleReseller}
       />
       <MoneySection
         isOpen={isMoneyOpen}
@@ -510,25 +543,14 @@ const updateRiderRow = (index: number, value: string) => {
                 </div>
               ))}
               <div className={styles.contractRow}>
-                <div className={`${styles.contractInput} ${styles.addInput}`}>
-                  <button
-                    type="button"
-                    className={styles.contracticon}
-                    onClick={addRiderRow}
-                  >
-                    <Image
-                      src="/contracts-Icons/Add_Plus.svg"
-                      alt="add"
-                      width={24}
-                      height={24}
-                    />
-                  </button>
-                  <input
-                    type="text"
-                    placeholder="Add"
-                    className={styles.input}
-                    readOnly
+                <div className={styles.contractInput} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }} onClick={addRiderRow}>
+                  <Image
+                    src="/contracts-Icons/Add_Plus.svg"
+                    alt="add"
+                    width={24}
+                    height={24}
                   />
+                  <span style={{ marginLeft: '8px', color: 'white' }}>Add</span>
                 </div>
               </div>
             </>
@@ -537,7 +559,7 @@ const updateRiderRow = (index: number, value: string) => {
 
       <div className={`${styles.docContainer} ${isLegalAgreementOpen ? styles.open : styles.closed}`}>
           <SectionHeader
-                  label="Legal Agreement"
+                  label="Contract Legal Language"
                   isOpen={isLegalAgreementOpen}
                   onToggle={() => setIsLegalAgreementOpen(!isLegalAgreementOpen)}
                 />
@@ -548,6 +570,27 @@ const updateRiderRow = (index: number, value: string) => {
                   type="text"
                   placeholder="Value"
                   onChange={(e) => setLegalAgreementValue(e.target.value)}
+                  className={styles.input}
+                  required
+                />
+              </div>
+            </div>
+          )}
+</div>
+
+      <div className={`${styles.docContainer} ${isTicketLegalLanguageOpen ? styles.open : styles.closed}`}>
+          <SectionHeader
+                  label="Ticket Legal Language"
+                  isOpen={isTicketLegalLanguageOpen}
+                  onToggle={() => setIsTicketLegalLanguageOpen(!isTicketLegalLanguageOpen)}
+                />
+          {isTicketLegalLanguageOpen && (
+            <div className={styles.contractRow}>
+              <div className={styles.contractInput}>
+                <input
+                  type="text"
+                  placeholder="Value"
+                  onChange={(e) => setTicketLegalLanguageValue(e.target.value)}
                   className={styles.input}
                   required
                 />

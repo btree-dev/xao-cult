@@ -23,6 +23,12 @@ export interface TicketsProps {
   ticketRows: TicketRow[];
   addTicketRow: () => void;
   updateTicketRow: (index: number, field: keyof TicketRow, value: string) => void;
+  resaleParty1: string;
+  setResaleParty1: (v: string) => void;
+  resaleParty2: string;
+  setResaleParty2: (v: string) => void;
+  resaleReseller: string;
+  setResaleReseller: (v: string) => void;
 }
 
 const TicketsSection: React.FC<TicketsProps> = ({
@@ -39,6 +45,12 @@ const TicketsSection: React.FC<TicketsProps> = ({
   ticketRows,
   addTicketRow,
   updateTicketRow,
+  resaleParty1,
+  setResaleParty1,
+  resaleParty2,
+  setResaleParty2,
+  resaleReseller,
+  setResaleReseller,
 }) => {
   // Create refs for each ticket row's On Sale Date input
   const onSaleDateRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -133,9 +145,22 @@ const TicketsSection: React.FC<TicketsProps> = ({
         onClick={onToggle}
         style={{ cursor: "pointer" }}
       >
-        <label className={`${styles.label} ${isOpen ? styles.open : ''}`}>Tickets</label>
-        {!isOpen && (
-          <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={24} height={24} className={styles.dropdownIcon} />
+        {isOpen ? (
+          <div className={styles.infoLabelRow}>
+            <label className={`${styles.centeredLabel} ${styles.open}`}>Tickets</label>
+            <Image
+              src="/contracts-Icons/Info.svg"
+              alt="Info"
+              width={20}
+              height={20}
+              className={styles.infoIcon}
+            />
+          </div>
+        ) : (
+          <>
+            <label className={`${styles.label} ${styles.open}`}>Tickets</label>
+            <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={24} height={24} className={styles.dropdownIcon} />
+          </>
         )}
       </div>
       {isOpen && (
@@ -144,20 +169,15 @@ const TicketsSection: React.FC<TicketsProps> = ({
           pointerEvents: isTicketEnabled ? 'auto' : 'none',
           transition: 'opacity 0.3s ease'
         }}>
-          <div className={styles.ticketsHeaderRow}>
-            <div className={styles.toggleContainer} style={{ pointerEvents: 'auto' }}>
+          <div className={styles.contractRow}>
+            <div className={styles.ticketInputWrapperSmall} style={{ pointerEvents: 'auto' }}>
               <label className={styles.ticketsLabel}>Tickets</label>
               <input type="checkbox" className={styles.toggleSwitch} checked={isTicketEnabled} onChange={e => setticketsEnabled(e.target.checked)} />
             </div>
             <div className={styles.ticketInputWrapper}>
-              <label className={styles.ticketsLabel}>
-                Total Capacity
-                
-              </label>
-              <div className={styles.contractInput}>
-            
-                  <Image src="/contracts-Icons/hash icon.svg" alt="hash" className={styles.contracticon} width={24} height={24} />
-                
+              <label className={styles.ticketsLabelNoWrap}>Total Capacity</label>
+              <div className={styles.inputRow}>
+                <Image src="/contracts-Icons/hash icon.svg" alt="hash" className={styles.contracticon} width={24} height={24} />
                 <input
                   type="text"
                   placeholder="0"
@@ -186,15 +206,12 @@ const TicketsSection: React.FC<TicketsProps> = ({
                   className={styles.input}
                   required
                 />
-
               </div>
             </div>
             <div className={styles.ticketInputWrapper}>
               <label className={styles.ticketsLabel}>Sales Tax</label>
-              <div className={styles.contractInput}>
-                
-                  <Image src="/contracts-Icons/percent icon.svg" alt="percent" className={styles.contracticon} width={20} height={20} />
-                
+              <div className={styles.inputRow}>
+                <Image src="/contracts-Icons/percent icon.svg" alt="percent" className={styles.contracticon} width={20} height={20} />
                 <input
                   type="text"
                   placeholder="0"
@@ -249,7 +266,6 @@ const TicketsSection: React.FC<TicketsProps> = ({
                   className={styles.input}
                   required
                 />
-
               </div>
             </div>
           </div>
@@ -258,31 +274,21 @@ const TicketsSection: React.FC<TicketsProps> = ({
               <div className={styles.ticketDetailsRow}>
                 <div className={styles.ticketColumn}>
                 <label className={styles.ticketColumnLabel}>Ticket Type</label>
-                <div className={styles.contractInput}>
+                <div className={styles.inputRow} style={{ position: "relative", cursor: "pointer" }} onClick={() => setActiveDropdown(activeDropdown === `ticketType-${index}` ? null : `ticketType-${index}`)}>
                   <input
                     type="text"
                     className={styles.input}
                     value={row.ticketType || ""}
                     readOnly
-                    onClick={() =>
-                      setActiveDropdown(
-                        activeDropdown === `ticketType-${index}` ? null : `ticketType-${index}`
-                      )
-                    }
                     placeholder="Ticket Type"
-                    style={{ cursor: "pointer" }}
+                    style={{ cursor: "pointer", border: "none", background: "transparent", color: "white", flex: 1 }}
                   />
                   <Image
                     src="/contracts-Icons/Dropdown.svg"
                     alt="Dropdown"
                     width={20}
                     height={20}
-                    style={{ cursor: "pointer" }}
-                    onClick={() =>
-                      setActiveDropdown(
-                        activeDropdown === `ticketType-${index}` ? null : `ticketType-${index}`
-                      )
-                    }
+                    style={{ cursor: "pointer", marginRight: "8px" }}
                   />
                   {activeDropdown === `ticketType-${index}` && (
                     <div
@@ -308,7 +314,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
               </div>
                 <div className={styles.ticketColumn}>
                   <label className={styles.ticketColumnLabel}>On Sale Date</label>
-                  <div className={styles.contractInput}>
+                  <div className={styles.inputRow}>
                     <button
                       type="button"
                       className={styles.contracticon}
@@ -331,7 +337,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
               <div className={styles.ticketDetailsRow}>
                 <div className={styles.ticketColumn}>
                   <label className={styles.ticketColumnLabel}>Number of tickets</label>
-                  <div className={styles.contractInput}>
+                  <div className={styles.inputRow}>
                     <button type="button" className={styles.contracticon}>
                       <Image src="/contracts-Icons/hash icon.svg" alt="hash" width={20} height={20} />
                     </button>
@@ -399,10 +405,10 @@ const TicketsSection: React.FC<TicketsProps> = ({
                 </div>
                 <div className={styles.ticketColumn}>
                   <label className={styles.ticketColumnLabel}>Ticket price</label>
-                  <div className={styles.contractInput}>
-            
+                  <div className={styles.inputRow}>
+
                       <Image src="/contracts-Icons/Dollar sign.svg" alt="dollar" className={styles.contracticon} width={24} height={24} />
-               
+
                     <input
                       type="text"
                       placeholder="00.00"
@@ -537,6 +543,136 @@ const TicketsSection: React.FC<TicketsProps> = ({
               <span className={styles.summaryValue}>₵{formatCurrency(overallTotals.totalNet)}</span>
             </div>
           </div>
+
+          {/* Ticket Resale Rules Section */}
+          <div className={styles.sectionTitleContainer}>
+            <div className={styles.gradientLine}></div>
+            <h3 className={styles.sectionSubtitle}>Ticket Resale Rules</h3>
+            <div className={styles.gradientLine}></div>
+          </div>
+          <div className={styles.ticketInputWrapper}>
+            <label className={styles.ticketsLabel}>Net profit split after original value</label>
+          </div>
+
+          {/* Resale Split Row */}
+      
+            <div className={styles.ticketDetailsRow}>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Party 1</label>
+                <div className={styles.inputRow}>
+                  <Image src="/contracts-Icons/percent icon.svg" alt="percent" className={styles.contracticon} width={20} height={20} />
+                  <input
+                    type="text"
+                    placeholder="0"
+                    value={resaleParty1 || "0"}
+                    onChange={e => {
+                      const value = e.target.value;
+                      const cleaned = value.replace(/[^\d.]/g, '');
+                      const parts = cleaned.split('.');
+                      if (parts.length > 2) return;
+                      let integerPart = parts[0] || '0';
+                      let decimalPart = parts[1] || '';
+                      integerPart = integerPart.replace(/^0+/, '') || '0';
+                      if (decimalPart.length > 2) {
+                        decimalPart = decimalPart.slice(0, 2);
+                      }
+                      let formattedValue = integerPart;
+                      if (parts.length > 1) {
+                        formattedValue += '.' + decimalPart;
+                      }
+                      const numericValue = parseFloat(formattedValue);
+                      if (numericValue > 100) return;
+                      setResaleParty1(formattedValue);
+                    }}
+                    onBlur={e => {
+                      const value = e.target.value || "0";
+                      const cleaned = value.replace(/[^\d.]/g, '');
+                      const numericValue = parseFloat(cleaned) || 0;
+                      const clampedValue = Math.min(Math.max(numericValue, 0), 100);
+                      setResaleParty1(clampedValue.toString());
+                    }}
+                    className={styles.input}
+                  />
+                </div>
+              </div>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Party 2</label>
+                <div className={styles.inputRow}>
+                  <Image src="/contracts-Icons/percent icon.svg" alt="percent" className={styles.contracticon} width={20} height={20} />
+                  <input
+                    type="text"
+                    placeholder="0"
+                    value={resaleParty2 || "0"}
+                    onChange={e => {
+                      const value = e.target.value;
+                      const cleaned = value.replace(/[^\d.]/g, '');
+                      const parts = cleaned.split('.');
+                      if (parts.length > 2) return;
+                      let integerPart = parts[0] || '0';
+                      let decimalPart = parts[1] || '';
+                      integerPart = integerPart.replace(/^0+/, '') || '0';
+                      if (decimalPart.length > 2) {
+                        decimalPart = decimalPart.slice(0, 2);
+                      }
+                      let formattedValue = integerPart;
+                      if (parts.length > 1) {
+                        formattedValue += '.' + decimalPart;
+                      }
+                      const numericValue = parseFloat(formattedValue);
+                      if (numericValue > 100) return;
+                      setResaleParty2(formattedValue);
+                    }}
+                    onBlur={e => {
+                      const value = e.target.value || "0";
+                      const cleaned = value.replace(/[^\d.]/g, '');
+                      const numericValue = parseFloat(cleaned) || 0;
+                      const clampedValue = Math.min(Math.max(numericValue, 0), 100);
+                      setResaleParty2(clampedValue.toString());
+                    }}
+                    className={styles.input}
+                  />
+                </div>
+              </div>
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Reseller</label>
+                <div className={styles.inputRow}>
+                  <Image src="/contracts-Icons/percent icon.svg" alt="percent" className={styles.contracticon} width={20} height={20} />
+                  <input
+                    type="text"
+                    placeholder="0"
+                    value={resaleReseller || "0"}
+                    onChange={e => {
+                      const value = e.target.value;
+                      const cleaned = value.replace(/[^\d.]/g, '');
+                      const parts = cleaned.split('.');
+                      if (parts.length > 2) return;
+                      let integerPart = parts[0] || '0';
+                      let decimalPart = parts[1] || '';
+                      integerPart = integerPart.replace(/^0+/, '') || '0';
+                      if (decimalPart.length > 2) {
+                        decimalPart = decimalPart.slice(0, 2);
+                      }
+                      let formattedValue = integerPart;
+                      if (parts.length > 1) {
+                        formattedValue += '.' + decimalPart;
+                      }
+                      const numericValue = parseFloat(formattedValue);
+                      if (numericValue > 100) return;
+                      setResaleReseller(formattedValue);
+                    }}
+                    onBlur={e => {
+                      const value = e.target.value || "0";
+                      const cleaned = value.replace(/[^\d.]/g, '');
+                      const numericValue = parseFloat(cleaned) || 0;
+                      const clampedValue = Math.min(Math.max(numericValue, 0), 100);
+                      setResaleReseller(clampedValue.toString());
+                    }}
+                    className={styles.input}
+                  />
+                </div>
+              </div>
+            </div>
+          
         </div>
       )}
     </div>

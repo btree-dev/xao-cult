@@ -121,9 +121,22 @@ const MoneySection: React.FC<MoneyProps> = ({
         onClick={onToggle}
         style={{ cursor: "pointer" }}
       >
-        <label className={`${styles.label} ${isOpen ? styles.open : ''}`}>Pay In&apos;s</label>
-        {!isOpen && (
-          <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={24} height={24} className={styles.dropdownIcon} />
+        {isOpen ? (
+          <div className={styles.infoLabelRow}>
+            <label className={`${styles.centeredLabel} ${styles.open}`}>Pay In&apos;s</label>
+            <Image
+              src="/contracts-Icons/Info.svg"
+              alt="Info"
+              width={20}
+              height={20}
+              className={styles.infoIcon}
+            />
+          </div>
+        ) : (
+          <>
+            <label className={`${styles.label} ${styles.open}`}>Pay In&apos;s</label>
+            <Image src="/contracts-Icons/Dropdown.svg" alt="Dropdown" width={24} height={24} className={styles.dropdownIcon} />
+          </>
         )}
       </div>
       {isOpen && (
@@ -378,11 +391,9 @@ const MoneySection: React.FC<MoneyProps> = ({
             </div>
           </div>
           <div className={styles.contractRow}>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label className={styles.LeftLabel}>
-                Bar Split
-              </label>
-              <div className={styles.contractInput}>
+            <div className={styles.ticketInputWrapper}>
+              <label className={styles.ticketsLabel}>Bar Split</label>
+              <div className={styles.inputRow}>
                 <Image src="/contracts-Icons/percent icon.svg" alt="percent" className={styles.contracticon} width={20} height={20} />
                 <input
                   type="text"
@@ -440,11 +451,9 @@ const MoneySection: React.FC<MoneyProps> = ({
                 />
               </div>
             </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label className={styles.LeftLabel}>
-                Merch Split
-              </label>
-              <div className={styles.contractInput}>
+            <div className={styles.ticketInputWrapper}>
+              <label className={styles.ticketsLabel}>Merch Split</label>
+              <div className={styles.inputRow}>
                 <Image src="/contracts-Icons/percent icon.svg" alt="percent" className={styles.contracticon} width={20} height={20} />
                 <input
                   type="text"
@@ -504,15 +513,24 @@ const MoneySection: React.FC<MoneyProps> = ({
             </div>
           </div>
           <div className={styles.ticketDetailsContainer}>
+            <div className={styles.infoLabelRow}>
             <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>
               Security deposit Party 1
             </label>
+            <Image
+                src="/contracts-Icons/Info.svg"
+                alt="Info"
+                width={20}
+                height={20}
+                className={styles.infoIcon}
+              />
+            </div>
             {securityDepositRows?.map((row, index) => (
               <div key={index}>
                 <div className={styles.ticketDetailsRow}>
                   <div className={styles.datetime}>
                     <label className={styles.ticketsLabel}>Date & Time</label>
-                    <div className={styles.contractInput}>
+                    <div className={styles.inputRow}>
                       <button
                         type="button"
                         className={styles.contracticon}
@@ -534,7 +552,7 @@ const MoneySection: React.FC<MoneyProps> = ({
                 <div className={styles.securityDepositrow}>
                   <div className={styles.datetime}>
                     <label className={styles.ticketsLabel}>Percentage</label>
-                    <div className={styles.contractInput} style={{ opacity: row.dollarAmount && row.dollarAmount !== "0" && row.dollarAmount !== "0.00" ? 0.5 : 1 }}>
+                    <div className={styles.inputRow} style={{ opacity: row.dollarAmount && row.dollarAmount !== "0" && row.dollarAmount !== "0.00" ? 0.5 : 1 }}>
                       <button type="button" className={styles.contracticon}>
                         <Image src="/contracts-Icons/percent icon.svg" alt="Percent" width={20} height={20} />
                       </button>
@@ -581,7 +599,7 @@ const MoneySection: React.FC<MoneyProps> = ({
                   </div>
                   <div className={styles.datetime}>
                     <label className={styles.ticketsLabel}>Dollar Amount</label>
-                    <div className={styles.contractInput} style={{ opacity: row.percentage && row.percentage !== "0" ? 0.5 : 1 }}>
+                    <div className={styles.inputRow} style={{ opacity: row.percentage && row.percentage !== "0" ? 0.5 : 1 }}>
                             <Image src="/contracts-Icons/Dollar sign.svg" alt="Dollar" width={24} height={24} />
                             <input
                                 type="text"
@@ -659,7 +677,7 @@ const MoneySection: React.FC<MoneyProps> = ({
                 <div className={styles.ticketDetailsRow}>
                   <div className={styles.datetime}>
                     <label className={styles.ticketsLabel}>Date & Time</label>
-                    <div className={styles.contractInput}>
+                    <div className={styles.inputRow}>
                       <button
                         type="button"
                         className={styles.contracticon}
@@ -681,7 +699,7 @@ const MoneySection: React.FC<MoneyProps> = ({
                 <div className={styles.securityDepositrow}>
                   <div className={styles.datetime}>
                     <label className={styles.ticketsLabel}>Percentage</label>
-                    <div className={styles.contractInput} style={{ opacity: row.dollarAmount && row.dollarAmount !== "0" && row.dollarAmount !== "0.00" ? 0.5 : 1 }}>
+                    <div className={styles.inputRow} style={{ opacity: row.dollarAmount && row.dollarAmount !== "0" && row.dollarAmount !== "0.00" ? 0.5 : 1 }}>
                       <button type="button" className={styles.contracticon}>
                         <Image src="/contracts-Icons/percent icon.svg" alt="Percent" width={24} height={24} />
                       </button>
@@ -728,7 +746,7 @@ const MoneySection: React.FC<MoneyProps> = ({
                   </div>
                   <div className={styles.datetime}>
                     <label className={styles.ticketsLabel}>Dollar Amount</label>
-                    <div className={styles.contractInput} style={{ opacity: row.percentage && row.percentage !== "0" ? 0.5 : 1 }}>
+                    <div className={styles.inputRow} style={{ opacity: row.percentage && row.percentage !== "0" ? 0.5 : 1 }}>
                             <Image src="/contracts-Icons/Dollar sign.svg" alt="Dollar" width={24} height={24} />
                               <input
                                   type="text"
@@ -799,15 +817,24 @@ const MoneySection: React.FC<MoneyProps> = ({
               </div>
               </div>
               <div className={styles.ticketDetailsContainer}>
+                  <div className={styles.infoLabelRow}>
                   <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>
                   Security deposit Part 2
                   </label>
+                  <Image
+                      src="/contracts-Icons/Info.svg"
+                      alt="Info"
+                      width={20}
+                      height={20}
+                      className={styles.infoIcon}
+                    />
+                    </div>
                   {securityDeposit2Rows?.map((row, index) => (
                   <div key={index}>
                     <div className={styles.ticketDetailsRow}>
                       <div className={styles.datetime}>
                         <label className={styles.ticketsLabel}>Date & Time</label>
-                        <div className={styles.contractInput}>
+                        <div className={styles.inputRow}>
                             <button
                               type="button"
                               className={styles.contracticon}
@@ -829,7 +856,7 @@ const MoneySection: React.FC<MoneyProps> = ({
                     <div className={styles.securityDepositrow}>
                       <div className={styles.datetime}>
                         <label className={styles.ticketsLabel}>Percentage</label>
-                        <div className={styles.contractInput} style={{ opacity: row.dollarAmount && row.dollarAmount !== "0" && row.dollarAmount !== "0.00" ? 0.5 : 1 }}>
+                        <div className={styles.inputRow} style={{ opacity: row.dollarAmount && row.dollarAmount !== "0" && row.dollarAmount !== "0.00" ? 0.5 : 1 }}>
                             <button type="button" className={styles.contracticon}>
                               <Image src="/contracts-Icons/percent icon.svg" alt="Percent" width={24} height={24} />
                             </button>
@@ -876,7 +903,7 @@ const MoneySection: React.FC<MoneyProps> = ({
                       </div>
                       <div className={styles.datetime}>
                         <label className={styles.ticketsLabel}>Dollar Amount</label>
-                        <div className={styles.contractInput} style={{ opacity: row.percentage && row.percentage !== "0" ? 0.5 : 1 }}>
+                        <div className={styles.inputRow} style={{ opacity: row.percentage && row.percentage !== "0" ? 0.5 : 1 }}>
                          <Image src="/contracts-Icons/Dollar sign.svg" alt="Dollar" width={24} height={24} />
                         <input
                         type="text"
@@ -953,7 +980,7 @@ const MoneySection: React.FC<MoneyProps> = ({
               <div className={styles.ticketDetailsRow}>
                 <div className={styles.datetime}>
                   <label className={styles.ticketsLabel}>Date & Time</label>
-                  <div className={styles.contractInput}>
+                  <div className={styles.inputRow}>
                     <button
                       type="button"
                       className={styles.contracticon}
@@ -975,7 +1002,7 @@ const MoneySection: React.FC<MoneyProps> = ({
               <div className={styles.securityDepositrow}>
                 <div className={styles.datetime}>
                   <label className={styles.ticketsLabel}>Percentage</label>
-                  <div className={styles.contractInput} style={{ opacity: row.dollarAmount && row.dollarAmount !== "0" && row.dollarAmount !== "0.00" ? 0.5 : 1 }}>
+                  <div className={styles.inputRow} style={{ opacity: row.dollarAmount && row.dollarAmount !== "0" && row.dollarAmount !== "0.00" ? 0.5 : 1 }}>
                     <button type="button" className={styles.contracticon}>
                       <Image src="/contracts-Icons/percent icon.svg" alt="Percent" width={24} height={24} />
                     </button>
@@ -1022,7 +1049,7 @@ const MoneySection: React.FC<MoneyProps> = ({
                 </div>
                 <div className={styles.datetime}>
                   <label className={styles.ticketsLabel}>Dollar Amount</label>
-                  <div className={styles.contractInput} style={{ opacity: row.percentage && row.percentage !== "0" ? 0.5 : 1 }}>
+                  <div className={styles.inputRow} style={{ opacity: row.percentage && row.percentage !== "0" ? 0.5 : 1 }}>
                     <Image src="/contracts-Icons/Dollar sign.svg" alt="Dollar" width={24} height={24} />
                     <input
                     type="text"

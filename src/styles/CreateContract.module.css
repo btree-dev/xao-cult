@@ -296,13 +296,14 @@
   appearance: none;
   width: 50px;
   height: 26px;
-  background: #000; 
+  background: #000;
   border-radius: 50px;
   position: relative;
   cursor: pointer;
   outline: none;
   transition: background 0.3s ease;
   border: 1px solid #ff8a00;
+  margin-left: 18px;
 }
 .toggleSwitch:not(:checked) {
   background: rgba(0, 0, 0, 0.3);
@@ -777,6 +778,15 @@
   margin-left: 18px;
 }
 
+.ticketsLabelNoWrap {
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  margin-left: 18px;
+  white-space: nowrap;
+}
+
 .ticketDetailsContainer {
   border-radius: 30px;
   padding: 20px;
@@ -879,6 +889,15 @@
   flex: 1;
   min-width:0;
   width:100%;
+  box-sizing:border-box;
+}
+
+.ticketInputWrapperSmall {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0.6;
+  min-width:0;
   box-sizing:border-box;
 }
 
@@ -991,4 +1010,31 @@
     gap: 16px;
     width: 100%;
     margin-top: 16px;
+  }
+
+  .sectionTitleContainer {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    margin-top: 20px;
+    margin-bottom: 16px;
+  }
+
+  .gradientLine {
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+    border-radius: 1.5px;
+    min-width: 50px;
+    opacity: 1;
+  }
+
+  .sectionSubtitle {
+    color: white;
+    font-size: 20px;
+    font-weight: 700;
+    white-space: nowrap;
+    margin: 0;
+    padding: 0;
   }

@@ -173,6 +173,8 @@ export interface IContract {
   location?: {
     venueName?: string;
     address?: string;
+    radiusDistance?: string;
+    days?: string;
   };
   tickets?: any; // Replace 'any' with your TicketRow[] type if available
   money?: any;   // Replace 'any' with your MoneySection type if available

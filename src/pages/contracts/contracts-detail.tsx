@@ -3,7 +3,8 @@ import Head from "next/head";
 import Layout from "../../components/Layout";
 import ContractsNav from "../../components/ContractsNav";
 import styles from "../../styles/CreateContract.module.css";
-import { EventDocs } from "../../backend/eventsdata";
+import { AttentionList, WaitingList } from "../../backend/contract-services/negotiation";
+import { currentcontracts } from "../../backend/contract-services/currentcontract";
 import CreateContractsection from "./create-contract-section";
 import { useRouter } from "next/router";
 import Scrollbar from "../../components/Scrollbar";
@@ -13,7 +14,16 @@ const Contractsdetail: React.FC = () => {
   const [party2, setParty2] = useState("");
   const router = useRouter();
   const { id, ticketsold, totalrevenue, source } = router.query;
-  const eventDetail = EventDocs.find((event) => String(event.id) === String(id));
+
+  // Find contract from appropriate data source based on source parameter
+  let eventDetail;
+  if (source === "negotiation") {
+    // Combine AttentionList and WaitingList and find matching contract
+    const allNegotiationContracts = [...AttentionList, ...WaitingList];
+    eventDetail = allNegotiationContracts.find((contract) => String(contract.id) === String(id));
+  } else if (source === "current") {
+    eventDetail = currentcontracts.find((contract) => String(contract.id) === String(id));
+  }
 
   const handleArbitrateClick = () => {
     router.push("/contracts/arbitrate");

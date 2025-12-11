@@ -5,7 +5,6 @@ import styles from "../../styles/CreateContract.module.css";
 import ContractsNav from "../../components/ContractsNav";
 import Image from "next/image";
 import router from "next/router";
-import { contractAPI } from "../../backend/services/Contract";
 import CreateContractsection from "./create-contract-section";
 import Scrollbar from "../../components/Scrollbar";
 
@@ -15,24 +14,8 @@ const CreateContract = () => {
   const [party2, setParty2] = useState("");
   const contractSectionRef = useRef<any>(null);
 
-  const handleSave = async () => {
-    if (contractSectionRef.current) {
-      // Get all other contract data from child
-      const contractData = contractSectionRef.current.getContractData();
-      // Combine with party1 and party2 from parent
-      const fullContractData = {
-        ...contractData,
-        party1,
-        party2,
-      };
-      try {
-        await contractAPI.createContract(fullContractData);
-        alert("Contract created successfully!");
-        router.push("/dashboard");
-      } catch (error) {
-        alert("Error creating contract: " + (error as Error).message);
-      }
-    }
+  const handleSave = () => {
+    router.push("/dashboard");
   };
 
   const handleSign = () => {

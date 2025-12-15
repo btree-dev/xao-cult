@@ -3,8 +3,8 @@ import { CONTRACT_ADDRESSES } from '../lib/web3/chains';
 import { CONTRACT_NFT_ABI } from '../lib/web3/contracts';
 
 export const useMintContractNFT = (chainId?: number) => {
-  const contractAddress = chainId
-    ? (CONTRACT_ADDRESSES[chainId]?.ContractNFT as `0x${string}`)
+  const contractAddress = chainId && chainId in CONTRACT_ADDRESSES
+    ? (CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.ContractNFT as `0x${string}`)
     : '0x';
 
   const { writeContract, isPending, error, data: hash } = useWriteContract();

@@ -4,7 +4,7 @@ import { CONTRACT_NFT_ABI } from '../lib/web3/contracts';
 
 export const useGetUserNFTs = (userAddress?: string, chainId?: number) => {
   const contractAddress = chainId
-    ? (CONTRACT_ADDRESSES[chainId]?.ContractNFT as `0x${string}`)
+    ? (CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.ContractNFT as `0x${string}`)
     : '0x';
 
   const { data, isLoading, error } = useContractRead({
@@ -12,7 +12,9 @@ export const useGetUserNFTs = (userAddress?: string, chainId?: number) => {
     abi: CONTRACT_NFT_ABI,
     functionName: 'getUserNFTs',
     args: [userAddress as `0x${string}`],
-    enabled: !!userAddress && !!contractAddress,
+    query: {
+      enabled: !!userAddress && !!contractAddress,
+    },
   });
 
   return {
@@ -24,7 +26,7 @@ export const useGetUserNFTs = (userAddress?: string, chainId?: number) => {
 
 export const useGetContractData = (tokenId?: bigint, chainId?: number) => {
   const contractAddress = chainId
-    ? (CONTRACT_ADDRESSES[chainId]?.ContractNFT as `0x${string}`)
+    ? (CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.ContractNFT as `0x${string}`)
     : '0x';
 
   const { data, isLoading, error } = useContractRead({
@@ -32,7 +34,9 @@ export const useGetContractData = (tokenId?: bigint, chainId?: number) => {
     abi: CONTRACT_NFT_ABI,
     functionName: 'getContractData',
     args: [tokenId as bigint],
-    enabled: !!tokenId && !!contractAddress,
+    query: {
+      enabled: !!tokenId && !!contractAddress,
+    },
   });
 
   return {

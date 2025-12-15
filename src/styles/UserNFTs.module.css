@@ -1,0 +1,148 @@
+.container {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  margin: 20px auto;
+  max-width: 430px;
+  width: 100%;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #ffffff;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: linear-gradient(135deg, rgba(100, 150, 255, 0.1), rgba(150, 100, 255, 0.1));
+  border: 1px solid rgba(100, 150, 255, 0.3);
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(100, 150, 255, 0.6);
+  background: linear-gradient(135deg, rgba(100, 150, 255, 0.15), rgba(150, 100, 255, 0.15));
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+}
+
+.cardTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+}
+
+.badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.signed {
+  background-color: rgba(76, 175, 80, 0.3);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.5);
+}
+
+.unsigned {
+  background-color: rgba(255, 152, 0, 0.3);
+  color: #ff9800;
+  border: 1px solid rgba(255, 152, 0, 0.5);
+}
+
+.cardBody {
+  margin-bottom: 12px;
+}
+
+.party {
+  margin-bottom: 8px;
+}
+
+.party label,
+.meta label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 4px;
+}
+
+.party p,
+.meta p {
+  font-size: 14px;
+  color: #ffffff;
+  margin: 0;
+  word-break: break-word;
+}
+
+.meta {
+  margin-bottom: 8px;
+}
+
+.hash {
+  font-family: monospace;
+  font-size: 12px;
+  color: rgba(100, 150, 255, 0.8);
+}
+
+.termsSection {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(100, 150, 255, 0.2);
+}
+
+.termsSection label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 8px;
+}
+
+.termsContainer {
+  max-height: 200px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(100, 150, 255, 0.2);
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.terms {
+  font-size: 13px;
+  color: #ffffff;
+  margin: 0;
+  word-break: break-word;
+  white-space: pre-wrap;
+  font-family: 'Courier New', monospace;
+  line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .title {
+    font-size: 20px;
+  }
+}

@@ -1,3 +1,5 @@
+'use client';
+
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useState, useEffect } from 'react';
@@ -10,6 +12,7 @@ import Navbar from '../components/Navbar';
 import Layout from '../components/Layout';
 import Scrollbar from '../components/Scrollbar';
 import { EventDocs } from '../backend/eventsdata';
+import { UserNFTs } from '../components/UserNFTs';
 //import { loadEvents, EventDoc } from '../backend/services/Event';
 
 const Dashboard: NextPage = () => {
@@ -135,7 +138,7 @@ const Dashboard: NextPage = () => {
           </div>
         </div>
       </div>
-
+        <div className={styles.feedContainer}> <UserNFTs/> </div>
         <div className={styles.feedContainer}>
           {events.map((event, index) => (
               <div 

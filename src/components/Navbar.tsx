@@ -34,6 +34,10 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
     router.push('/tickets');
   };
 
+  const handleFullscreenClick = () => {
+    router.push('/TicketAuthenticate/TicketQR');
+  };
+
   return (
     <>
       {showBackButton ? (
@@ -87,7 +91,12 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
           <div className={styles.navContainer}>
             {/* Left side icons */}
             <div className={styles.navSection}>
-              <button className={styles.navButton} title="Fullscreen" aria-label="Fullscreen">
+              <button
+                className={styles.navButton}
+                title="Fullscreen"
+                aria-label="Fullscreen"
+                onClick={handleFullscreenClick}
+              >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M8 3H5C4.46957 3 3.96086 3.21071 3.58579 3.58579C3.21071 3.96086 3 4.46957 3 5V8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   <path d="M21 8V5C21 4.46957 20.7893 3.96086 20.4142 3.58579C20.0391 3.21071 19.5304 3 19 3H16" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -129,7 +138,7 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
               </div>
             </div>
 
-            {/* Right side icons */}
+          
             <div className={styles.navSection}>
               {/* <button 
                 className={styles.navButton} 

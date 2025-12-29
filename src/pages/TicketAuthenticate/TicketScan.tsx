@@ -43,9 +43,7 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
             setScannedData(decodedText);
           },
           (errorMessage: string) => {
-            // QR code not detected - this fires continuously when no QR is in view
-            // We don't need to do anything here as we only want to show
-            // detected state when a code is actually scanned
+          
           }
         );
 
@@ -56,7 +54,7 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
 
     startScanner();
 
-    // Cleanup: Stop camera when component unmounts (user switches tabs)
+    
     return () => {
       isMounted = false;
       if (html5QrCode) {
@@ -75,22 +73,22 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
 
     setIsAuthenticating(true);
 
-    // Simulate authentication delay for better UX
+
     await new Promise(resolve => setTimeout(resolve, 800));
 
     try {
       console.log("Validating scanned data:", scannedData);
 
-      // Check if it's a valid URL
+     
       let url: URL;
       try {
-        // Try to parse as URL directly
+     
         if (/^https?:\/\//i.test(scannedData)) {
           url = new URL(scannedData);
         } else if (/^www\./i.test(scannedData)) {
           url = new URL('https://' + scannedData);
         } else {
-          // Not a valid URL format
+       
           console.log("Not a valid URL - showing error");
           setScanStatus('error');
           router.push("/TicketAuthenticate/Access?status=error");
@@ -105,7 +103,7 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
         return;
       }
 
-      // Check if URL points to a PDF or image file
+     
       const pathname = url.pathname.toLowerCase();
       console.log("URL pathname:", pathname);
       const fileExtensions = /\.(pdf|jpg|jpeg|png|gif|bmp|svg|webp|ico)$/i;
@@ -120,7 +118,6 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
         return;
       }
 
-      // Valid website URL - proceed to success
       console.log("Valid website URL - showing success");
       if (onScanSuccess) {
         onScanSuccess(scannedData);
@@ -128,7 +125,7 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
       router.push("/TicketAuthenticate/Access?status=success");
 
     } catch (error) {
-      // Unexpected error
+
       console.error("Validation failed:", error);
       setScanStatus('error');
       router.push("/TicketAuthenticate/Access?status=error");

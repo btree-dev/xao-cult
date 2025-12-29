@@ -3,13 +3,14 @@ import FloatingNav from './FloatingNav';
 
 type LayoutProps = {
   children: ReactNode;
+  hideNav?: boolean;
 };
 
-const Layout = ({ children }: LayoutProps) => {
+const Layout = ({ children, hideNav = false }: LayoutProps) => {
   return (
     <>
       <main>{children}</main>
-      <FloatingNav />
+      {!hideNav && <FloatingNav />}
     </>
   );
 };

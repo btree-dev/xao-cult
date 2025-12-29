@@ -25,7 +25,7 @@ export default function TicketQR() {
   }, [router.query.tab]);
 
   return(
-    <Layout>
+    <Layout hideNav={activeTab === "Scan" || activeTab === "Authenticate"}>
       <div className={styles.container}>
         <div className={styles.background} />
         <Head>

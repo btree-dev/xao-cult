@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import Head from "next/head";
 import Image from "next/image";
 import styles from "../../styles/ticketAuthenticate.module.css";
@@ -9,7 +10,19 @@ import TicketScan from "./TicketScan";
 import TicketAuthentication from "./TicketAuthentication";
 
 export default function TicketQR() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("Me");
+
+  useEffect(() => {
+    // Check if there's a tab query parameter
+    if (router.query.tab === "Scan") {
+      setActiveTab("Scan");
+    } else if (router.query.tab === "Authenticate") {
+      setActiveTab("Authenticate");
+    } else if (router.query.tab === "Me") {
+      setActiveTab("Me");
+    }
+  }, [router.query.tab]);
 
   return(
     <Layout>
@@ -54,7 +67,7 @@ export default function TicketQR() {
                   <Image
                     src="/Ticket-Auth_Icons/QR.svg"
                     alt="QR Code"
-                    width={380}
+                    width={330}
                     height={400}
                     className={styles.qrImage}
                   />

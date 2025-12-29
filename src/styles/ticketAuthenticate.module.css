@@ -249,29 +249,71 @@
 .cornerTopLeft {
   top: 0;
   left: 0;
-  border-top: 5px solid #00FF00;
-  border-left: 5px solid #00FF00;
+  border-top: 5px solid rgba(255, 255, 255, 0.8);
+  border-left: 5px solid rgba(255, 255, 255, 0.8);
 }
 
 .cornerTopRight {
   top: 0;
   right: 0;
-  border-top: 5px solid #00FF00;
-  border-right: 5px solid #00FF00;
+  border-top: 5px solid rgba(255, 255, 255, 0.8);
+  border-right: 5px solid rgba(255, 255, 255, 0.8);
 }
 
 .cornerBottomLeft {
   bottom: 0;
   left: 0;
-  border-bottom: 5px solid #00FF00;
-  border-left: 5px solid #00FF00;
+  border-bottom: 5px solid rgba(255, 255, 255, 0.8);
+  border-left: 5px solid rgba(255, 255, 255, 0.8);
 }
 
 .cornerBottomRight {
   bottom: 0;
   right: 0;
-  border-bottom: 5px solid #00FF00;
-  border-right: 5px solid #00FF00;
+  border-bottom: 5px solid rgba(255, 255, 255, 0.8);
+  border-right: 5px solid rgba(255, 255, 255, 0.8);
+}
+
+/* Neutral State - White Corners (default) */
+.neutralCorner.cornerTopLeft {
+  border-top-color: rgba(255, 255, 255, 0.8) !important;
+  border-left-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.neutralCorner.cornerTopRight {
+  border-top-color: rgba(255, 255, 255, 0.8) !important;
+  border-right-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.neutralCorner.cornerBottomLeft {
+  border-bottom-color: rgba(255, 255, 255, 0.8) !important;
+  border-left-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.neutralCorner.cornerBottomRight {
+  border-bottom-color: rgba(255, 255, 255, 0.8) !important;
+  border-right-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Success State - Green Corners (when QR detected) */
+.successCorner.cornerTopLeft {
+  border-top-color: #00FF00 !important;
+  border-left-color: #00FF00 !important;
+}
+
+.successCorner.cornerTopRight {
+  border-top-color: #00FF00 !important;
+  border-right-color: #00FF00 !important;
+}
+
+.successCorner.cornerBottomLeft {
+  border-bottom-color: #00FF00 !important;
+  border-left-color: #00FF00 !important;
+}
+
+.successCorner.cornerBottomRight {
+  border-bottom-color: #00FF00 !important;
+  border-right-color: #00FF00 !important;
 }
 
 /* Error State - Red Corners */
@@ -322,6 +364,14 @@
 }
 
 #reader__scan_region > img {
+  display: none !important;
+}
+
+#reader__scan_region > canvas {
+  display: none !important;
+}
+
+#reader__scan_region video + div {
   display: none !important;
 }
 

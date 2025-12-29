@@ -10,7 +10,7 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
   const router = useRouter();
   const [scannedData, setScannedData] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [isDetecting, setIsDetecting] = useState(false);
+  const [scanStatus, setScanStatus] = useState<'idle' | 'detected' | 'error'>('idle');
 
   useEffect(() => {
     let html5QrCode: any = null;
@@ -35,13 +35,17 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
           },
           (decodedText: string) => {
             console.log("QR Code detected:", decodedText);
-            // Set detecting to true (green corners) and store the scanned data
-            setIsDetecting(true);
+            console.log("QR Code length:", decodedText.length);
+            console.log("QR Code is empty:", decodedText.trim().length === 0);
+            // Set status to detected (green corners) for ANY QR code (including empty ones)
+            setScanStatus('detected');
+            // Store the data even if it's empty - we'll validate on redeem
             setScannedData(decodedText);
           },
           (errorMessage: string) => {
-            // QR code not detected, keep red corners
-            setIsDetecting(false);
+            // QR code not detected - this fires continuously when no QR is in view
+            // We don't need to do anything here as we only want to show
+            // detected state when a code is actually scanned
           }
         );
 
@@ -64,28 +68,69 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
           .catch((err: any) => console.error("Error stopping scanner:", err));
       }
     };
-  }, []); // Empty dependency array - runs once on mount, cleans up on unmount
+  }, []); 
 
   const handleAuthenticate = async () => {
     if (!scannedData) return;
 
     setIsAuthenticating(true);
 
-    // Simulate authentication API call - in production, validate against your backend
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Simulate authentication delay for better UX
+    await new Promise(resolve => setTimeout(resolve, 800));
 
-    // Check if the scanned data contains a valid URL/link
-    const urlPattern = /^(https?:\/\/|www\.)/i;
-    const isValidTicket = urlPattern.test(scannedData);
+    try {
+      console.log("Validating scanned data:", scannedData);
 
-    if (isValidTicket) {
+      // Check if it's a valid URL
+      let url: URL;
+      try {
+        // Try to parse as URL directly
+        if (/^https?:\/\//i.test(scannedData)) {
+          url = new URL(scannedData);
+        } else if (/^www\./i.test(scannedData)) {
+          url = new URL('https://' + scannedData);
+        } else {
+          // Not a valid URL format
+          console.log("Not a valid URL - showing error");
+          setScanStatus('error');
+          router.push("/TicketAuthenticate/Access?status=error");
+          setIsAuthenticating(false);
+          return;
+        }
+      } catch (urlError) {
+        console.log("Invalid URL format - showing error");
+        setScanStatus('error');
+        router.push("/TicketAuthenticate/Access?status=error");
+        setIsAuthenticating(false);
+        return;
+      }
+
+      // Check if URL points to a PDF or image file
+      const pathname = url.pathname.toLowerCase();
+      console.log("URL pathname:", pathname);
+      const fileExtensions = /\.(pdf|jpg|jpeg|png|gif|bmp|svg|webp|ico)$/i;
+      const isFileUrl = fileExtensions.test(pathname);
+      console.log("Is PDF/Image file?", isFileUrl);
+
+      if (isFileUrl) {
+        console.log("URL points to PDF or image file - showing error");
+        setScanStatus('error');
+        router.push("/TicketAuthenticate/Access?status=error");
+        setIsAuthenticating(false);
+        return;
+      }
+
+      // Valid website URL - proceed to success
+      console.log("Valid website URL - showing success");
       if (onScanSuccess) {
         onScanSuccess(scannedData);
       }
-      // Redirect to Access page with success status
       router.push("/TicketAuthenticate/Access?status=success");
-    } else {
-      // Redirect to Access page with error status
+
+    } catch (error) {
+      // Unexpected error
+      console.error("Validation failed:", error);
+      setScanStatus('error');
       router.push("/TicketAuthenticate/Access?status=error");
     }
 
@@ -100,16 +145,11 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
         <div className={styles.scannerFrame}>
           <div id="reader" className={styles.qrReaderContainer}></div>
 
-          <div className={styles.scannerOverlay}>
-            <div className={`${styles.cornerTopLeft} ${!isDetecting ? styles.errorCorner : ''}`}></div>
-            <div className={`${styles.cornerTopRight} ${!isDetecting ? styles.errorCorner : ''}`}></div>
-            <div className={`${styles.cornerBottomLeft} ${!isDetecting ? styles.errorCorner : ''}`}></div>
-            <div className={`${styles.cornerBottomRight} ${!isDetecting ? styles.errorCorner : ''}`}></div>
-          </div>
+          
         </div>
 
         <p className={styles.scanInstruction}>
-          {isDetecting ? "QR Code detected! Press Authenticate to verify" : "Align the QR code within the frame to scan"}
+          {scanStatus === 'detected' ? "QR Code detected! Press Redeem to verify" : "Align the QR code within the frame to scan"}
         </p>
 
         <button
@@ -117,7 +157,7 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
           onClick={handleAuthenticate}
           disabled={isAuthenticating || !scannedData}
         >
-          {isAuthenticating ? "Authenticating..." : "Authenticate"}
+          {isAuthenticating ? "Redeeming..." : "Redeem"}
         </button>
       </div>
     </div>

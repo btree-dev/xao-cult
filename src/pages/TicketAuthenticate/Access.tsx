@@ -10,7 +10,6 @@ export default function Access() {
   const [authStatus, setAuthStatus] = useState<"success" | "error">("success");
 
   useEffect(() => {
-    // Get the status from the query parameter
     if (router.query.status === "error") {
       setAuthStatus("error");
     } else {
@@ -21,7 +20,7 @@ export default function Access() {
   const isSuccess = authStatus === "success";
 
   return (
-    <Layout>
+    
       <div className={styles.container}>
         <div className={styles.background} />
         <Head>
@@ -81,9 +80,16 @@ export default function Access() {
                 {isSuccess ? "successful" : "failed"}
               </h2>
             </div>
+
+            <button
+              className={styles.authenticateButton}
+              onClick={() => router.push('/TicketAuthenticate/TicketQR?tab=Scan')}
+            >
+              Done
+            </button>
           </div>
         </main>
       </div>
-    </Layout>
+  
   );
 }

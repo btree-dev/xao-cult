@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import Head from "next/head";
 import Layout from "../../components/Layout";
 import ContractsNav from "../../components/ContractsNav";
+import ShareModal from "../../components/ShareModal";
 import styles from "../../styles/CreateContract.module.css";
 import { Pastcontracts } from "../../backend/contract-services/pastcontract";
 import Scrollbar from "../../components/Scrollbar";
@@ -9,6 +10,33 @@ import { useRouter } from "next/router";
 
 const PastContract: React.FC = () => {
   const router = useRouter();
+  const [mutedContracts, setMutedContracts] = useState<Set<string>>(new Set());
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [selectedContract, setSelectedContract] = useState<any>(null);
+
+  const toggleMute = (contractId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMutedContracts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(contractId)) {
+        newSet.delete(contractId);
+      } else {
+        newSet.add(contractId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleShare = (contract: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedContract(contract);
+    setShareModalOpen(true);
+  };
+
+  const closeShareModal = () => {
+    setShareModalOpen(false);
+    setSelectedContract(null);
+  };
 
   const handleImageClick = (contract: any) => {
     router.push({
@@ -59,21 +87,32 @@ const PastContract: React.FC = () => {
                 </span>
               </div>
               <div className={styles.contractIconsRow}>
-                <span className={styles.contractIconItem}>
-                  <img src="/contracts-Icons/Vector.svg" alt="Vector" className={styles.contractIconSvg} />
+                <span className={styles.contractIconItem} onClick={(e) => handleShare(contract, e)}>
+                  <img src="/contracts-Icons/Vector.svg" alt="Share" className={styles.contractIconSvg} />
                   {contract.views}
                 </span>
                 <span className={styles.contractIconItem}>
                   <img src="/contracts-Icons/Heart_01.svg" alt="Heart" className={styles.contractIconSvg} />
                   {contract.likes}
                 </span>
-                <span className={styles.contractIconItem}>
-                  <img src="/contracts-Icons/Volume.svg" alt="Volume" className={styles.contractIconSvg} />
+                <span className={styles.contractIconItem} onClick={(e) => toggleMute(contract.id, e)}>
+                  {mutedContracts.has(contract.id) ? (
+                    <img src="/Volume_Off_02.png" alt="Muted" className={styles.contractIconSvg} />
+                  ) : (
+                    <img src="/contracts-Icons/Volume.svg" alt="Volume" className={styles.contractIconSvg} />
+                  )}
                 </span>
               </div>
             </div>
           ))}
         </main>
+
+        <ShareModal
+          isOpen={shareModalOpen}
+          onClose={closeShareModal}
+          eventTitle={selectedContract?.title || ''}
+          eventUrl={`/contracts/contracts-detail?id=${selectedContract?.id || ''}&source=past`}
+        />
       </div>
     </Layout>
   );

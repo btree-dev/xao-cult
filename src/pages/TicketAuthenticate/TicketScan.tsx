@@ -18,14 +18,13 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
 
     const startScanner = async () => {
       try {
-        // Initialize QR code scanner
         const { Html5Qrcode } = await import('html5-qrcode');
 
-        if (!isMounted) return; // Don't start if component already unmounted
+        if (!isMounted) return;
 
         html5QrCode = new Html5Qrcode("reader");
 
-        // Start scanning with camera
+      
         await html5QrCode.start(
           { facingMode: "environment" },
           {
@@ -37,7 +36,7 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
             console.log("QR Code detected:", decodedText);
             console.log("QR Code length:", decodedText.length);
             console.log("QR Code is empty:", decodedText.trim().length === 0);
-            // Set status to detected (green corners) for ANY QR code (including empty ones)
+          
             setScanStatus('detected');
             // Store the data even if it's empty - we'll validate on redeem
             setScannedData(decodedText);

@@ -33,8 +33,9 @@ export default function TransactionHistory() {
 
   return (
     <Layout>
-      
+
     <div className={styles.container}>
+      <div className={styles.background} />
       <StatsNav/>
       <h2 className={styles.heading}>Transaction History</h2>
 

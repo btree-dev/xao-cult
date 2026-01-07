@@ -40,47 +40,21 @@ const TicketConfirmation: NextPage = () => {
 
       <Navbar showBackButton={true} pageTitle="Purchase Confirmation" />
 
-      <div className={styles.Card}>
+      <div className={styles.confirmCardWrapper}>
         <div
-          className={styles.bookingDetailsCard}
+          className={styles.confirmCard}
           style={{
-            position: "fixed",
-            top: "60px",
-            left: 0,
-            right: 0,
-            bottom: 0,
             backgroundImage: `url('${image}')`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            zIndex: 1,
           }}
         >
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.7)",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: "20px",
-              zIndex: 2,
-            }}
-          >
+          <div className={styles.confirmOverlay}>
             {/* ✅ Success Heading */}
             <div className={styles.confirmationHeaderTitle}>
               <h1>Ticket Confirmed</h1>
             </div>
 
             {/* ✅ Success Icon + Text */}
-            <div
-              className={styles.detailRow}
-              style={{ display: "flex", alignItems: "center", gap: "6px" }}
-            >
+            <div className={styles.confirmDetailRow}>
               <div className={styles.successIcon}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -120,8 +94,7 @@ const TicketConfirmation: NextPage = () => {
             {parsedTickets.map((t: any, index: number) => (
               <div
                 key={index}
-                className={styles.detailRow}
-                style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                className={styles.confirmDetailRow}
               >
                 <div className={styles.detailIcon}>
                   <svg
@@ -159,10 +132,7 @@ const TicketConfirmation: NextPage = () => {
             ))}
 
             {/* ✅ Event Info */}
-            <div
-              className={styles.detailRow}
-              style={{ display: "flex", alignItems: "center", gap: "6px" }}
-            >
+            <div className={styles.confirmDetailRow}>
               <div className={styles.detailIcon}>
                 <svg
                   width="20"
@@ -207,10 +177,7 @@ const TicketConfirmation: NextPage = () => {
             </div>
 
             {/* ✅ CTA */}
-            <div
-              className={styles.confirmButtonContainer}
-              style={{ position: "relative", bottom: "auto" }}
-            >
+            <div className={styles.confirmButtonContainer}>
               <button className={styles.confirmButton} onClick={handleSeeInAsset}>See in Assets</button>
             </div>
           </div>

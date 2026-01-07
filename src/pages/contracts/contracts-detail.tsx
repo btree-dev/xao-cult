@@ -73,7 +73,7 @@ const Contractsdetail: React.FC = () => {
         <Scrollbar />
         <main className={styles.contractDetailcontainer}>
 
-          {eventDetail && ( 
+          {eventDetail && (
             <div className={styles.ImageContainer}>
               <img
                 src={eventDetail.image}
@@ -83,9 +83,15 @@ const Contractsdetail: React.FC = () => {
               <div className={styles.AttentionDetailsOverlay}>
                 <h2 className={styles.promotionTitle}>{eventDetail.title}</h2>
                 <span className={styles.promotionLocation}>
-                  Ticket Sold: {ticketsold}
+                  <img src="/contracts-Icons/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
+                  {eventDetail.Location}
                 </span>
                 <span className={styles.promotionDate}>
+                  <img src="/contracts-Icons/Calendar.svg" alt="Date" className={styles.promotionIcon} />
+                  {eventDetail.Date}
+                </span>
+                
+                <span className={styles.promotionRevenue}>
                   Total Revenue: {totalrevenue}
                 </span>
               </div>

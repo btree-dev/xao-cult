@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase';
 import store from '../store/store'
 import { Provider } from 'react-redux'
 import Navbar from '../components/Navbar';
+import Scrollbar from '../components/Scrollbar';
 
 const client = new QueryClient();
 
@@ -61,6 +62,30 @@ function MyApp({ Component, pageProps }: AppProps) {
     }
   }, [userProfile]);
 
+  // Viewport detection: Force 430px on desktop, device-width on mobile
+  useEffect(() => {
+    const updateViewport = () => {
+      const metaViewport = document.querySelector('meta[name="viewport"]');
+
+      if (window.innerWidth > 530) {
+        // Desktop: Force 430px viewport
+        metaViewport?.setAttribute('content', 'width=430, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+        document.body.classList.add('is-desktop');
+        document.body.classList.remove('is-mobile');
+      } else {
+        // Mobile: Use device width
+        metaViewport?.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+        document.body.classList.add('is-mobile');
+        document.body.classList.remove('is-desktop');
+      }
+    };
+
+    updateViewport(); 
+    window.addEventListener('resize', updateViewport);
+
+    return () => window.removeEventListener('resize', updateViewport);
+  }, []);
+
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={client}>
@@ -68,6 +93,7 @@ function MyApp({ Component, pageProps }: AppProps) {
           <Head>
             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
           </Head>
+          <Scrollbar />
           {/* {userProfile && <Navbar userProfile={userProfile} />} */}
           <Component {...pageProps} />
         </RainbowKitProvider>

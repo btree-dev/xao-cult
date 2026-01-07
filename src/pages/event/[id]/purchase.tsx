@@ -16,14 +16,13 @@ const TicketPurchase: NextPage = () => {
   const router = useRouter();
   const { id } = router.query;
 
-  // ✅ Initial ticketTypes defaults 
+
  const defaultTicketTypes = [
     { id: 'general', name: 'General Admission', price: 50, selected: false, count: 0 },
     { id: 'premium', name: 'Premium', price: 80, selected: false, count: 0 },
     { id: 'vip', name: 'VIP', price: 120, selected: false, count: 0 }
   ];
 
-  // ✅ Restore state (runs only once after id is ready)
   useEffect(() => {
     if (!id) return;
 
@@ -41,8 +40,6 @@ const TicketPurchase: NextPage = () => {
     }
     setTicketTypes(defaultTicketTypes);
   }, [id]);
-
-  // ✅ Persist state whenever tickets or payment changes
   useEffect(() => {
     if (!id || ticketTypes.length === 0) return;
     sessionStorage.setItem(
@@ -222,8 +219,20 @@ const TicketPurchase: NextPage = () => {
             height={764}
             className={styles.feedImage}
           />
-          <div className={styles.feedContentOverlay}>
+          <div className={styles.feedContentOverlayTop}>
             <h1 className={styles.feedEventTitle}>{event.title}</h1>
+            <div className={styles.feedEventLocation}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white"/>
+              </svg>
+              <span>{event.location}</span>
+            </div>
+            <div className={styles.feedEventDate}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z" fill="white"/>
+              </svg>
+              <span>{event.date}</span>
+            </div>
           </div>
         </div>
       </div>

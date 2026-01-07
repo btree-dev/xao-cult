@@ -48,6 +48,7 @@
   background: rgba(0, 0, 0, 0.8);
   border-radius: 18px;
   padding: 0.5rem;
+
   margin-bottom: 5rem;
   margin-left: 1rem;
   margin-right: 1rem;
@@ -256,7 +257,7 @@
 .background {
   position: fixed;
   top: 0;
-  left: 0;
+  left: 0 !important;
   width: 100vw;
   height: 100vh;
   z-index: -1;
@@ -264,6 +265,8 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  transform: none !important;
+  max-width: none !important;
 }
 
 .rowContainer {
@@ -795,13 +798,7 @@
 }
 
 .feedHeader {
-  padding: 12px 16px;
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: 2;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7), transparent);
+  display: none;
 }
 
 .feedAuthor {
@@ -856,12 +853,39 @@
   background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
 }
 
+.feedContentOverlayTop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 20px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 2;
+}
+
 .feedEventTitle {
   font-size: 24px;
   font-weight: 700;
   color: #ffffff;
-  margin: 0;
+  margin: 0 0 8px 0;
+  text-align: center;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.feedEventLocation,
+.feedEventDate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.feedEventLocation svg,
+.feedEventDate svg {
+  flex-shrink: 0;
 }
 
 .feedActions {
@@ -874,14 +898,26 @@
   z-index: 2;
 }
 
+.feedActionsBottom {
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+  z-index: 2;
+}
+
 .actionButton {
   background: transparent;
   border: none;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   padding: 0;
   color: #ffffff;
 }
@@ -1091,8 +1127,8 @@
 }
 
 .lineupAvatar {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   overflow: hidden;
   margin-bottom: 8px;
@@ -1128,8 +1164,8 @@
 }
 
 .organizerAvatar {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   overflow: hidden;
   margin-right: 15px;
@@ -1413,17 +1449,8 @@
 }
 
 .confirmButtonContainer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 15px 20px;
-  
-  display: flex;
-  justify-content: center;
-  z-index: 100;
-  background: transparent;
-  pointer-events: none; /* This allows clicks to pass through the container */
+  position: relative;
+  bottom: auto;
 }
 
 .confirmButton {
@@ -1439,6 +1466,55 @@
   cursor: pointer;
   transition: all 0.2s ease;
   pointer-events: auto; /* This ensures the button itself remains clickable */
+}
+
+.confirmCardWrapper {
+  max-width: 400px;
+  margin: 20px auto;
+  padding: 0 20px;
+}
+
+.confirmCard {
+  position: relative;
+  width: 100%;
+  min-height: calc(100vh - 160px);
+  background-size: cover;
+  background-position: center;
+  z-index: 1;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.confirmOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  z-index: 2;
+  gap: 12px;
+}
+
+.confirmContentWrapper {
+  background: transparent;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.confirmDetailRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 /* Tickets List Page Styles */
@@ -2135,6 +2211,11 @@
   .feedEventTitle {
     font-size: 22px;
   }
+
+  .feedEventLocation,
+  .feedEventDate {
+    font-size: 13px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -2222,15 +2303,35 @@
   .feedContentOverlay {
     padding: 12px;
   }
+
+  .feedContentOverlayTop {
+    padding: 16px 12px;
+  }
   
   .feedEventTitle {
     font-size: 20px;
+  }
+
+  .feedEventLocation,
+  .feedEventDate {
+    font-size: 12px;
+  }
+
+  .feedEventLocation svg,
+  .feedEventDate svg {
+    width: 14px;
+    height: 14px;
   }
   
   .feedActions {
     right: 8px;
     bottom: 60px;
     gap: 12px;
+  }
+
+  .feedActionsBottom {
+    bottom: 12px;
+    padding: 0 12px;
   }
   
   .actionButton svg {

@@ -6,12 +6,15 @@ import Image from 'next/image';
 import styles from '../../styles/Home.module.css';
 import Navbar from '../../components/Navbar';
 import Scrollbar from '../../components/Scrollbar';
+import ShareModal from '../../components/ShareModal';
 import { eventAPI, venueAPI } from '../../backend/services/Event';
 import { IEvent, IVenue } from '../../backend/services/types/api';
 
 const EventDetails: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<any>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const router = useRouter();
   const { id } = router.query;
 
@@ -146,6 +149,24 @@ const EventDetails: NextPage = () => {
     router.push(`/event/${id}/purchase`);
     sessionStorage.removeItem(`purchaseState-${id}`);
   };
+
+  const formatCount = (count: string): string => {
+    return count;
+  };
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsMuted(!isMuted);
+  };
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShareModalOpen(true);
+  };
+
+  const closeShareModal = () => {
+    setShareModalOpen(false);
+  };
   if (loading || !event) {
     return (
       <div className={styles.container}>
@@ -180,41 +201,44 @@ const EventDetails: NextPage = () => {
           </div>
         </div>
         <div className={styles.feedContent}>
-          <Image 
-            src={event.image} 
-            alt={`${event.artist} Content`}  
-            width={430} 
-            height={764} 
+          <Image
+            src={event.image}
+            alt={`${event.artist} Content`}
+            width={430}
+            height={764}
             className={styles.feedImage}
           />
-          <div className={styles.feedContentOverlay}>
+          <div className={styles.feedContentOverlayTop}>
             <h1 className={styles.feedEventTitle}>{event.title}</h1>
+            <div className={styles.feedEventLocation}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white"/>
+              </svg>
+              <span>{event.location}</span>
+            </div>
+            <div className={styles.feedEventDate}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z" fill="white"/>
+              </svg>
+              <span>{event.date}</span>
+            </div>
           </div>
         </div>
-        <div className={styles.feedActions}>
-          <div className={styles.actionButton} onClick={(e) => e.stopPropagation()}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="white"/>
-              <circle cx="12" cy="12" r="3" fill="white"/>
-            </svg>
-             <span className={styles.actionCounter}>{event.views}</span>
+        <div className={styles.feedActionsBottom}>
+          <div className={styles.actionButton} onClick={handleShare}>
+            <Image src="/Paper_Plane.svg" alt="Share" width={24} height={24} />
+            <span className={styles.actionCounter}>{formatCount(event.views)}</span>
           </div>
           <div className={styles.actionButton} onClick={(e) => e.stopPropagation()}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="white" strokeWidth="2"/>
-            </svg>
-            <span className={styles.actionCounter}>{event.likes}</span>
+            <Image src="/Heart_01.svg" alt="Like" width={24} height={24} />
+            <span className={styles.actionCounter}>{formatCount(event.likes)}</span>
           </div>
-          <div className={styles.actionButton} onClick={(e) => e.stopPropagation()}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z" stroke="white" strokeWidth="2"/>
-            </svg>
-          </div>
-          <div className={styles.actionButton} onClick={(e) => e.stopPropagation()}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="9" y="9" width="13" height="13" rx="2" stroke="white" strokeWidth="2"/>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="white" strokeWidth="2"/>
-            </svg>
+          <div className={styles.actionButton} onClick={toggleMute}>
+            {isMuted ? (
+              <Image src="/Volume_Off_02.png" alt="Muted" width={24} height={24} />
+            ) : (
+              <Image src="/Volume.svg" alt="Volume" width={22} height={17} />
+            )}
           </div>
         </div>
       </div>
@@ -259,7 +283,7 @@ const EventDetails: NextPage = () => {
             {event.lineup.map((artist: any, index: number) => (
               <div key={index} className={styles.lineupItem}>
                 <div className={styles.lineupAvatar}>
-                  <Image src={artist.image} alt={artist.name} width={40} height={40} />
+                  <Image src={artist.image} alt={artist.name} width={48} height={48} />
                 </div>
               <span className={styles.lineupName}>{artist.name}</span>
               </div>
@@ -277,7 +301,7 @@ const EventDetails: NextPage = () => {
           <h2 className={styles.sectionTitle}>ORGANIZER</h2>
           <div className={styles.organizerInfo}>
             <div className={styles.organizerAvatar}>
-              <Image src={event.organizer.image} alt={event.organizer.name} width={40} height={40} />
+              <Image src={event.organizer.image} alt={event.organizer.name} width={48} height={48} />
             </div>
             <span className={styles.organizerName}>{event.organizer.name}</span>
           </div>
@@ -289,6 +313,13 @@ const EventDetails: NextPage = () => {
           Buy Ticket
         </button>
       </div>
+
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={closeShareModal}
+        eventTitle={event?.title || ''}
+        eventUrl={`/event/${id || ''}`}
+      />
     </div>
   );
 };

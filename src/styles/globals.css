@@ -3,7 +3,22 @@
   --main-gradient: linear-gradient(89.91deg, #FEC847 0.07%, #FF8800 33.63%, #F755C1 67.19%, #8A2BE2 101.77%);
 }
 
-html,
+html {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+
+html::-webkit-scrollbar {
+  display: none;
+}
+
+html {
+  -ms-overflow-style: none;  
+  scrollbar-width: none; 
+}
+
 body {
   padding: 0;
   margin: 0;
@@ -11,7 +26,63 @@ body {
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
   color: #ffffff;
   width: 100%;
+  min-height: 100%;
   overflow-x: hidden;
+}
+
+body.is-desktop {
+  max-width: 430px;
+  width: 430px !important;
+  min-width: 430px;
+  margin: 0 auto;
+  position: relative;
+  box-shadow: 0 0 50px rgba(255, 255, 255, 0.1);
+}
+
+/* Mobile: Full device width */
+body.is-mobile {
+  width: 100% !important;
+  max-width: 100%;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* Prevent any child from creating scroll context */
+body.is-desktop > *,
+body.is-mobile > * {
+  overflow-x: visible !important;
+}
+
+/* Force all fixed/absolute positioned elements to stay within constrained body on desktop */
+body.is-desktop [style*="position: fixed"],
+body.is-desktop [style*="position: absolute"],
+body.is-desktop .navbar,
+body.is-desktop .floatingNav,
+body.is-desktop .messageInputContainer,
+body.is-desktop .chatMain,
+body.is-desktop nav,
+body.is-desktop header {
+  max-width: 430px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+}
+
+/* Exception: Custom scrollbar should always be on the right edge of screen */
+body.is-desktop .custom-scrollbar-track,
+body.is-mobile .custom-scrollbar-track {
+  max-width: none !important;
+  left: auto !important;
+  transform: none !important;
+  right: 0px !important;
+  position: fixed !important;
+}
+
+/* More specific override to beat inline styles */
+div.custom-scrollbar-track[style] {
+  right: 0px !important;
+  left: auto !important;
+  transform: none !important;
+  max-width: none !important;
 }
 
 /* Space for sticky navbar - only when logged in */

@@ -72,6 +72,7 @@ const Scrollbar = () => {
   return (
     <div
       ref={trackRef}
+      className="custom-scrollbar-track"
       style={{
         position: "fixed",
         right: "0px",
@@ -80,6 +81,7 @@ const Scrollbar = () => {
         width: "4px",
         background: "rgba(0,0,0,0.1)",
         borderRadius: "4px",
+        zIndex: 9999,
       }}
     >
       <div

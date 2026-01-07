@@ -37,8 +37,9 @@ const Swap: NextPage = () => {
 
   return (
     <Layout>
-    
+
       <div className={styles.container}>
+        <div className={styles.background} />
         <StatsNav/>
         
         <Head>

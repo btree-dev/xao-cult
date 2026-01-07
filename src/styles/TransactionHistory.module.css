@@ -1,10 +1,23 @@
 .container {
   min-height: 100vh;
-  background: url('/084251a867b139499f23448c34c1f6f13ca835ec.png') no-repeat center center;
-  background-size: cover;
   display: flex;
   flex-direction: column;
   padding: 1rem;
+}
+
+.background {
+  position: fixed;
+  top: 0;
+  left: 0 !important;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  background-image: url('/084251a867b139499f23448c34c1f6f13ca835ec.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform: none !important;
+  max-width: none !important;
 }
 
 .heading {

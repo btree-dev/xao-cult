@@ -14,7 +14,6 @@ const PurchaseConfirmation: NextPage = () => {
   const router = useRouter();
   const { id, tickets } = router.query;
 
-  // Parse tickets from query
   useEffect(() => {
     if (tickets) {
       try {
@@ -26,7 +25,6 @@ const PurchaseConfirmation: NextPage = () => {
     }
   }, [tickets]);
 
-  // Fetch event from API
   useEffect(() => {
      if (!id) return;
     setLoading(true);
@@ -84,8 +82,6 @@ const PurchaseConfirmation: NextPage = () => {
       setLoading(false);
     }
   }, [id]);
-
-  // Format date helper
   const formatDate = (date: Date) => {
     const d = new Date(date);
     const day = d.getDate();
@@ -94,13 +90,12 @@ const PurchaseConfirmation: NextPage = () => {
     return `${day}${suffix} ${month}`;
   };
 
-  // Format time helper
   const formatTime = (date: Date) => {
     const d = new Date(date);
     return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
-  // Confirm purchase
+ 
   const handleConfirm = () => {
 
     router.push({
@@ -144,60 +139,25 @@ const PurchaseConfirmation: NextPage = () => {
 
       <Navbar showBackButton={true} pageTitle={"Confirm Purchase"} />
 
-      <div className={styles.Card}>
+      <div className={styles.confirmCardWrapper}>
         <div
-          className={styles.bookingDetailsCard}
+          className={styles.confirmCard}
           style={{
-            position: "fixed",
-            top: "60px",
-            left: 0,
-            right: 0,
-            bottom: 0,
-             backgroundImage: `url('${event.image}')`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            zIndex: 1,
+            backgroundImage: `url('${event.image}')`,
           }}
         >
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.7)",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: "center",
-              padding: "20px",
-              zIndex: 2,
-              gap: "12px",
-            }}
-          >
-            {/* Event Title */}
+          <div className={styles.confirmOverlay}>
+    
             <div className={styles.confirmationHeaderTitle}>
               <h1>{event.title}</h1>
             </div>
 
-            {/* Ticket Breakdown + Total in same container */}
-            <div
-              className={styles.confirmationContent}
-              style={{
-                background: "transparent",
-                width: "100%",
-                maxWidth: "400px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "10px",
-              }}
-            >
+
+            <div className={styles.confirmContentWrapper}>
               {selectedTickets.map((t, index) => (
                 <div
                   key={index}
-                  className={styles.detailRow}
-                  style={{ display: "flex", alignItems: "center", gap: "6px" }}
+                  className={styles.confirmDetailRow}
                 >
                   <div className={styles.detailIcon}>
                     <svg
@@ -244,10 +204,7 @@ const PurchaseConfirmation: NextPage = () => {
               ))}
 
               {/* Total Summary */}
-              <div
-                className={styles.detailRow}
-                style={{ display: "flex", alignItems: "center", gap: "6px" }}
-              >
+              <div className={styles.confirmDetailRow}>
                 <div className={styles.detailIcon}>
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -285,10 +242,7 @@ const PurchaseConfirmation: NextPage = () => {
             </div>
 
             {/* Confirm Button */}
-            <div
-              className={styles.confirmButtonContainer}
-              style={{ position: "relative", bottom: "auto" }}
-            >
+            <div className={styles.confirmButtonContainer}>
               <button className={styles.confirmButton} onClick={handleConfirm}>
                 Confirm Purchase
               </button>

@@ -83,14 +83,14 @@ const Contractsdetail: React.FC = () => {
               <div className={styles.AttentionDetailsOverlay}>
                 <h2 className={styles.promotionTitle}>{eventDetail.title}</h2>
                 <span className={styles.promotionLocation}>
-                  <img src="/contracts-Icons/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
+                  <img src="/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
                   {eventDetail.Location}
                 </span>
                 <span className={styles.promotionDate}>
-                  <img src="/contracts-Icons/Calendar.svg" alt="Date" className={styles.promotionIcon} />
+                  <img src="/Calendar_Days.svg" alt="Date" className={styles.promotionIcon} />
                   {eventDetail.Date}
                 </span>
-                
+
                 <span className={styles.promotionRevenue}>
                   Total Revenue: {totalrevenue}
                 </span>

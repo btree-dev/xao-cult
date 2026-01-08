@@ -15,6 +15,7 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
   useEffect(() => {
     let html5QrCode: any = null;
     let isMounted = true;
+    let lastDetectionTime = 0;
 
     const startScanner = async () => {
       try {
@@ -24,12 +25,15 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
 
         html5QrCode = new Html5Qrcode("reader");
 
+        // Calculate qrbox based on 430px for desktop (when viewport > 530) or actual viewport for mobile
+        const viewportWidth = window.innerWidth > 530 ? 430 : window.innerWidth;
+        const qrboxSize = Math.floor(viewportWidth * 0.8); // 80% of viewport width, no max limit
       
         await html5QrCode.start(
           { facingMode: "environment" },
           {
             fps: 10,
-            qrbox: { width: 250, height: 250 },
+            qrbox: qrboxSize,
             aspectRatio: 1.0
           },
           (decodedText: string) => {
@@ -37,12 +41,17 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
             console.log("QR Code length:", decodedText.length);
             console.log("QR Code is empty:", decodedText.trim().length === 0);
           
+            lastDetectionTime = Date.now();
             setScanStatus('detected');
             // Store the data even if it's empty - we'll validate on redeem
             setScannedData(decodedText);
           },
           (errorMessage: string) => {
-          
+            // QR Code not detected - reset to idle after a short delay
+            const timeSinceLastDetection = Date.now() - lastDetectionTime;
+            if (timeSinceLastDetection > 300) { // 300ms threshold
+              setScanStatus('idle');
+            }
           }
         );
 
@@ -57,12 +66,9 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
     return () => {
       isMounted = false;
       if (html5QrCode) {
-        html5QrCode.stop()
-          .then(() => {
-            console.log("Camera stopped successfully");
-            html5QrCode.clear();
-          })
-          .catch((err: any) => console.error("Error stopping scanner:", err));
+        html5QrCode.stop().catch((err: any) => {
+          console.error("Error stopping scanner:", err);
+        });
       }
     };
   }, []); 
@@ -141,7 +147,13 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
         <div className={styles.scannerFrame}>
           <div id="reader" className={styles.qrReaderContainer}></div>
 
-          
+          {/* Corner overlays */}
+          <div className={`${styles.scannerOverlay} ${scanStatus === 'detected' ? styles.successCorner : scanStatus === 'error' ? styles.errorCorner : styles.neutralCorner}`}>
+            <div className={`${styles.cornerTopLeft} ${scanStatus === 'detected' ? styles.successCorner : scanStatus === 'error' ? styles.errorCorner : styles.neutralCorner}`}></div>
+            <div className={`${styles.cornerTopRight} ${scanStatus === 'detected' ? styles.successCorner : scanStatus === 'error' ? styles.errorCorner : styles.neutralCorner}`}></div>
+            <div className={`${styles.cornerBottomLeft} ${scanStatus === 'detected' ? styles.successCorner : scanStatus === 'error' ? styles.errorCorner : styles.neutralCorner}`}></div>
+            <div className={`${styles.cornerBottomRight} ${scanStatus === 'detected' ? styles.successCorner : scanStatus === 'error' ? styles.errorCorner : styles.neutralCorner}`}></div>
+          </div>
         </div>
 
         <p className={styles.scanInstruction}>

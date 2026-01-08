@@ -2,14 +2,15 @@
   display: flex;
   justify-content: space-around;
   align-items: center;
-  padding: 15px 20px;
+  /*padding: 15px 20px;*/
+  padding: 15px 0px;
   position: fixed;
   top: 0;
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
   max-width: 400px;
-  z-index: 100; /* keep above tickets */
+  z-index: 100; 
 }
 
 .statsNav button {

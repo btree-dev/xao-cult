@@ -155,8 +155,8 @@ const TicketDetailPage: NextPage = () => {
                     <Image 
                       src={index % 2 === 0 ? '/rivo-profile-pic.svg' : '/xao-profile.svg'} 
                       alt={artist} 
-                      width={40} 
-                      height={40} 
+                      width={48} 
+                      height={48} 
                     />
                   </div>
                   <span className={styles.lineupName}>{artist}</span>
@@ -178,8 +178,8 @@ const TicketDetailPage: NextPage = () => {
                 <Image 
                   src="/rivo-profile-pic.svg" 
                   alt={ticket.organizer} 
-                  width={40} 
-                  height={40} 
+                  width={48} 
+                  height={48} 
                 />
               </div>
               <span className={styles.organizerName}>{ticket.organizer}</span>

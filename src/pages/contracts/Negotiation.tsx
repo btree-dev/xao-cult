@@ -49,11 +49,11 @@ const Negotiation: React.FC = () => {
               <div className={styles.AttentionDetailsOverlay}>
                 <h2 className={styles.promotionTitle}>{contract.title}</h2>
                 <span className={styles.promotionLocation}>
-                  <img src="/contracts-Icons/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
+                  <img src="/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
                   {contract.Location}
                 </span>
                 <span className={styles.promotionDate}>
-                  <img src="/contracts-Icons/Calendar.svg" alt="Date" className={styles.promotionIcon} />
+                  <img src="/Calendar_Days.svg" alt="Date" className={styles.promotionIcon} />
                   {contract.Date}
                 </span>
               </div>
@@ -75,11 +75,11 @@ const Negotiation: React.FC = () => {
               <div className={styles.AttentionDetailsOverlay}>
                 <h2 className={styles.promotionTitle}>{waiting.title}</h2>
                 <span className={styles.promotionLocation}>
-                  <img src="/contracts-Icons/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
+                  <img src="/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
                   {waiting.Location}
                 </span>
                 <span className={styles.promotionDate}>
-                  <img src="/contracts-Icons/Calendar.svg" alt="Date" className={styles.promotionIcon} />
+                  <img src="/Calendar_Days.svg" alt="Date" className={styles.promotionIcon} />
                   {waiting.Date}
                 </span>
               </div>

@@ -431,6 +431,8 @@
   gap: 4px;
   justify-content: center;
   text-align: center;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .promotionRevenue {
@@ -467,7 +469,7 @@
 }
 .AttentionImage {
   width: 100%;
-  height: 500px;
+  height: 506px;
   object-fit: cover;
   border-radius: 30px;
   display: block;
@@ -492,15 +494,13 @@
 }
 .waitingImage {
   width: 100%;
-  height: 500px;
+  height: 506px;
   object-fit: cover;
   border-radius: 30px;
   display: block;
   border: 3px solid transparent;
   background: 
-    linear-gradient(90deg, green 0%, #39FF14 50%, #39FF14 100%) border-box;
- 
-
+  linear-gradient(90deg, green 0%, #39FF14 50%, #39FF14 100%) border-box;
 }
 
 .waitingTitle {
@@ -526,7 +526,7 @@
 }
 .currentcontractImage {
   width: 100%;
-  height: 530px;
+  height: 506px;
   object-fit: cover;
   border-radius: 30px;
   display: block;
@@ -559,7 +559,7 @@
 }
 .pastImage {
   width: 100%;
-  height: 500px;
+  height: 506px;
   object-fit: cover;
   border-radius: 30px;
   display: block;

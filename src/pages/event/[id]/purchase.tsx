@@ -194,8 +194,7 @@ const TicketPurchase: NextPage = () => {
       <Scrollbar />
 
       <div
-        className={styles.feedItem}
-        style={{ marginTop: '20px', marginBottom: '20px', pointerEvents: 'none' }}
+        className={`${styles.feedItem} ${styles.purchaseFeedItem}`}
       >
         <div className={styles.feedHeader}>
           <div className={styles.feedAuthor}>

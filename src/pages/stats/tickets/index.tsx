@@ -120,7 +120,7 @@ const TicketsPage: NextPage = () => {
                     </div>
                     <div className={styles.authorName}>@{ticket.artist}</div>
                     <div className={styles.headerTag}>{ticket.tag}</div>
-                  </div>
+                  </div> 
                 </div>
                 <div className={styles.feedContent}>
                   <div className={ticket.redeemed ? styles.redeemedImageWrapper : styles.unredeemedImageWrapper}>

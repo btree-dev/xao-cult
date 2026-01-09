@@ -25,7 +25,7 @@ const ContractChat: React.FC = () => {
     <div className={styles.chatContainer}>
       <div className={styles.messagesContainer}>
         <div className={styles.RecievedMessage}>
-          Hey! Let's discuss the contract terms.
+          Hey! Let&apos;s discuss the contract terms.
         </div>
         {messages.map((msg, idx) => (
           <div key={idx} className={styles.sentMessage}>

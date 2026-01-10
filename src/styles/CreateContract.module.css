@@ -1,6 +1,6 @@
 .container {
   /*min-height: 100vh;*/     
-  padding: 0 1rem;
+
   display: flex;           
   justify-content: center;      
   max-width: 400px;       
@@ -9,7 +9,13 @@
   margin-bottom: 30px;
 }
 
-
+@media (max-width: 480px) {
+ .container {
+      
+  padding: 12px;
+  
+}
+}
 .sectioncontainer {
   display: flex;
   flex-direction: column;

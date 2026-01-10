@@ -153,7 +153,7 @@ const Dashboard: NextPage = () => {
           <div className={styles.walletCurrencyRow}>
             <div className={styles.walletCurrencyLeft}>
               <div className={styles.walletCurrencyLogo}>
-                <Image src="/usdc-logo.svg" alt="USDC" width={24} height={24} />
+                <img src="/usdc-logo.svg" alt="USDC" />
               </div>
               <span className={styles.walletCurrencyName}>USDC</span>
             </div>
@@ -165,7 +165,7 @@ const Dashboard: NextPage = () => {
           <div className={styles.walletCurrencyRow}>
             <div className={styles.walletCurrencyLeft}>
               <div className={styles.walletCurrencyLogo}>
-                <Image src="/xao-logo.svg" alt="XAO" width={24} height={24} />
+                <img src="/xao-logo.svg" alt="XAO" />
               </div>
               <span className={styles.walletCurrencyName}>XAO</span>
             </div>
@@ -187,11 +187,9 @@ const Dashboard: NextPage = () => {
                 <div className={styles.feedHeader}>
                   <div className={styles.feedAuthor}>
                     <div className={styles.authorAvatar}>
-                      <Image 
-                        src={event.profilePic} 
-                        alt={event.artist} 
-                        width={32} 
-                        height={32} 
+                      <img
+                        src={event.profilePic}
+                        alt={event.artist}
                       />
                     </div>
                     <div className={styles.authorName}>@{event.artist}</div>
@@ -199,11 +197,9 @@ const Dashboard: NextPage = () => {
                   </div>
                 </div>
                 <div className={styles.feedContent}>
-                  <Image
+                  <img
                     src={event.image}
                     alt={`${event.artist} Content`}
-                    width={430}
-                    height={764}
                     className={styles.feedImage}
                   />
                   <div className={styles.feedContentOverlayTop}>
@@ -220,18 +216,18 @@ const Dashboard: NextPage = () => {
                 </div>
                 <div className={styles.feedActionsBottom}>
                   <div className={styles.actionButton} onClick={(e) => handleShare(event, e)}>
-                    <Image src="/Paper_Plane.svg" alt="Share" width={24} height={24} />
+                    <img src="/Paper_Plane.svg" alt="Share" className={styles.contractIconSvg} />
                     <span className={styles.actionCounter}>{formatCount(event.Shares)}</span>
                   </div>
                   <div className={styles.actionButton} onClick={(e) => e.stopPropagation()}>
-                    <Image src="/Heart_01.svg" alt="Like" width={24} height={24} />
+                    <img src="/Heart_01.svg" alt="Like" className={styles.contractIconSvg} />
                     <span className={styles.actionCounter}>{formatCount(event.likes)}</span>
                   </div>
                   <div className={styles.actionButton} onClick={(e) => toggleMute(event.id, e)}>
                     {mutedEvents.has(event.id) ? (
-                      <Image src="/Volume_Off_02.png" alt="Muted" width={24} height={24} />
+                      <img src="/Volume_Off_02.png" alt="Muted" className={styles.contractIconSvg} />
                     ) : (
-                      <Image src="/Volume.svg" alt="Volume" width={22} height={17} />
+                      <img src="/Volume.svg" alt="Volume" className={styles.contractIconSvg} />
                     )}
                   </div>
                 </div>

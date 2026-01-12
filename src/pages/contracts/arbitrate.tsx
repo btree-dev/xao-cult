@@ -9,6 +9,8 @@ const Arbitrate: React.FC = () => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -21,6 +23,10 @@ const Arbitrate: React.FC = () => {
     if (message.trim()) {
       setMessages([...messages, message]);
       setMessage("");
+      // Keep focus on input to prevent keyboard from closing
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
     }
   };
 
@@ -55,12 +61,18 @@ const Arbitrate: React.FC = () => {
           <div className={styles.messageInputContainer}>
             <div className={styles.messageInput}>
               <input
+                ref={inputRef}
                 type="text"
                 placeholder="Message"
                 className={styles.input}
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
               />
               <span className={styles.chatInputIcons}>
               <img src="/contracts-Icons/Frame.svg" alt="Frame" width={28} height={28} />

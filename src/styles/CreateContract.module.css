@@ -49,8 +49,14 @@
   padding: 20px 0;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  margin-bottom: 30px;
+  gap: 14px;
+  margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .contractHomecontainer {
+    margin-top: 20px;
+  }
 }
 .topSection {
   position: relative;
@@ -459,11 +465,27 @@
   min-height: 500px;
 
 }
-.AttentionDetailsOverlay {
+.currentcontractdetailTop {
   position: absolute;
-  top: 0px;
+  top: 0;
   left: 0;
   width: 100%;
+  padding: 20px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 2;
+  border-radius: 27px 27px 0 0;
+  box-sizing: border-box;
+   display: flex;
+  gap: 4px;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+}
+.AttentionDetailsOverlay {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(100% - 6px);
   display: flex;
   gap: 4px;
   flex-direction: column;
@@ -472,6 +494,8 @@
   background: rgba(0, 0, 0, 0.3);
   padding: 20px 16px;
   z-index: 2;
+  border-radius: 27px 27px 0 0;
+  box-sizing: border-box;
 }
 .AttentionImage {
   width: 100%;
@@ -627,8 +651,8 @@
 .messagesContainer {
   flex: 1;
   top:80px;
-  margin-bottom: 210px;
-  overflow-y: scroll;
+  margin-bottom: 56px;
+  overflow-y: auto;
   /*padding-left: 52px;
   padding-right: 52px;*/
   padding-bottom: 10px;
@@ -636,12 +660,7 @@
   flex-direction: column;
   position: relative;
   gap: 8px;
-   scrollbar-width: none;
-  -ms-overflow-style: none;
-   
-}
-.messagesContainer::-webkit-scrollbar {
-  display: none;
+
 }
 @media (max-width: 768px) {
   .messagesContainer {
@@ -651,19 +670,25 @@
 }
 
 .messageInputContainer {
-  position: fixed;
-  bottom: 0;
+  position: relative;
+  bottom: 2px;
   width: 100%;
   max-width: 400px;
   left: 50%;
   transform: translateX(-50%);
   background: transparent;
-  /* padding: 10px 20px; */
+  padding: 10px 2px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 70px;
-  z-index: 1;
+  z-index: 1000;
+}
+
+@media (max-width: 768px) {
+  .messageInputContainer {
+    margin-bottom: 110px;
+  }
 }
 .messageInput {
   position: relative;
@@ -681,6 +706,7 @@
   background-clip: padding-box, border-box;
   min-width: 0;
   width: 100%;
+  margin: 0 4px;
 }
 
 .messageInput .input {
@@ -1072,26 +1098,20 @@
     justify-content: flex-end;
   }
 
-  /* Override messagesContainer when inside chatContainer */
+
   .chatContainer .messagesContainer {
     position: relative;
     flex: 1;
     top: 0;
-    margin-bottom: 2px;
+    margin-bottom: 0;
     overflow-y: auto;
     padding: 10px 20px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
   }
 
-  .chatContainer .messagesContainer::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Override messageInputContainer when inside chatContainer */
+  
   .chatContainer .messageInputContainer {
     position: relative;
     bottom: auto;
@@ -1100,10 +1120,18 @@
     left: auto;
     transform: none;
     background: transparent;
-    padding: 10px 0px;
+    padding: 10px 2px;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 0;
     z-index: 1;
   }
+
+/* Mobile optimization - keyboard handling */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari specific */
+  .messageInputContainer {
+    bottom: calc(2px + env(safe-area-inset-bottom));
+  }
+}

@@ -12,6 +12,7 @@ const Chat: React.FC = () => {
   const [userName, setUserName] = useState("User");
   const [userImage, setUserImage] = useState<string | undefined>(undefined);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -59,6 +60,10 @@ const Chat: React.FC = () => {
     if (message.trim()) {
       setMessages([...messages, message]);
       setMessage("");
+      // Keep focus on input to prevent keyboard from closing
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
     }
   };
 
@@ -101,12 +106,18 @@ const Chat: React.FC = () => {
                 style={{ cursor: "pointer" }}
               />
               <input
+                ref={inputRef}
                 type="text"
                 placeholder="Message"
                 className={styles.input}
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") handleSend(); }}
+                onKeyDown={e => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
               />
               <span className={styles.chatInputIcons}>
               <img

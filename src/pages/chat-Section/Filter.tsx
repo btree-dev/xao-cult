@@ -28,7 +28,7 @@ export default function Filter() {
         rightIcon="/Chat-Section-Icons/Filter.svg"
       />
         <Scrollbar/>
-        <main className={docStyles.notificationcontainer}>
+        <main className={docStyles.filterContainer}>
           <div className={docStyles.filterdocContainer}>
             <h2 className={docStyles.filterMainHeading}>Filter</h2>
             {Filters.map((filter, idx) => {

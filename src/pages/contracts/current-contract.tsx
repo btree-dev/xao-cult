@@ -73,7 +73,7 @@ const CurrentContract: React.FC = () => {
                 alt={contract.title}
                 className={styles.currentcontractImage}
               />
-              <div className={styles.AttentionDetailsOverlay}>
+              <div className={styles.currentcontractdetailTop}>
                 <h2 className={styles.promotionTitle}>{contract.title}</h2>
                 <span className={styles.promotionLocation}>
                   <img src="/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />

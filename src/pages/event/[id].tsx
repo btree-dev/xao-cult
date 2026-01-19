@@ -14,6 +14,7 @@ const EventDetails: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<any>(null);
   const [isMuted, setIsMuted] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const router = useRouter();
   const { id } = router.query;
@@ -159,6 +160,11 @@ const EventDetails: NextPage = () => {
     setIsMuted(!isMuted);
   };
 
+  const toggleLike = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsLiked(!isLiked);
+  };
+
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShareModalOpen(true);
@@ -229,8 +235,17 @@ const EventDetails: NextPage = () => {
             <Image src="/Paper_Plane.svg" alt="Share" width={24} height={24} />
             <span className={styles.actionCounter}>{formatCount(event.views)}</span>
           </div>
-          <div className={styles.actionButton} onClick={(e) => e.stopPropagation()}>
-            <Image src="/Heart_01.svg" alt="Like" width={24} height={24} />
+          <div className={styles.actionButton} onClick={toggleLike}>
+            <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M12 7.69431C10 2.99988 3 3.49988 3 9.49991C3 15.4999 12 20.5001 12 20.5001C12 20.5001 21 15.4999 21 9.49991C21 3.49988 14 2.99988 12 7.69431Z"
+                fill={isLiked ? "#DC143C" : "none"}
+                stroke={isLiked ? "#DC143C" : "white"}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
             <span className={styles.actionCounter}>{formatCount(event.likes)}</span>
           </div>
           <div className={styles.actionButton} onClick={toggleMute}>

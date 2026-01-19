@@ -11,9 +11,13 @@ interface NavbarProps {
   };
   showBackButton?: boolean;
   pageTitle?: string;
+  showNotificationIcon?: boolean;
+  showSearchIcon?: boolean;
+  onCalendarClick?: () => void;
+  onLocationClick?: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pageTitle = '' }) => {
+const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pageTitle = '', showNotificationIcon = false, showSearchIcon = true, onCalendarClick, onLocationClick }) => {
   const router = useRouter();
 
   const handleProfileClick = () => {
@@ -38,10 +42,13 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
     router.push('/TicketAuthenticate/TicketQR');
   };
 
+  const handleNotificationClick = () => {
+    router.push('/chat-Section/Notification');
+  };
+
   return (
     <>
       {showBackButton ? (
-        // Event details style navbar with back button
         <nav className={styles.navbar}>
           <div className={styles.navContainer}>
             <div className={styles.navSection}>
@@ -105,7 +112,12 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
                 </svg>
               </button>
               
-              <button className={styles.navButton} title="Location" aria-label="Location">
+              <button
+                className={styles.navButton}
+                title="Location"
+                aria-label="Location"
+                onClick={onLocationClick}
+              >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.3639 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="white" strokeWidth="2"/>
                   <path d="M12 13C13.6569 13 15 11.6569 15 10C15 8.34315 13.6569 7 12 7C10.3431 7 9 8.34315 9 10C9 11.6569 10.3431 13 12 13Z" stroke="white" strokeWidth="2"/>
@@ -138,11 +150,11 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
               </div>
             </div>
 
-          
+
             <div className={styles.navSection}>
-              {/* <button 
-                className={styles.navButton} 
-                title="Tickets" 
+              {/* <button
+                className={styles.navButton}
+                title="Tickets"
                 aria-label="Tickets"
                 onClick={handleTicketsClick}
               >
@@ -153,8 +165,13 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
                   <path d="M2 12h20" stroke="white" strokeWidth="2" strokeLinecap="round"/>
                 </svg>
               </button> */}
-              
-              <button className={styles.navButton} title="Calendar" aria-label="Calendar">
+
+              <button
+                className={styles.navButton}
+                title="Calendar"
+                aria-label="Calendar"
+                onClick={onCalendarClick}
+              >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   <path d="M16 1V5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -162,13 +179,31 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
                   <path d="M3 9H21" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
-              
-              <button className={styles.navButton} title="Search" aria-label="Search">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="11" cy="11" r="8" stroke="white" strokeWidth="2"/>
-                  <path d="M21 21L16.65 16.65" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
+
+              {showSearchIcon && (
+                <button className={styles.navButton} title="Search" aria-label="Search">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="11" cy="11" r="8" stroke="white" strokeWidth="2"/>
+                    <path d="M21 21L16.65 16.65" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              )}
+
+              {showNotificationIcon && (
+                <button
+                  className={styles.navButton}
+                  title="Notifications"
+                  aria-label="Notifications"
+                  onClick={handleNotificationClick}
+                >
+                  <Image
+                    src="/Chat-Section-Icons/Bell.svg"
+                    alt="Notifications"
+                    width={24}
+                    height={24}
+                  />
+                </button>
+              )}
             </div>
           </div>
         </nav>

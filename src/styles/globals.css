@@ -7,6 +7,12 @@ html {
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+html::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 body {
@@ -18,6 +24,12 @@ body {
   width: 100%;
   min-height: 100%;
   overflow-x: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+body::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 body.is-desktop {

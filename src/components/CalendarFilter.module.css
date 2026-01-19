@@ -1,0 +1,472 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: #1a1a1a;
+  border-radius: 24px;
+
+  max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 2px solid transparent;
+  background-image:
+    linear-gradient(#1a1a1a, #1a1a1a),
+    var(--main-gradient);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  width: 100%;
+
+  /* Hide scrollbar but keep functionality on desktop */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.modal::-webkit-scrollbar {
+  display: none;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 600;
+  color: white;
+  margin: 0;
+}
+
+.closeButton {
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.closeButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.content {
+  padding: 14px;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.sectionLabel {
+  display: block;
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 8px;
+}
+
+.helperText {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 16px;
+}
+
+.dateInputWrapper {
+  margin-bottom: 16px;
+}
+
+.dateInputWrapper:last-child {
+  margin-bottom: 0;
+}
+
+.inputLabel {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 8px;
+}
+
+.dateLabel {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+}
+
+.dateInput {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: white;
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+
+.dateInput:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dateInput::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+
+/* Dropdown option styling */
+.dateInput option {
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  padding: 10px;
+}
+
+.dateInput option:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sortOptions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+}
+
+.sortButton {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.875rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sortButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.sortButton.active {
+  background: transparent;
+  border: 2px solid transparent;
+  background-image:
+    linear-gradient(#1a1a1a, #1a1a1a),
+    var(--main-gradient);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: white;
+}
+
+.footer {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.resetButton,
+.applyButton {
+  flex: 1;
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.resetButton {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.resetButton:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.applyButton {
+  background: var(--main-gradient);
+  color: white;
+}
+
+.applyButton:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.dateRow {
+  display: flex;
+  gap: 1rem;
+}
+
+.dateRow .dateInputWrapper {
+  flex: 1;
+}
+
+/* Genre Dropdown Styles */
+.genreButtonWrapper {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.genreButtonWrapper .sortButton {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.genreDropdownMenu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background: rgba(0, 0, 0, 0.95);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 1000;
+  padding: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  min-width: max-content;
+  width: auto;
+
+  /* Hide scrollbar but keep functionality */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.genreDropdownMenu::-webkit-scrollbar {
+  display: none;
+}
+
+.genreCheckboxLabel {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.2s ease;
+  background: rgba(0, 0, 0, 0.3);
+  margin-bottom: 4px;
+}
+
+.genreCheckboxLabel:last-child {
+  margin-bottom: 0;
+}
+
+.genreCheckboxLabel:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.genreCheckbox {
+  width: 18px;
+  height: 18px;
+  margin-right: 12px;
+  cursor: pointer;
+  accent-color: #9333ea;
+}
+
+.genreCheckboxText {
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Map Container Styles */
+.mapContainer {
+  width: 100%;
+  height: 400px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  margin-top: 16px;
+}
+
+.locationDisplay {
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.locationLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.locationValue {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+}
+
+.locationHint {
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 4px;
+}
+
+.mapLoading {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  font-size: 16px;
+}
+
+/* Search Container Styles */
+.searchContainer {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.searchInput {
+  flex: 1;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: white;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.searchInput:focus {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.searchButton {
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #FF5F6D 0%, #A557FF 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease;
+}
+
+.searchButton:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.searchButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.searchSpinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .modal {
+    width: 95%;
+    max-height: 95vh;
+  }
+
+  .mapContainer {
+    height: 300px;
+  }
+
+  .header {
+    padding: 20px 20px 16px;
+  }
+
+  .title {
+    font-size: 20px;
+  }
+
+  .content {
+    padding: 20px;
+  }
+
+  .sectionLabel {
+    font-size: 16px;
+  }
+
+  .sortOptions {
+    gap: 0.25rem;
+  }
+
+  .sortButton {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.125rem;
+  }
+
+  .footer {
+    flex-direction: column;
+    padding: 16px 20px 20px;
+  }
+
+  .resetButton,
+  .applyButton {
+    width: 100%;
+  }
+}

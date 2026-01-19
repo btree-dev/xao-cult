@@ -10,12 +10,26 @@ import { useRouter } from "next/router";
 const CurrentContract: React.FC = () => {
   const router = useRouter();
   const [mutedContracts, setMutedContracts] = useState<Set<string>>(new Set());
+  const [likedContracts, setLikedContracts] = useState<Set<string>>(new Set());
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<any>(null);
 
   const toggleMute = (contractId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setMutedContracts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(contractId)) {
+        newSet.delete(contractId);
+      } else {
+        newSet.add(contractId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleLike = (contractId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLikedContracts(prev => {
       const newSet = new Set(prev);
       if (newSet.has(contractId)) {
         newSet.delete(contractId);
@@ -89,8 +103,17 @@ const CurrentContract: React.FC = () => {
                   <img src="/contracts-Icons/Vector.svg" alt="Share" className={styles.contractIconSvg} />
                   {contract.views}
                 </span>
-                <span className={styles.contractIconItem}>
-                  <img src="/contracts-Icons/Heart_01.svg" alt="Heart" className={styles.contractIconSvg} />
+                <span className={styles.contractIconItem} onClick={(e) => toggleLike(contract.id, e)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M12 7.69431C10 2.99988 3 3.49988 3 9.49991C3 15.4999 12 20.5001 12 20.5001C12 20.5001 21 15.4999 21 9.49991C21 3.49988 14 2.99988 12 7.69431Z"
+                      fill={likedContracts.has(contract.id) ? "#DC143C" : "none"}
+                      stroke={likedContracts.has(contract.id) ? "#DC143C" : "white"}
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                   {contract.likes}
                 </span>
                 <span className={styles.contractIconItem} onClick={(e) => toggleMute(contract.id, e)}>

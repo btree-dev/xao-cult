@@ -23,7 +23,6 @@ const TicketDetailPage: NextPage = () => {
       setLoading(true);
       
       try {
-        // Get the current user
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
@@ -96,11 +95,11 @@ const TicketDetailPage: NextPage = () => {
           </div>
           <div className={styles.qrCodeWrapper}>
             <div className={styles.qrCode}>
-              <Image 
-                src={getQRCodeUrl(ticket.ticketCode)} 
-                alt="Ticket QR Code" 
-                width={200} 
-                height={200} 
+              <Image
+                src={getQRCodeUrl(ticket.ticketCode)}
+                alt="Ticket QR Code"
+                width={200}
+                height={200}
               />
             </div>
             <div className={styles.qrTicketInfo}>
@@ -121,6 +120,26 @@ const TicketDetailPage: NextPage = () => {
                   <span>{ticket.location}</span>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className={styles.feedContent} style={{ overflow: 'hidden' }}>
+            <img
+              src={ticket.image}
+              alt={`${ticket.title} Ticket`}
+              className={styles.feedImage}
+              style={{ borderRadius: '30px' }}
+            />
+            <div className={styles.feedContentOverlayTop}>
+              <h3 className={styles.feedEventTitle}>{ticket.title}</h3>
+              <span className={styles.ticketLocation}>
+                <img src="/Map_Pin.svg" alt="Location" className={styles.locationIcon} />
+                {ticket.location}
+              </span>
+              <span className={styles.ticketDate}>
+                <img src="/Calendar_Days.svg" alt="Date" className={styles.dateIcon} />
+                {ticket.date}
+              </span>
             </div>
           </div>
 

@@ -80,7 +80,7 @@ const Contractsdetail: React.FC = () => {
                 alt={eventDetail.title}
                 className={styles.currentcontractImage}
               />
-              <div className={styles.AttentionDetailsOverlay}>
+              <div className={styles.currentcontractdetailTop}>
                 <h2 className={styles.promotionTitle}>{eventDetail.title}</h2>
                 <span className={styles.promotionLocation}>
                   <img src="/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
@@ -89,6 +89,10 @@ const Contractsdetail: React.FC = () => {
                 <span className={styles.promotionDate}>
                   <img src="/Calendar_Days.svg" alt="Date" className={styles.promotionIcon} />
                   {eventDetail.Date}
+                </span>
+
+                <span className={styles.promotionRevenue}>
+                  Tickets Sold: {ticketsold}
                 </span>
 
                 <span className={styles.promotionRevenue}>

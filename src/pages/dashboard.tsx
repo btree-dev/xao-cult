@@ -18,6 +18,33 @@ import { EventDocs } from '../backend/eventsdata';
 // Cache for geocoded event locations
 const eventLocationCache: Map<string, { lat: number; lng: number } | null> = new Map();
 
+// Helper functions to get/set filters from sessionStorage
+const getStoredLocationFilter = (): LocationFilterData => {
+  if (typeof window === 'undefined') return { name: '', coordinates: null };
+  const stored = sessionStorage.getItem('locationFilter');
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {
+      return { name: '', coordinates: null };
+    }
+  }
+  return { name: '', coordinates: null };
+};
+
+const getStoredDateFilters = (): FilterOptions | null => {
+  if (typeof window === 'undefined') return null;
+  const stored = sessionStorage.getItem('dateFilters');
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
 const Dashboard: NextPage = () => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -31,10 +58,38 @@ const Dashboard: NextPage = () => {
   const [calendarFilterOpen, setCalendarFilterOpen] = useState(false);
   const [locationFilterOpen, setLocationFilterOpen] = useState(false);
   const [filterLocation, setFilterLocation] = useState<LocationFilterData>({ name: '', coordinates: null });
+  const [dateFilters, setDateFilters] = useState<FilterOptions | null>(null);
+  const [filtersLoaded, setFiltersLoaded] = useState(false);
+
+  // Load filters from sessionStorage on mount
+  useEffect(() => {
+    const storedLocation = getStoredLocationFilter();
+    const storedDateFilters = getStoredDateFilters();
+
+    if (storedLocation.coordinates || storedLocation.name) {
+      setFilterLocation(storedLocation);
+    }
+    if (storedDateFilters) {
+      setDateFilters(storedDateFilters);
+    }
+    setFiltersLoaded(true);
+  }, []);
+
+  // Save filters to sessionStorage when they change
+  useEffect(() => {
+    if (filtersLoaded) {
+      sessionStorage.setItem('locationFilter', JSON.stringify(filterLocation));
+    }
+  }, [filterLocation, filtersLoaded]);
+
+  useEffect(() => {
+    if (filtersLoaded) {
+      sessionStorage.setItem('dateFilters', JSON.stringify(dateFilters));
+    }
+  }, [dateFilters, filtersLoaded]);
 
   const router = useRouter();
 
-  // Format count to display as K or M
   const formatCount = (count: number): string => {
     if (count >= 1000000) {
       return (count / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -45,7 +100,7 @@ const Dashboard: NextPage = () => {
     return count.toString();
   };
 
-  // Toggle mute for an event
+
   const toggleMute = (eventId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setMutedEvents(prev => {
@@ -73,7 +128,7 @@ const Dashboard: NextPage = () => {
     });
   };
 
-  // Handle share button click
+
   const handleShare = (event: any, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedEvent(event);
@@ -141,119 +196,33 @@ const Dashboard: NextPage = () => {
     }
   };
 
-  // Handle calendar filter
+  // Handle calendar filter - save filters and trigger combined filtering
   const handleApplyFilters = (filters: FilterOptions) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    let filtered = [...events];
-    filtered = filtered.filter((event) => {
-      const eventDate = parseEventDate(event.date);
-      if (!eventDate) return false;
-
-      eventDate.setHours(0, 0, 0, 0);
-      if (eventDate < today) return false;
-
-      
-      if (filters.startDate) {
-        const startDate = new Date(filters.startDate);
-        startDate.setHours(0, 0, 0, 0);
-
-
-        if (!filters.endDate) {
-          const selectedMonth = startDate.getMonth();
-          const selectedYear = startDate.getFullYear();
-          const eventMonth = eventDate.getMonth();
-          const eventYear = eventDate.getFullYear();
-
-          if (eventMonth !== selectedMonth || eventYear !== selectedYear) {
-            return false;
-          }
-        } else {
-          
-          const endDate = new Date(filters.endDate);
-          endDate.setHours(23, 59, 59, 999);
-
-       
-          if (eventDate < startDate || eventDate > endDate) {
-            return false;
-          }
-        }
-      }
-
-      return true;
-    });
-
-
-    // Location filtering is handled separately via filterLocation state
-
-    if (filters.selectedGenres && filters.selectedGenres.length > 0) {
-      filtered = filtered.filter((event) => {
-        return filters.selectedGenres.includes(event.genre);
-      });
+    setDateFilters(filters);
+    // If reset (empty filters), clear from sessionStorage
+    if (!filters.startDate && !filters.endDate && filters.selectedGenres.length === 0) {
+      sessionStorage.removeItem('dateFilters');
     }
-
-    let sortPriority: ('location' | 'date' | 'genre')[];
-
-    const hasLocation = filters.sortBy.includes('location');
-    const hasGenre = filters.sortBy.includes('genre');
-    const hasDate = filters.sortBy.includes('date');
-
-    if (hasLocation && hasDate && !hasGenre) {
-      
-      sortPriority = ['location', 'date', 'genre'];
-    } else {
-    
-      sortPriority = ['location', 'genre', 'date'];
-    }
-
-    filtered.sort((a, b) => {
-     
-      for (const sortOption of sortPriority) {
-        
-        if (!filters.sortBy.includes(sortOption)) continue;
-
-        let comparison = 0;
-
-        if (sortOption === 'location') {
-          // Sort alphabetically by location name
-          comparison = (a.location || '').localeCompare(b.location || '');
-        } else if (sortOption === 'date') {
-          const dateA = parseEventDate(a.date);
-          const dateB = parseEventDate(b.date);
-          if (dateA && dateB) {
-            comparison = dateA.getTime() - dateB.getTime();
-          }
-        } else if (sortOption === 'genre') {
-       
-          comparison = (a.genre || '').localeCompare(b.genre || '');
-        }
-
-        if (comparison !== 0) {
-          return comparison;
-        }
-      }
-
-      return 0;
-    });
-
-    setFilteredEvents(filtered);
   };
 
   // Handle location filter
   const handleApplyLocationFilter = (location: LocationFilterData) => {
     setFilterLocation(location);
+    // If reset (empty location), clear from sessionStorage
+    if (!location.name && !location.coordinates) {
+      sessionStorage.removeItem('locationFilter');
+    }
   };
 
-  // Filter events by location using coordinates (100km radius)
+  // Combined filter effect - applies both date and location filters together
   useEffect(() => {
-    const filterByLocation = async () => {
+    const applyAllFilters = async () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
       let filtered = [...events];
 
-      // First filter by date (only future events)
+      // Step 1: Filter by date (only future events)
       filtered = filtered.filter((event) => {
         const eventDate = parseEventDate(event.date);
         if (!eventDate) return false;
@@ -261,12 +230,44 @@ const Dashboard: NextPage = () => {
         return eventDate >= today;
       });
 
-      // Then filter by location if coordinates are set
+      // Step 2: Apply date range filter if set
+      if (dateFilters?.startDate) {
+        filtered = filtered.filter((event) => {
+          const eventDate = parseEventDate(event.date);
+          if (!eventDate) return false;
+          eventDate.setHours(0, 0, 0, 0);
+
+          const startDate = new Date(dateFilters.startDate);
+          startDate.setHours(0, 0, 0, 0);
+
+          if (!dateFilters.endDate) {
+            // Filter by month only
+            const selectedMonth = startDate.getMonth();
+            const selectedYear = startDate.getFullYear();
+            const eventMonth = eventDate.getMonth();
+            const eventYear = eventDate.getFullYear();
+            return eventMonth === selectedMonth && eventYear === selectedYear;
+          } else {
+            // Filter by date range
+            const endDate = new Date(dateFilters.endDate);
+            endDate.setHours(23, 59, 59, 999);
+            return eventDate >= startDate && eventDate <= endDate;
+          }
+        });
+      }
+
+      // Step 3: Apply genre filter if set
+      if (dateFilters?.selectedGenres && dateFilters.selectedGenres.length > 0) {
+        filtered = filtered.filter((event) => {
+          return dateFilters.selectedGenres.includes(event.genre);
+        });
+      }
+
+      // Step 4: Apply location filter if coordinates are set
       if (filterLocation.coordinates) {
         const { lat: filterLat, lng: filterLng } = filterLocation.coordinates;
         const RADIUS_KM = 10;
 
-        // Geocode all event locations and filter by distance
         const filteredWithDistance = await Promise.all(
           filtered.map(async (event) => {
             const eventCoords = await geocodeLocation(event.location || '');
@@ -281,38 +282,65 @@ const Dashboard: NextPage = () => {
           })
         );
 
-        // Keep only events within 100km radius
+        // Keep only events within radius and sort by distance
         filtered = filteredWithDistance
           .filter(({ distance }) => distance <= RADIUS_KM)
-          .sort((a, b) => a.distance - b.distance) // Sort by distance (nearest first)
+          .sort((a, b) => a.distance - b.distance)
           .map(({ event }) => event);
       } else {
-        // No location filter, sort by date
-        filtered.sort((a, b) => {
-          const dateA = parseEventDate(a.date);
-          const dateB = parseEventDate(b.date);
-          if (!dateA || !dateB) return 0;
-          return dateA.getTime() - dateB.getTime();
-        });
+        // Step 5: Apply sorting if no location filter (location filter already sorts by distance)
+        if (dateFilters?.sortBy && dateFilters.sortBy.length > 0) {
+          let sortPriority: ('location' | 'date' | 'genre')[];
+          const hasLocation = dateFilters.sortBy.includes('location');
+          const hasGenre = dateFilters.sortBy.includes('genre');
+          const hasDate = dateFilters.sortBy.includes('date');
+
+          if (hasLocation && hasDate && !hasGenre) {
+            sortPriority = ['location', 'date', 'genre'];
+          } else {
+            sortPriority = ['location', 'genre', 'date'];
+          }
+
+          filtered.sort((a, b) => {
+            for (const sortOption of sortPriority) {
+              if (!dateFilters.sortBy.includes(sortOption)) continue;
+
+              let comparison = 0;
+
+              if (sortOption === 'location') {
+                comparison = (a.location || '').localeCompare(b.location || '');
+              } else if (sortOption === 'date') {
+                const dateA = parseEventDate(a.date);
+                const dateB = parseEventDate(b.date);
+                if (dateA && dateB) {
+                  comparison = dateA.getTime() - dateB.getTime();
+                }
+              } else if (sortOption === 'genre') {
+                comparison = (a.genre || '').localeCompare(b.genre || '');
+              }
+
+              if (comparison !== 0) {
+                return comparison;
+              }
+            }
+            return 0;
+          });
+        } else {
+          // Default sort by date
+          filtered.sort((a, b) => {
+            const dateA = parseEventDate(a.date);
+            const dateB = parseEventDate(b.date);
+            if (!dateA || !dateB) return 0;
+            return dateA.getTime() - dateB.getTime();
+          });
+        }
       }
 
       setFilteredEvents(filtered);
     };
 
-    filterByLocation();
-  }, [filterLocation, events]);
-
-
-  useEffect(() => {
-    const allEvents = [...events];
-    allEvents.sort((a, b) => {
-      const dateA = parseEventDate(a.date);
-      const dateB = parseEventDate(b.date);
-      if (!dateA || !dateB) return 0;
-      return dateA.getTime() - dateB.getTime();
-    });
-    setFilteredEvents(allEvents);
-  }, [events]);
+    applyAllFilters();
+  }, [filterLocation, dateFilters, events]);
 
   useEffect(() => {
     const getUser = async () => {

@@ -24,7 +24,6 @@ export default function Filter() {
         </Head>
         <BackNavbar
         pageTitle="Search"
-        leftIcon="/Chat-Section-Icons/Bell.svg"
         rightIcon="/Chat-Section-Icons/Filter.svg"
       />
         <Scrollbar/>
@@ -50,13 +49,6 @@ export default function Filter() {
               );
             })}
           </div>
-
-          <button
-            className={docStyles.searchButton}
-            onClick={() => router.push('/chat-Section/Search')}
-          >
-            Search
-          </button>
         </main>
       </div>
     </Layout>

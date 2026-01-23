@@ -14,10 +14,9 @@ interface NavbarProps {
   showNotificationIcon?: boolean;
   showSearchIcon?: boolean;
   onCalendarClick?: () => void;
-  onLocationClick?: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pageTitle = '', showNotificationIcon = false, showSearchIcon = true, onCalendarClick, onLocationClick }) => {
+const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pageTitle = '', showNotificationIcon = false, showSearchIcon = true, onCalendarClick }) => {
   const router = useRouter();
 
   const handleProfileClick = () => {
@@ -109,18 +108,6 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
                   <path d="M21 8V5C21 4.46957 20.7893 3.96086 20.4142 3.58579C20.0391 3.21071 19.5304 3 19 3H16" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   <path d="M16 21H19C19.5304 21 20.0391 20.7893 20.4142 20.4142C20.7893 20.0391 21 19.5304 21 19V16" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   <path d="M3 16V19C3 19.5304 3.21071 20.0391 3.58579 20.4142C3.96086 20.7893 4.46957 21 5 21H8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-              
-              <button
-                className={styles.navButton}
-                title="Location"
-                aria-label="Location"
-                onClick={onLocationClick}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.3639 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="white" strokeWidth="2"/>
-                  <path d="M12 13C13.6569 13 15 11.6569 15 10C15 8.34315 13.6569 7 12 7C10.3431 7 9 8.34315 9 10C9 11.6569 10.3431 13 12 13Z" stroke="white" strokeWidth="2"/>
                 </svg>
               </button>
             </div>

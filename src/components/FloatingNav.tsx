@@ -5,9 +5,9 @@ const FloatingNav = () => {
   const router = useRouter();
 
   const homeRoutes = [
+    '/contracts/current-contract',
     '/contracts/create-contract',
     '/contracts/Negotiation',
-    '/contracts/current-contract',
     '/contracts/past-contracts',
     '/contracts/arbitrate',
     '/contracts/contracts-detail'
@@ -31,14 +31,14 @@ const FloatingNav = () => {
     {
       id: 'chat',
       title: 'Chat',
-      routes: ['/chat-Section/Filter'],
+      routes: ['/chat-Section/Search'],
       icon: '/floating-nav/chat.svg',
       iconSelected: '/floating-nav/chat-selected.svg',
     },
     {
       id: 'stats',
       title: 'Stats',
-      routes: ['/stats/swap-token', '/stats/search-token', '/stats/transaction-history', '/stats/tickets'], 
+      routes: ['/stats/tickets?tab=unredeemed'], 
       icon: '/floating-nav/stats.svg',
       iconSelected: '/floating-nav/stats-selected.svg',
     },

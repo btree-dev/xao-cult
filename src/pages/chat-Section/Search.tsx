@@ -37,11 +37,11 @@ export default function Search() {
         </Head>
         <BackNavbar
         pageTitle="Search"
-        leftIcon="/Chat-Section-Icons/Bell.svg"
         rightIcon="/Chat-Section-Icons/Filter.svg"
+        onRightIconClick={() => router.push('/chat-Section/Filter')}
       />
         <Scrollbar/>
-        <main className={docStyles.notificationcontainer}>
+        <main className={docStyles.searchContainer}>
           <div className={docStyles.searchBarContainer}>
             <Image
               src="/Chat-Section-Icons/Search_Magnifying_Glass.svg"

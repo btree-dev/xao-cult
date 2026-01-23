@@ -12,6 +12,7 @@ interface BackNavbarProps {
   rightIcon?: string;
   userName?: string;
   userImage?: string;
+  onRightIconClick?: () => void;
 }
 
 const BackNavbar: React.FC<BackNavbarProps> = ({
@@ -23,6 +24,7 @@ const BackNavbar: React.FC<BackNavbarProps> = ({
   showRectangleRight = false,
   userName,
   userImage,
+  onRightIconClick,
 }) => {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -174,6 +176,7 @@ const BackNavbar: React.FC<BackNavbarProps> = ({
             <button
               className={styles.navButton}
               title="Right Icon"
+              onClick={onRightIconClick}
               aria-label="Right Icon"
             >
               <Image

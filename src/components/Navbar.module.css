@@ -23,13 +23,14 @@
   padding: 0 10px;
   height: 100%;
   margin-top: 22px;
+  position: relative;
 }
 
 .navSection {
   display: flex;
   align-items: center;
   gap: 16px;
-  flex: 1;
+  z-index: 1;
 }
 
 .navSection:first-child {
@@ -41,10 +42,14 @@
 }
 
 .centerSection {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
+  z-index: 0;
 }
 
 .pageTitle {
@@ -148,18 +153,20 @@
   .navbar {
     height: 56px;
   }
-  
+
   .navContainer {
     padding: 0 12px;
   }
-  
+
   .navSection {
     gap: 8px;
-    flex: 0 1 auto;
   }
-  
+
   .centerSection {
-    flex: 1;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
   }
   
   .navButton {

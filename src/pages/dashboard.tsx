@@ -10,13 +10,15 @@ import Navbar from '../components/Navbar';
 import Layout from '../components/Layout';
 import Scrollbar from '../components/Scrollbar';
 import ShareModal from '../components/ShareModal';
-import CalendarFilter, { FilterOptions } from '../components/CalendarFilter';
-import LocationFilter, { LocationFilterData } from '../components/LocationFilter';
+import CalendarFilter, { FilterOptions, LocationFilterData } from '../components/CalendarFilter';
 import { EventDocs } from '../backend/eventsdata';
 //import { loadEvents, EventDoc } from '../backend/services/Event';
 
 // Cache for geocoded event locations
 const eventLocationCache: Map<string, { lat: number; lng: number } | null> = new Map();
+
+// Cache for user's default location coordinates
+let userDefaultLocationCache: { location: string; coords: { lat: number; lng: number } | null } | null = null;
 
 // Helper functions to get/set filters from sessionStorage
 const getStoredLocationFilter = (): LocationFilterData => {
@@ -56,7 +58,6 @@ const Dashboard: NextPage = () => {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [calendarFilterOpen, setCalendarFilterOpen] = useState(false);
-  const [locationFilterOpen, setLocationFilterOpen] = useState(false);
   const [filterLocation, setFilterLocation] = useState<LocationFilterData>({ name: '', coordinates: null });
   const [dateFilters, setDateFilters] = useState<FilterOptions | null>(null);
   const [filtersLoaded, setFiltersLoaded] = useState(false);
@@ -290,49 +291,164 @@ const Dashboard: NextPage = () => {
       } else {
         // Step 5: Apply sorting if no location filter (location filter already sorts by distance)
         if (dateFilters?.sortBy && dateFilters.sortBy.length > 0) {
-          let sortPriority: ('location' | 'date' | 'genre')[];
           const hasLocation = dateFilters.sortBy.includes('location');
           const hasGenre = dateFilters.sortBy.includes('genre');
           const hasDate = dateFilters.sortBy.includes('date');
 
-          if (hasLocation && hasDate && !hasGenre) {
-            sortPriority = ['location', 'date', 'genre'];
+          // If location sort is selected and user has a default location, sort by distance from user's city
+          if (hasLocation && profile?.location) {
+            // Get user's default location coordinates
+            let userCoords = userDefaultLocationCache?.coords;
+
+            // Check if we need to geocode the user's location
+            if (!userDefaultLocationCache || userDefaultLocationCache.location !== profile.location) {
+              userCoords = await geocodeLocation(profile.location);
+              userDefaultLocationCache = { location: profile.location, coords: userCoords };
+            }
+
+            if (userCoords) {
+              // Calculate distance for each event and sort by distance
+              const eventsWithDistance = await Promise.all(
+                filtered.map(async (event) => {
+                  const eventCoords = await geocodeLocation(event.location || '');
+                  if (!eventCoords) {
+                    return { event, distance: Infinity };
+                  }
+                  const distance = calculateDistanceKm(
+                    userCoords!.lat, userCoords!.lng,
+                    eventCoords.lat, eventCoords.lng
+                  );
+                  return { event, distance };
+                })
+              );
+
+              // Sort by distance (nearest first), then by other criteria
+              eventsWithDistance.sort((a, b) => {
+                // First sort by distance
+                if (a.distance !== b.distance) {
+                  return a.distance - b.distance;
+                }
+
+                // Then by date if selected
+                if (hasDate) {
+                  const dateA = parseEventDate(a.event.date);
+                  const dateB = parseEventDate(b.event.date);
+                  if (dateA && dateB) {
+                    const dateComparison = dateA.getTime() - dateB.getTime();
+                    if (dateComparison !== 0) return dateComparison;
+                  }
+                }
+
+                // Then by genre if selected
+                if (hasGenre) {
+                  return (a.event.genre || '').localeCompare(b.event.genre || '');
+                }
+
+                return 0;
+              });
+
+              filtered = eventsWithDistance.map(({ event }) => event);
+            } else {
+              // Fallback to alphabetical location sort if geocoding failed
+              filtered.sort((a, b) => {
+                let comparison = (a.location || '').localeCompare(b.location || '');
+                if (comparison !== 0) return comparison;
+
+                if (hasDate) {
+                  const dateA = parseEventDate(a.date);
+                  const dateB = parseEventDate(b.date);
+                  if (dateA && dateB) {
+                    comparison = dateA.getTime() - dateB.getTime();
+                    if (comparison !== 0) return comparison;
+                  }
+                }
+
+                if (hasGenre) {
+                  return (a.genre || '').localeCompare(b.genre || '');
+                }
+
+                return 0;
+              });
+            }
           } else {
-            sortPriority = ['location', 'genre', 'date'];
-          }
-
-          filtered.sort((a, b) => {
-            for (const sortOption of sortPriority) {
-              if (!dateFilters.sortBy.includes(sortOption)) continue;
-
-              let comparison = 0;
-
-              if (sortOption === 'location') {
-                comparison = (a.location || '').localeCompare(b.location || '');
-              } else if (sortOption === 'date') {
+            // No location sort or no user location - sort by other criteria
+            filtered.sort((a, b) => {
+              if (hasDate) {
                 const dateA = parseEventDate(a.date);
                 const dateB = parseEventDate(b.date);
                 if (dateA && dateB) {
-                  comparison = dateA.getTime() - dateB.getTime();
+                  const comparison = dateA.getTime() - dateB.getTime();
+                  if (comparison !== 0) return comparison;
                 }
-              } else if (sortOption === 'genre') {
-                comparison = (a.genre || '').localeCompare(b.genre || '');
               }
 
-              if (comparison !== 0) {
-                return comparison;
+              if (hasGenre) {
+                const comparison = (a.genre || '').localeCompare(b.genre || '');
+                if (comparison !== 0) return comparison;
               }
-            }
-            return 0;
-          });
+
+              if (hasLocation) {
+                return (a.location || '').localeCompare(b.location || '');
+              }
+
+              return 0;
+            });
+          }
         } else {
-          // Default sort by date
-          filtered.sort((a, b) => {
-            const dateA = parseEventDate(a.date);
-            const dateB = parseEventDate(b.date);
-            if (!dateA || !dateB) return 0;
-            return dateA.getTime() - dateB.getTime();
-          });
+          // Default: Sort by distance from user's default location if available
+          if (profile?.location) {
+            let userCoords = userDefaultLocationCache?.coords;
+
+            if (!userDefaultLocationCache || userDefaultLocationCache.location !== profile.location) {
+              userCoords = await geocodeLocation(profile.location);
+              userDefaultLocationCache = { location: profile.location, coords: userCoords };
+            }
+
+            if (userCoords) {
+              const eventsWithDistance = await Promise.all(
+                filtered.map(async (event) => {
+                  const eventCoords = await geocodeLocation(event.location || '');
+                  if (!eventCoords) {
+                    return { event, distance: Infinity };
+                  }
+                  const distance = calculateDistanceKm(
+                    userCoords!.lat, userCoords!.lng,
+                    eventCoords.lat, eventCoords.lng
+                  );
+                  return { event, distance };
+                })
+              );
+
+              // Sort by distance first, then by date
+              eventsWithDistance.sort((a, b) => {
+                if (a.distance !== b.distance) {
+                  return a.distance - b.distance;
+                }
+                const dateA = parseEventDate(a.event.date);
+                const dateB = parseEventDate(b.event.date);
+                if (!dateA || !dateB) return 0;
+                return dateA.getTime() - dateB.getTime();
+              });
+
+              filtered = eventsWithDistance.map(({ event }) => event);
+            } else {
+              // Fallback to date sort if geocoding failed
+              filtered.sort((a, b) => {
+                const dateA = parseEventDate(a.date);
+                const dateB = parseEventDate(b.date);
+                if (!dateA || !dateB) return 0;
+                return dateA.getTime() - dateB.getTime();
+              });
+            }
+          } else {
+            // No user location - default sort by date
+            filtered.sort((a, b) => {
+              const dateA = parseEventDate(a.date);
+              const dateB = parseEventDate(b.date);
+              if (!dateA || !dateB) return 0;
+              return dateA.getTime() - dateB.getTime();
+            });
+          }
         }
       }
 
@@ -340,7 +456,7 @@ const Dashboard: NextPage = () => {
     };
 
     applyAllFilters();
-  }, [filterLocation, dateFilters, events]);
+  }, [filterLocation, dateFilters, events, profile]);
 
   useEffect(() => {
     const getUser = async () => {
@@ -423,7 +539,6 @@ const Dashboard: NextPage = () => {
         showNotificationIcon={true}
         showSearchIcon={false}
         onCalendarClick={() => setCalendarFilterOpen(true)}
-        onLocationClick={() => setLocationFilterOpen(true)}
       />
       <Scrollbar />
 
@@ -431,12 +546,8 @@ const Dashboard: NextPage = () => {
         isOpen={calendarFilterOpen}
         onClose={() => setCalendarFilterOpen(false)}
         onApplyFilters={handleApplyFilters}
-      />
-
-      <LocationFilter
-        isOpen={locationFilterOpen}
-        onClose={() => setLocationFilterOpen(false)}
-        onApplyFilter={handleApplyLocationFilter}
+        onApplyLocationFilter={handleApplyLocationFilter}
+        currentLocationFilter={filterLocation}
       />
 
         <div className={styles.walletCardContainer}>

@@ -89,6 +89,25 @@
   transform: scale(0.95);
 }
 
+.filterButtonWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filterDateLabel {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 2px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .profileAvatar {
   width: 48px;
   height: 48px;

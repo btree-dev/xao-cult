@@ -539,6 +539,7 @@ const Dashboard: NextPage = () => {
         showNotificationIcon={true}
         showSearchIcon={false}
         onCalendarClick={() => setCalendarFilterOpen(true)}
+        selectedStartDate={dateFilters?.startDate}
       />
       <Scrollbar />
 

@@ -14,9 +14,29 @@ interface NavbarProps {
   showNotificationIcon?: boolean;
   showSearchIcon?: boolean;
   onCalendarClick?: () => void;
+  selectedStartDate?: string;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pageTitle = '', showNotificationIcon = false, showSearchIcon = true, onCalendarClick }) => {
+const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pageTitle = '', showNotificationIcon = false, showSearchIcon = true, onCalendarClick, selectedStartDate }) => {
+
+  // Format date for short display (e.g., "27 Jan...")
+  const formatDateShort = (dateString: string): string => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.toLocaleString('en-US', { month: 'short' });
+    return `${day} ${month}...`;
+  };
+
+  // Format date for full display on hover (e.g., "27 January 2025")
+  const formatDateFull = (dateString: string): string => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.toLocaleString('en-US', { month: 'long' });
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  };
   const router = useRouter();
 
   const handleProfileClick = () => {
@@ -153,19 +173,29 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
                 </svg>
               </button> */}
 
-              <button
-                className={styles.navButton}
-                title="Calendar"
-                aria-label="Calendar"
-                onClick={onCalendarClick}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M16 1V5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M8 1V5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M3 9H21" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
+              <div className={styles.filterButtonWrapper}>
+                <button
+                  className={styles.navButton}
+                  title="Filter"
+                  aria-label="Filter"
+                  onClick={onCalendarClick}
+                >
+                  <Image
+                    src="/Chat-Section-Icons/Filter.svg"
+                    alt="Filter"
+                    width={24}
+                    height={24}
+                  />
+                </button>
+                {selectedStartDate && (
+                  <span
+                    className={styles.filterDateLabel}
+                    title={formatDateFull(selectedStartDate)}
+                  >
+                    {formatDateShort(selectedStartDate)}
+                  </span>
+                )}
+              </div>
 
               {showSearchIcon && (
                 <button className={styles.navButton} title="Search" aria-label="Search">

@@ -1,19 +1,18 @@
 .container {
-  /*min-height: 100vh;*/     
-
-  display: flex;           
-  justify-content: center;      
-  max-width: 400px;       
-  margin-left: auto;       
+  display: flex;
+  justify-content: center;
+  max-width: 400px;
+  margin-left: auto;
   margin-right: auto;
   margin-bottom: 30px;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
 }
 
 @media (max-width: 480px) {
- .container {
-      
+ .container {   
   padding: 12px;
-  
 }
 }
 .sectioncontainer {
@@ -32,9 +31,16 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-}
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+
+  height: 100vh;
+  width: 100vw;
+
+} 
 .contractDetailcontainer {
-   width: 100%;
+  width: 100%;
   margin-top: 90px;
   padding: 20px 0;
   display: flex;
@@ -1088,7 +1094,6 @@
     padding: 0;
   }
 
-  /* Chat container for create-contract page */
   .chatContainer {
     position: relative;
     width: 100%;
@@ -1127,10 +1132,7 @@
     margin-bottom: 0;
     z-index: 1;
   }
-
-/* Mobile optimization - keyboard handling */
 @supports (-webkit-touch-callout: none) {
-  /* iOS Safari specific */
   .messageInputContainer {
     bottom: calc(2px + env(safe-area-inset-bottom));
   }

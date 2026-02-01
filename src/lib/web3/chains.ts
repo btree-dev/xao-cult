@@ -16,9 +16,11 @@ export const CHAINS = {
 export const CONTRACT_ADDRESSES = {
   [base.id]: {
     ContractNFT: process.env.NEXT_PUBLIC_CONTRACT_NFT_MAINNET || '0x',
+    EventContractFactory: process.env.NEXT_PUBLIC_EVENT_CONTRACT_FACTORY_MAINNET || '0x',
   },
   [baseSepolia.id]: {
     ContractNFT: process.env.NEXT_PUBLIC_CONTRACT_NFT_TESTNET || '0x',
+    EventContractFactory: process.env.NEXT_PUBLIC_EVENT_CONTRACT_FACTORY_TESTNET || '0x',
   },
 };
 

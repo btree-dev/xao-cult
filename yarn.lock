@@ -2387,6 +2387,11 @@ base64-js@^1.3.1:
   resolved "https://registry.npmjs.org/base64-js/-/base64-js-1.5.1.tgz"
   integrity sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==
 
+basic-ftp@^5.1.0:
+  version "5.1.0"
+  resolved "https://registry.npmjs.org/basic-ftp/-/basic-ftp-5.1.0.tgz"
+  integrity sha512-RkaJzeJKDbaDWTIPiJwubyljaEPwpVWkm9Rt5h9Nd6h7tEXTJ3VB4qxdZBioV7JO5yLUaOKwz7vDOzlncUsegw==
+
 bech32@1.1.4:
   version "1.1.4"
   resolved "https://registry.npmjs.org/bech32/-/bech32-1.1.4.tgz"
@@ -5237,6 +5242,11 @@ pify@^5.0.0:
   version "5.0.0"
   resolved "https://registry.npmjs.org/pify/-/pify-5.0.0.tgz"
   integrity sha512-eW/gHNMlxdSP6dmG6uJip6FXN0EQBwm2clYYd8Wul42Cwu/DK8HEftzsapcNdYe2MfLiIwZqsDk2RDEsTE79hA==
+
+pinata@^2.5.3:
+  version "2.5.3"
+  resolved "https://registry.npmjs.org/pinata/-/pinata-2.5.3.tgz"
+  integrity sha512-O3bxvgaznxt8iYCMVJvKl+rMUOZqMl7rNBwY+P4fgOSIQled6PXRIskL+MDxUCS3g9Hnpt4ToKzyqd6KuSMmww==
 
 pino-abstract-transport@v0.5.0:
   version "0.5.0"

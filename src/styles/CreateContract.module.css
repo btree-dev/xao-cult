@@ -4,7 +4,7 @@
   max-width: 400px;
   margin-left: auto;
   margin-right: auto;
-  margin-bottom: 30px;
+  margin-bottom: 60px;
   min-height: 100vh;
   position: relative;
   z-index: 1;
@@ -31,13 +31,16 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  height: 100%;
+  width: 100%;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
-
-  height: 100vh;
-  width: 100vw;
-
+  -webkit-user-drag: none;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  box-sizing: border-box;
+  background-attachment: scroll;
 } 
 .contractDetailcontainer {
   width: 100%;

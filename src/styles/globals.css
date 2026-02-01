@@ -1,4 +1,4 @@
-/* Define the gradient variable globally */
+
 :root {
   --main-gradient: linear-gradient(89.91deg, #FEC847 0.07%, #FF8800 33.63%, #F755C1 67.19%, #8A2BE2 101.77%);
 }
@@ -7,12 +7,12 @@ html {
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; 
+  -ms-overflow-style: none; 
 }
 
 html::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  display: none; 
 }
 
 body {
@@ -24,12 +24,12 @@ body {
   width: 100%;
   min-height: 100%;
   overflow-x: hidden;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; 
+  -ms-overflow-style: none; 
 }
 
 body::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  display: none; 
 }
 
 body.is-desktop {
@@ -41,7 +41,7 @@ body.is-desktop {
   box-shadow: 0 0 50px rgba(255, 255, 255, 0.1);
 }
 
-/* Mobile: Full device width */
+
 body.is-mobile {
   width: 100% !important;
   max-width: 100%;
@@ -49,13 +49,13 @@ body.is-mobile {
   position: relative;
 }
 
-/* Prevent any child from creating scroll context */
+
 body.is-desktop > *,
 body.is-mobile > * {
   overflow-x: visible !important;
 }
 
-/* Force all fixed/absolute positioned elements to stay within constrained body on desktop */
+
 body.is-desktop [style*="position: fixed"],
 body.is-desktop [style*="position: absolute"],
 body.is-desktop .navbar,
@@ -69,7 +69,7 @@ body.is-desktop header {
   transform: translateX(-50%) !important;
 }
 
-/* Exception: Custom scrollbar should always be on the right edge of screen */
+
 body.is-desktop .custom-scrollbar-track,
 body.is-mobile .custom-scrollbar-track {
   max-width: none !important;
@@ -79,7 +79,7 @@ body.is-mobile .custom-scrollbar-track {
   position: fixed !important;
 }
 
-/* More specific override to beat inline styles */
+
 div.custom-scrollbar-track[style] {
   right: 0px !important;
   left: auto !important;
@@ -87,7 +87,7 @@ div.custom-scrollbar-track[style] {
   max-width: none !important;
 }
 
-/* Space for sticky navbar - only when logged in */
+
 body.with-navbar {
   padding-top: 60px;
 }
@@ -102,14 +102,14 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Responsive navbar spacing */
+
 @media (max-width: 480px) {
   body.with-navbar {
-    padding-top: 56px; /* Smaller navbar height on mobile */
+    padding-top: 56px; 
   }
 }
 
-/* Improve button and interactive element touch targets on mobile */
+
 @media (max-width: 768px) {
   button, 
   a, 
@@ -125,7 +125,7 @@ a {
   }
 }
 
-/* Fix iOS 100vh issue */
+
 .eventDetailsContainer,
 .ticketPurchaseContainer,
 .confirmationContainer,
@@ -137,7 +137,7 @@ a {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Add safe area insets for modern mobile browsers */
+
 .buyTicketContainer,
 .confirmPurchaseContainer,
 .confirmButtonContainer {

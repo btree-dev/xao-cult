@@ -38,14 +38,20 @@ const FloatingNav = () => {
     {
       id: 'stats',
       title: 'Stats',
-      routes: ['/stats/tickets?tab=unredeemed'], 
+      routes: ['/stats/tickets?tab=unredeemed'],
       icon: '/floating-nav/stats.svg',
       iconSelected: '/floating-nav/stats-selected.svg',
     },
   ];
 
   const isActive = (routes: string[]): boolean => {
-    return routes.some((route) => router.pathname === route);
+    return routes.some((route) => {
+      const routePath = route.split('?')[0];
+      if (routePath.startsWith('/stats')) {
+        return router.pathname.startsWith('/stats');
+      }
+      return router.pathname === routePath;
+    });
   };
 
   return (

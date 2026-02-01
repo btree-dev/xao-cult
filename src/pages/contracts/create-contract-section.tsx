@@ -25,8 +25,9 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
   const [doors, setDoors] = useState("");
   const [setTime, setSetTime] = useState("");
   const [setLength, setSetLength] = useState("");
-  const [ticketsSale, setTicketsSale] = useState("");
-  const [showDate, setShowDate] = useState("");
+  const [eventAnnouncementDate, setEventAnnouncementDate] = useState("");
+  const [eventStartDate, setEventStartDate] = useState("");
+  const [eventEndDate, setEventEndDate] = useState("");
   const [LegalAgreementValue, setLegalAgreementValue] = useState("");
   const [isDatesTimeOpen, setIsDatesTimeOpen] = useState(false);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
@@ -235,6 +236,7 @@ const updateRiderRow = (index: number, value: string) => {
   }, [activeDropdown]);
 
   const [promotionGenres, setPromotionGenres] = useState<string[]>([]);
+  const [promotionImageFile, setPromotionImageFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const togglePromotionGenre = (genre: string) => {
@@ -248,6 +250,7 @@ const updateRiderRow = (index: number, value: string) => {
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setPromotionImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPromotionImage(reader.result as string);
@@ -271,8 +274,9 @@ const updateRiderRow = (index: number, value: string) => {
       doors,
       setTime,
       setLength,
-      ticketsSale,
-      showDate,
+      eventAnnouncementDate,
+      eventStartDate,
+      eventEndDate,
     },
     location: {
       venueName,
@@ -282,6 +286,8 @@ const updateRiderRow = (index: number, value: string) => {
     },
     tickets: {
       ticketRows,
+      totalCapacity,
+      salesTax: comps,
       resale: {
         party1: resaleParty1,
         party2: resaleParty2,
@@ -309,6 +315,8 @@ const updateRiderRow = (index: number, value: string) => {
     promotion: {
       value: promotionValue,
       genres: promotionGenres,
+      imageData: promotionImage,
+      imageFile: promotionImageFile,
     },
     rider: {
       rows: riderRows,
@@ -351,6 +359,12 @@ const updateRiderRow = (index: number, value: string) => {
         doorsInputRef={doorsInputRef}
         setTimeInputRef={setTimeInputRef}
         setLengthInputRef={setLengthInputRef}
+        eventAnnouncementDate={eventAnnouncementDate}
+        setEventAnnouncementDate={setEventAnnouncementDate}
+        eventStartDate={eventStartDate}
+        setEventStartDate={setEventStartDate}
+        eventEndDate={eventEndDate}
+        setEventEndDate={setEventEndDate}
       />
       <LocationSection
         isOpen={isLocationOpen}

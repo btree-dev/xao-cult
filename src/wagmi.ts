@@ -10,7 +10,7 @@ import {
 
 import { type Chain } from 'viem';
 
-// Define Base Sepolia chain
+
 const baseSepolia: Chain = {
   id: 84532,
   name: 'Base Sepolia',

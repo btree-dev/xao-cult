@@ -4,7 +4,7 @@ import Layout from "../../components/Layout";
 import Head from "next/head";
 import styles from "../../styles/CreateContract.module.css";
 import { supabase } from "../../lib/supabase";
-import { Client, type Signer, type DecodedMessage } from "@xmtp/browser-sdk";
+import { Client, type Signer, type DecodedMessage, type Identifier } from "@xmtp/browser-sdk";
 import { ethers } from "ethers";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 
@@ -17,6 +17,7 @@ interface MessageWithMetadata extends DecodedMessage<any> {
 interface ConversationPreview {
   conversation: any;
   peerInboxId: string;
+  peerAddress?: string;
   lastMessage?: string;
   lastMessageTime?: Date;
 }
@@ -37,10 +38,12 @@ const Chat: React.FC = () => {
   const [newRecipientAddress, setNewRecipientAddress] = useState("");
   const [showWelcome, setShowWelcome] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [showRevokeOption, setShowRevokeOption] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const conversationRef = useRef<any>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
   const clientRef = useRef<Client<any> | null>(null);
+  const signerRef = useRef<Signer | null>(null);
   const userNameRef = useRef(userName);
   const userImageRef = useRef(userImage);
 
@@ -59,7 +62,8 @@ const Chat: React.FC = () => {
   };
 
   // Truncate address for display
-  const truncateAddress = (address: string) => {
+  const truncateAddress = (address: string | unknown): string => {
+    if (!address || typeof address !== 'string') return "Unknown";
     if (address.length <= 16) return address;
     return `${address.slice(0, 8)}...${address.slice(-6)}`;
   };
@@ -88,24 +92,60 @@ const Chat: React.FC = () => {
   };
 
   // Initialize XMTP Client
-  const initializeXMTP = async (signer: Signer) => {
+  const initializeXMTP = async (signer: Signer, forceRevoke = false) => {
     try {
       setIsLoading(true);
 
-      // Get encryption key to reuse same installation
-      const encryptionKey = await getOrCreateEncryptionKey();
+      // Get wallet address first for db path
+      const identifierResult = await signer.getIdentifier();
+      const address = identifierResult.identifier.toLowerCase();
+      setWalletAddress(address);
 
-      const client = await Client.create(signer, {
-        env: "dev",
-        appVersion: "xao-cult/1.0.0",
-        dbEncryptionKey: encryptionKey,
-      });
+      // Use wallet-specific database path for persistent installation
+      const dbPath = `xmtp-${address}`;
+
+      // Create identifier for Client.build (to restore existing installation)
+      const identifier: Identifier = {
+        identifier: address,
+        identifierKind: "Ethereum",
+      };
+
+      let client: Client<any>;
+
+      // Try to restore existing client from database first (avoids creating new installation)
+      // Note: Client.build() takes an Identifier, not a Signer - this allows reusing
+      // the existing installation without requiring a new signature
+      try {
+        client = await Client.build(identifier, {
+          env: "dev",
+          appVersion: "xao-cult/1.0.0",
+          dbPath,
+        });
+        console.log("Restored existing XMTP client from database");
+      } catch (buildErr) {
+        // If build fails (no existing installation), create a new one with signer
+        console.log("No existing installation found, creating new client...", buildErr);
+        client = await Client.create(signer, {
+          env: "dev",
+          appVersion: "xao-cult/1.0.0",
+          dbPath,
+        });
+        console.log("Created new XMTP client");
+      }
+
+      // If we were asked to revoke old installations, do it now
+      if (forceRevoke) {
+        try {
+          console.log("Revoking old XMTP installations...");
+          await client.revokeAllOtherInstallations();
+          console.log("Successfully revoked old installations");
+        } catch (revokeErr) {
+          console.error("Failed to revoke installations:", revokeErr);
+        }
+      }
+
       setXmtpClient(client);
       setError(null);
-
-      // Get wallet address for display
-      const address = await signer.getIdentifier();
-      setWalletAddress(address.identifier);
 
       // Check if first time user (no previous conversations and hasn't seen welcome)
       const hasSeenWelcome = localStorage.getItem("xmtp_welcome_seen");
@@ -122,10 +162,10 @@ const Chat: React.FC = () => {
       console.error("Failed to initialize XMTP client:", err);
 
       // Handle installation limit error
-      if (err.message?.includes("10/10 installations")) {
-        // Clear the encryption key and try with a fresh one
-        localStorage.removeItem("xmtp_encryption_key");
-        setError("Too many devices registered. Please clear your browser data for this site and try again, or use a different wallet.");
+      if (err.message?.includes("installations") || err.message?.includes("10/10")) {
+        showCliInstructions();
+        setError("Too many devices registered (10/10 limit). Click below to try clearing local data, or use XMTP CLI (see browser console for instructions).");
+        setShowRevokeOption(true);
       } else {
         setError("Failed to initialize chat. Please try again.");
       }
@@ -147,22 +187,75 @@ const Chat: React.FC = () => {
           let lastMessageTime: Date | undefined;
 
           try {
-            const msgs = await convo.messages({ limit: BigInt(1) });
-            if (msgs.length > 0) {
-              const msg = msgs[0];
-              lastMessage = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+            // Get more messages to find the last non-system message
+            const msgs = await convo.messages({ limit: BigInt(10) });
+            // Find the first message that isn't a system message
+            for (const msg of msgs) {
+              if (typeof msg.content === 'object' && msg.content !== null) {
+                if ('initiatedByInboxId' in msg.content) continue;
+                if ('membersAdded' in msg.content) continue;
+                if ('membersRemoved' in msg.content) continue;
+              }
+              // Extract text content
+              if (typeof msg.content === 'string') {
+                lastMessage = msg.content;
+              } else if (msg.content?.text) {
+                lastMessage = msg.content.text;
+              } else if (msg.content?.content) {
+                lastMessage = msg.content.content;
+              } else {
+                continue; // Skip if we can't extract text
+              }
               lastMessageTime = msg.sentAt ? new Date(msg.sentAt) : undefined;
+              break;
             }
           } catch (e) {
             console.error("Error loading last message:", e);
           }
 
           // Get peer inbox ID (the other participant)
-          const peerInboxId = convo.peerInboxId || convo.id || "Unknown";
+          // Note: peerInboxId might be a getter method or async in some XMTP SDK versions
+          let peerInboxId: string = "Unknown";
+          try {
+            let rawPeerInboxId = convo.peerInboxId;
+            // Handle if it's a function (getter method)
+            if (typeof rawPeerInboxId === 'function') {
+              rawPeerInboxId = rawPeerInboxId.call(convo);
+            }
+            // Handle if it's a Promise
+            if (rawPeerInboxId && typeof rawPeerInboxId === 'object' && 'then' in rawPeerInboxId) {
+              rawPeerInboxId = await rawPeerInboxId;
+            }
+            peerInboxId = String(rawPeerInboxId || convo.id || "Unknown");
+          } catch (e) {
+            peerInboxId = String(convo.id || "Unknown");
+          }
+
+          // Try to resolve inbox ID to wallet address
+          let peerAddress: string | undefined;
+          try {
+            // First check if conversation has peer addresses directly
+            if (convo.peerAddresses && convo.peerAddresses.length > 0) {
+              peerAddress = convo.peerAddresses[0];
+            } else if (client.inboxStateFromInboxIds) {
+              // Try to resolve via inbox state API
+              const inboxState = await client.inboxStateFromInboxIds([peerInboxId], false);
+              if (inboxState && inboxState.length > 0) {
+                const addresses = inboxState[0]?.accountAddresses;
+                if (addresses && addresses.length > 0) {
+                  peerAddress = addresses[0];
+                }
+              }
+            }
+          } catch (e) {
+            // Silently fail - we'll fall back to showing inbox ID
+            console.debug("Could not resolve inbox ID to address:", e);
+          }
 
           return {
             conversation: convo,
             peerInboxId,
+            peerAddress,
             lastMessage,
             lastMessageTime,
           };
@@ -256,6 +349,121 @@ const Chat: React.FC = () => {
       console.error("Failed to start new conversation:", err);
       setError(err.message || "Failed to start conversation. Make sure the recipient has XMTP enabled.");
     }
+  };
+
+  // List all IndexedDB databases to find XMTP ones
+  const findXmtpDatabases = async (): Promise<string[]> => {
+    try {
+      if ('databases' in indexedDB) {
+        const dbs = await indexedDB.databases();
+        return dbs
+          .map(db => db.name)
+          .filter((name): name is string => !!name && name.includes('xmtp'));
+      }
+    } catch (e) {
+      console.error("Failed to list databases:", e);
+    }
+    return [];
+  };
+
+  // Handle revoking old installations and retrying
+  const handleRevokeAndRetry = async () => {
+    if (!signerRef.current) {
+      setError("No wallet connected. Please refresh and try again.");
+      return;
+    }
+
+    setShowRevokeOption(false);
+    setError("Clearing old installations... This may take a moment.");
+    setIsLoading(true);
+
+    try {
+      // Find all existing XMTP databases
+      const existingDbs = await findXmtpDatabases();
+      console.log("Found XMTP databases:", existingDbs);
+
+      // Delete all XMTP IndexedDB databases to start fresh
+      for (const dbName of existingDbs) {
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const req = indexedDB.deleteDatabase(dbName);
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+            req.onblocked = () => {
+              console.warn(`Database ${dbName} delete blocked, continuing...`);
+              resolve();
+            };
+          });
+          console.log(`Deleted database: ${dbName}`);
+        } catch (e) {
+          console.error(`Failed to delete ${dbName}:`, e);
+        }
+      }
+
+      // Also try common XMTP database names
+      const commonDbNames = [
+        `xmtp-${walletAddress?.toLowerCase()}`,
+        'xmtp',
+        'xmtp-dev',
+        'xmtp-production',
+      ];
+
+      for (const dbName of commonDbNames) {
+        if (!existingDbs.includes(dbName)) {
+          try {
+            await new Promise<void>((resolve) => {
+              const req = indexedDB.deleteDatabase(dbName);
+              req.onsuccess = () => resolve();
+              req.onerror = () => resolve();
+              req.onblocked = () => resolve();
+            });
+          } catch (e) {
+            // Ignore errors
+          }
+        }
+      }
+
+      // Clear encryption key to generate fresh one
+      localStorage.removeItem("xmtp_encryption_key");
+
+      // Brief delay to ensure DB cleanup completes
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      setError(null);
+
+      // Reinitialize - this will create a fresh installation
+      // Note: If still at 10/10 limit, user needs to use XMTP CLI
+      await initializeXMTP(signerRef.current, true);
+    } catch (err: any) {
+      console.error("Failed during cleanup:", err);
+      setError("Cleanup failed. See console for XMTP CLI instructions.");
+      setIsLoading(false);
+      showCliInstructions();
+    }
+  };
+
+  // Show instructions for using XMTP CLI to revoke installations
+  const showCliInstructions = () => {
+    console.log(`
+╔════════════════════════════════════════════════════════════════╗
+║  XMTP Installation Limit Reached - Manual Cleanup Required     ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║  Your wallet has 10/10 XMTP installations registered.          ║
+║  To fix this, you need to revoke old installations.            ║
+║                                                                ║
+║  Option 1: Use a different wallet address                      ║
+║                                                                ║
+║  Option 2: Use XMTP CLI to revoke installations:               ║
+║    1. Install: npm install -g @xmtp/cli                        ║
+║    2. Run: xmtp auth                                           ║
+║    3. Run: xmtp installations revoke-all-other                 ║
+║    4. Refresh this page                                        ║
+║                                                                ║
+║  Option 3: Wait for installations to expire (30 days)          ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+    `);
   };
 
   // Go back to conversations list
@@ -410,6 +618,7 @@ const Chat: React.FC = () => {
           },
         };
 
+        signerRef.current = signerObj;
         await initializeXMTP(signerObj);
       } catch (err) {
         console.error("Failed to initialize XMTP connection:", err);
@@ -490,6 +699,57 @@ const Chat: React.FC = () => {
           {error && (
             <div className={styles.RecievedMessage}>
               {error}
+              {showRevokeOption && (
+                <>
+                  <button
+                    onClick={handleRevokeAndRetry}
+                    style={{
+                      marginTop: "12px",
+                      padding: "10px 20px",
+                      background: "linear-gradient(to right, #ff9900, #e100ff)",
+                      border: "none",
+                      borderRadius: "20px",
+                      color: "white",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      fontWeight: "bold",
+                      display: "block",
+                      width: "100%"
+                    }}
+                  >
+                    Try Clearing Local Data
+                  </button>
+                  <div style={{ marginTop: "16px", fontSize: "12px", opacity: 0.9 }}>
+                    <div style={{ fontWeight: "bold", marginBottom: "8px" }}>If that doesn&apos;t work, use XMTP CLI:</div>
+                    <code style={{
+                      display: "block",
+                      background: "rgba(0,0,0,0.3)",
+                      padding: "8px",
+                      borderRadius: "8px",
+                      marginBottom: "4px"
+                    }}>
+                      npm install -g @xmtp/cli
+                    </code>
+                    <code style={{
+                      display: "block",
+                      background: "rgba(0,0,0,0.3)",
+                      padding: "8px",
+                      borderRadius: "8px",
+                      marginBottom: "4px"
+                    }}>
+                      xmtp auth
+                    </code>
+                    <code style={{
+                      display: "block",
+                      background: "rgba(0,0,0,0.3)",
+                      padding: "8px",
+                      borderRadius: "8px"
+                    }}>
+                      xmtp installations revoke-all-other
+                    </code>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -574,7 +834,7 @@ const Chat: React.FC = () => {
                   onClick={() => xmtpClient && selectConversation(convo.conversation, xmtpClient)}
                 >
                   <div style={{ fontWeight: "bold", marginBottom: "4px" }}>
-                    {truncateAddress(convo.peerInboxId)}
+                    {truncateAddress(convo.peerAddress || convo.peerInboxId)}
                   </div>
                   {convo.lastMessage && (
                     <div style={{ fontSize: "12px", opacity: 0.7 }}>

@@ -148,34 +148,39 @@ const Chat: React.FC = () => {
         identifierKind: "Ethereum",
       };
 
-      let client: Client<any>;
-      let needsCreate = false;
+      let client: Client<any> | null = null;
 
       // Try to restore existing client from database first (avoids creating new installation)
       // Note: Client.build() takes an Identifier, not a Signer - this allows reusing
       // the existing installation without requiring a new signature
       try {
-        client = await Client.build(identifier, {
+        const builtClient = await Client.build(identifier, {
           env: "dev",
           appVersion: "xao-cult/1.0.0",
           dbPath,
         });
 
         // Verify the client has a valid identity by checking inboxId
-        if (!client.inboxId) {
-          console.log("Client.build() returned client without valid identity, falling back to create");
-          needsCreate = true;
+        if (builtClient.inboxId) {
+          // Additional validation: try to sync conversations to ensure identity is initialized
+          try {
+            await builtClient.conversations.sync();
+            client = builtClient;
+            console.log("Restored existing XMTP client from database, inboxId:", client.inboxId);
+          } catch (syncErr: any) {
+            // If sync fails with identity error, the client is not usable
+            console.log("Client.build() identity not properly initialized, falling back to create:", syncErr.message);
+          }
         } else {
-          console.log("Restored existing XMTP client from database, inboxId:", client.inboxId);
+          console.log("Client.build() returned client without valid identity, falling back to create");
         }
       } catch (buildErr) {
         // If build fails (no existing installation), create a new one with signer
         console.log("Client.build() failed, will create new client:", buildErr);
-        needsCreate = true;
       }
 
       // Create new client if build failed or returned invalid client
-      if (needsCreate) {
+      if (!client) {
         client = await Client.create(signer, {
           env: "dev",
           appVersion: "xao-cult/1.0.0",
@@ -257,7 +262,8 @@ const Chat: React.FC = () => {
               } else {
                 continue; // Skip if we can't extract text
               }
-              lastMessageTime = msg.sentAt ? new Date(msg.sentAt) : undefined;
+              // XMTP uses sentAtNs (nanoseconds)
+              lastMessageTime = msg.sentAtNs ? new Date(Number(msg.sentAtNs) / 1000000) : undefined;
               break;
             }
           } catch (e) {
@@ -600,10 +606,10 @@ const Chat: React.FC = () => {
             isSent: msg.senderInboxId === client.inboxId,
           };
         })
-        // Sort by sentAt timestamp (oldest first for chat display)
-        .sort((a, b) => {
-          const timeA = a.sentAt ? new Date(a.sentAt).getTime() : 0;
-          const timeB = b.sentAt ? new Date(b.sentAt).getTime() : 0;
+        // Sort by sentAtNs timestamp (oldest first for chat display)
+        .sort((a: MessageWithMetadata, b: MessageWithMetadata) => {
+          const timeA = a.sentAtNs ? Number(a.sentAtNs) : 0;
+          const timeB = b.sentAtNs ? Number(b.sentAtNs) : 0;
           return timeA - timeB;
         });
       setMessages(formattedMessages);
@@ -1051,7 +1057,8 @@ const Chat: React.FC = () => {
                   if (!displayContent) return null;
 
                   // Get timestamp - XMTP SDK may use sentAt, sentAtNs, or timestamp
-                  const msgTimestamp = msg.sentAt || msg.sentAtNs || (msg as any).timestamp || (msg as any).createdAt;
+                  // XMTP uses sentAtNs (nanoseconds)
+                  const msgTimestamp = msg.sentAtNs || (msg as any).sentAt || (msg as any).timestamp || (msg as any).createdAt;
 
                   return (
                     <div key={idx} className={msg.isSent ? styles.sentMessage : styles.RecievedMessage}>

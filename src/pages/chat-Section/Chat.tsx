@@ -147,7 +147,7 @@ const Chat: React.FC = () => {
           let lastMessageTime: Date | undefined;
 
           try {
-            const msgs = await convo.messages({ limit: 1n });
+            const msgs = await convo.messages({ limit: BigInt(1) });
             if (msgs.length > 0) {
               const msg = msgs[0];
               lastMessage = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
@@ -281,7 +281,7 @@ const Chat: React.FC = () => {
   // Load existing messages from conversation
   const loadMessages = async (conversation: any, client: Client<any>) => {
     try {
-      const msgs = await conversation.messages({ limit: 50n });
+      const msgs = await conversation.messages({ limit: BigInt(50) });
       const formattedMessages = msgs
         .filter((msg: DecodedMessage<any>) => !isSystemMessage(msg.content))
         .map((msg: DecodedMessage<any>) => ({

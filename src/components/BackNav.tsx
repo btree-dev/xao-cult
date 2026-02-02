@@ -13,6 +13,7 @@ interface BackNavbarProps {
   userName?: string;
   userImage?: string;
   onRightIconClick?: () => void;
+  onBackClick?: () => void;
 }
 
 const BackNavbar: React.FC<BackNavbarProps> = ({
@@ -25,6 +26,7 @@ const BackNavbar: React.FC<BackNavbarProps> = ({
   userName,
   userImage,
   onRightIconClick,
+  onBackClick,
 }) => {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -32,7 +34,11 @@ const BackNavbar: React.FC<BackNavbarProps> = ({
   const [showInfo, setShowInfo] = useState(false);
 
   const goBack = () => {
-    router.back();
+    if (onBackClick) {
+      onBackClick();
+    } else {
+      router.back();
+    }
   };
  
 

@@ -85,9 +85,31 @@ BASESCAN_API_KEY=
 
 ## Styling
 
-- TailwindCSS for utility classes
-- CSS Modules (`.module.css`) for component-scoped styles
+- **CSS Modules** (`.module.css`) for component-scoped styles - primary styling method
+- **TailwindCSS** for utility classes
 - Global styles in `src/styles/globals.css`
+
+### Design System
+
+**Color Scheme:**
+- Background: Dark with gradient overlay image (`/084251a867b139499f23448c34c1f6f13ca835ec.png`)
+- Primary gradient: `linear-gradient(to right, #ff9900, #e100ff)` (orange to pink/purple)
+- Text: White (`#fff`) on dark/gradient backgrounds
+- Accent gradient: `linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%)`
+
+**Common UI Patterns (from `CreateContract.module.css`):**
+- `styles.RecievedMessage` - Gradient background message bubble, white text, rounded corners
+- `styles.sentMessage` - Black background with gradient border, white text
+- `styles.inputRow` / `styles.contractInput` - Black background with gradient border inputs
+- `styles.confirmButton` - Full gradient background button
+- `styles.docContainer` - Black background container with gradient border
+
+**Key Guidelines:**
+- Always use white (`#fff`) text on gradient backgrounds - colored text is unreadable
+- Avoid inline styles; use existing CSS module classes for consistency
+- Borders use gradient via `background-image` + `background-clip` technique
+- Border radius: `30px` for inputs/buttons, `18px` for message bubbles, `46px` for containers
+- Max content width: `400px` centered
 
 ## Deployment
 

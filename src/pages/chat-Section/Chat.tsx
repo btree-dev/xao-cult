@@ -68,6 +68,44 @@ const Chat: React.FC = () => {
     return `${address.slice(0, 8)}...${address.slice(-6)}`;
   };
 
+  // Format timestamp for message display
+  const formatMessageTime = (sentAt: Date | string | number | bigint | undefined): string => {
+    if (!sentAt) return "";
+
+    let timestamp: number;
+
+    // Handle BigInt (nanoseconds from XMTP)
+    if (typeof sentAt === 'bigint') {
+      timestamp = Number(sentAt / BigInt(1000000)); // Convert ns to ms
+    } else if (typeof sentAt === 'number') {
+      // Check if it's in nanoseconds (very large number) or milliseconds
+      timestamp = sentAt > 1e15 ? sentAt / 1000000 : sentAt > 1e12 ? sentAt : sentAt * 1000;
+    } else if (typeof sentAt === 'string') {
+      timestamp = new Date(sentAt).getTime();
+    } else if (sentAt instanceof Date) {
+      timestamp = sentAt.getTime();
+    } else {
+      return "";
+    }
+
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "";
+
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const isYesterday = new Date(now.getTime() - 86400000).toDateString() === date.toDateString();
+
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (isToday) {
+      return timeStr;
+    } else if (isYesterday) {
+      return `Yesterday ${timeStr}`;
+    } else {
+      return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${timeStr}`;
+    }
+  };
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -111,6 +149,7 @@ const Chat: React.FC = () => {
       };
 
       let client: Client<any>;
+      let needsCreate = false;
 
       // Try to restore existing client from database first (avoids creating new installation)
       // Note: Client.build() takes an Identifier, not a Signer - this allows reusing
@@ -121,16 +160,28 @@ const Chat: React.FC = () => {
           appVersion: "xao-cult/1.0.0",
           dbPath,
         });
-        console.log("Restored existing XMTP client from database");
+
+        // Verify the client has a valid identity by checking inboxId
+        if (!client.inboxId) {
+          console.log("Client.build() returned client without valid identity, falling back to create");
+          needsCreate = true;
+        } else {
+          console.log("Restored existing XMTP client from database, inboxId:", client.inboxId);
+        }
       } catch (buildErr) {
         // If build fails (no existing installation), create a new one with signer
-        console.log("No existing installation found, creating new client...", buildErr);
+        console.log("Client.build() failed, will create new client:", buildErr);
+        needsCreate = true;
+      }
+
+      // Create new client if build failed or returned invalid client
+      if (needsCreate) {
         client = await Client.create(signer, {
           env: "dev",
           appVersion: "xao-cult/1.0.0",
           dbPath,
         });
-        console.log("Created new XMTP client");
+        console.log("Created new XMTP client, inboxId:", client.inboxId);
       }
 
       // If we were asked to revoke old installations, do it now
@@ -237,14 +288,14 @@ const Chat: React.FC = () => {
             // First check if conversation has peer addresses directly
             if (convo.peerAddresses && convo.peerAddresses.length > 0) {
               peerAddress = convo.peerAddresses[0];
-            } else if (client.inboxStateFromInboxIds) {
-              // Try to resolve via inbox state API
-              const inboxState = await client.inboxStateFromInboxIds([peerInboxId], false);
-              if (inboxState && inboxState.length > 0) {
-                const addresses = inboxState[0]?.accountAddresses;
-                if (addresses && addresses.length > 0) {
-                  peerAddress = addresses[0];
-                }
+            }
+            // Try members() if available (for group chats or DMs)
+            else if (typeof convo.members === 'function') {
+              const members = await convo.members();
+              const otherMember = members?.find((m: any) => m.inboxId !== client.inboxId);
+              // XMTP SDK uses accountIdentifiers[].identifier for wallet addresses
+              if (otherMember?.accountIdentifiers?.length > 0) {
+                peerAddress = otherMember.accountIdentifiers[0].identifier;
               }
             }
           } catch (e) {
@@ -486,19 +537,76 @@ const Chat: React.FC = () => {
     return false;
   };
 
+  // Cache for resolved addresses to avoid repeated lookups
+  const addressCacheRef = useRef<Map<string, string>>(new Map());
+
+  // Resolve inbox ID to wallet address using conversation members
+  const resolveInboxIdToAddress = async (client: Client<any>, inboxId: string, conversation?: any): Promise<string> => {
+    if (!inboxId || inboxId === client.inboxId) return inboxId;
+
+    // Check cache first
+    if (addressCacheRef.current.has(inboxId)) {
+      return addressCacheRef.current.get(inboxId)!;
+    }
+
+    try {
+      // Try to get address from conversation members
+      if (conversation && typeof conversation.members === 'function') {
+        const members = await conversation.members();
+        const member = members?.find((m: any) => m.inboxId === inboxId);
+        if (member?.accountIdentifiers?.length > 0) {
+          const address = member.accountIdentifiers[0].identifier;
+          addressCacheRef.current.set(inboxId, address);
+          return address;
+        }
+      }
+    } catch (e) {
+      console.debug("Could not resolve inbox ID to address:", e);
+    }
+    return inboxId; // Fallback to inbox ID
+  };
+
   // Load existing messages from conversation
   const loadMessages = async (conversation: any, client: Client<any>) => {
     try {
       const msgs = await conversation.messages({ limit: BigInt(50) });
+
+      // Resolve addresses from conversation members
+      const addressMap = new Map<string, string>();
+      try {
+        if (typeof conversation.members === 'function') {
+          const members = await conversation.members();
+          members?.forEach((member: any) => {
+            if (member.inboxId && member.accountIdentifiers?.length > 0) {
+              const address = member.accountIdentifiers[0].identifier;
+              addressMap.set(member.inboxId, address);
+              // Also cache it
+              addressCacheRef.current.set(member.inboxId, address);
+            }
+          });
+        }
+      } catch (e) {
+        console.debug("Could not resolve member addresses:", e);
+      }
+
       const formattedMessages = msgs
         .filter((msg: DecodedMessage<any>) => !isSystemMessage(msg.content))
-        .map((msg: DecodedMessage<any>) => ({
-          ...msg,
-          senderName: msg.senderInboxId === client.inboxId ? userNameRef.current : truncateAddress(msg.senderInboxId || "Unknown"),
-          senderImage: msg.senderInboxId === client.inboxId ? userImageRef.current : "/Chat-Section-Icons/Image 1.svg",
-          isSent: msg.senderInboxId === client.inboxId,
-        }));
-      setMessages(formattedMessages.reverse());
+        .map((msg: DecodedMessage<any>) => {
+          const senderAddress = addressMap.get(msg.senderInboxId) || msg.senderInboxId;
+          return {
+            ...msg,
+            senderName: msg.senderInboxId === client.inboxId ? userNameRef.current : truncateAddress(senderAddress || "Unknown"),
+            senderImage: msg.senderInboxId === client.inboxId ? userImageRef.current : "/Chat-Section-Icons/Image 1.svg",
+            isSent: msg.senderInboxId === client.inboxId,
+          };
+        })
+        // Sort by sentAt timestamp (oldest first for chat display)
+        .sort((a, b) => {
+          const timeA = a.sentAt ? new Date(a.sentAt).getTime() : 0;
+          const timeB = b.sentAt ? new Date(b.sentAt).getTime() : 0;
+          return timeA - timeB;
+        });
+      setMessages(formattedMessages);
     } catch (err) {
       console.error("Failed to load messages:", err);
     }
@@ -528,9 +636,15 @@ const Chat: React.FC = () => {
         // Skip system messages
         if (isSystemMessage(msg.content)) continue;
 
+        // Resolve sender address for received messages
+        let senderAddress = msg.senderInboxId || "Unknown";
+        if (msg.senderInboxId && msg.senderInboxId !== client.inboxId) {
+          senderAddress = await resolveInboxIdToAddress(client, msg.senderInboxId, conversation);
+        }
+
         const messageWithMetadata: MessageWithMetadata = {
           ...msg,
-          senderName: msg.senderInboxId === client.inboxId ? userNameRef.current : truncateAddress(msg.senderInboxId || "Unknown"),
+          senderName: msg.senderInboxId === client.inboxId ? userNameRef.current : truncateAddress(senderAddress),
           senderImage: msg.senderInboxId === client.inboxId ? userImageRef.current : "/Chat-Section-Icons/Image 1.svg",
           isSent: msg.senderInboxId === client.inboxId,
         };
@@ -826,25 +940,77 @@ const Chat: React.FC = () => {
                 </div>
               )}
 
-              {conversations.map((convo, idx) => (
-                <div
-                  key={idx}
-                  className={styles.RecievedMessage}
-                  style={{ cursor: "pointer" }}
-                  onClick={() => xmtpClient && selectConversation(convo.conversation, xmtpClient)}
-                >
-                  <div style={{ fontWeight: "bold", marginBottom: "4px" }}>
-                    {truncateAddress(convo.peerAddress || convo.peerInboxId)}
-                  </div>
-                  {convo.lastMessage && (
-                    <div style={{ fontSize: "12px", opacity: 0.7 }}>
-                      {convo.lastMessage.length > 50
-                        ? convo.lastMessage.slice(0, 50) + "..."
-                        : convo.lastMessage}
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px", width: "100%" }}>
+                {conversations.map((convo, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      padding: "12px 16px",
+                      cursor: "pointer",
+                      borderRadius: "12px",
+                      background: "rgba(255, 255, 255, 0.05)",
+                      transition: "background 0.2s ease",
+                    }}
+                    onClick={() => xmtpClient && selectConversation(convo.conversation, xmtpClient)}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)"}
+                  >
+                    {/* Avatar */}
+                    <div style={{
+                      width: "40px",
+                      height: "40px",
+                      borderRadius: "50%",
+                      background: "linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: "12px",
+                      flexShrink: 0,
+                    }}>
+                      <span style={{ color: "white", fontWeight: "bold", fontSize: "14px" }}>
+                        {(convo.peerAddress || convo.peerInboxId || "?").slice(2, 4).toUpperCase()}
+                      </span>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {/* Content */}
+                    <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+                      <div style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginBottom: "4px"
+                      }}>
+                        <span style={{ fontWeight: "600", color: "#fff", fontSize: "14px" }}>
+                          {truncateAddress(convo.peerAddress || convo.peerInboxId)}
+                        </span>
+                        {convo.lastMessageTime && (
+                          <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", marginLeft: "8px", flexShrink: 0 }}>
+                            {formatMessageTime(convo.lastMessageTime)}
+                          </span>
+                        )}
+                      </div>
+                      {convo.lastMessage && (
+                        <div style={{
+                          fontSize: "13px",
+                          color: "rgba(255,255,255,0.6)",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis"
+                        }}>
+                          {convo.lastMessage}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Chevron */}
+                    <div style={{ marginLeft: "8px", color: "rgba(255,255,255,0.3)" }}>
+                      ›
+                    </div>
+                  </div>
+                ))}
+              </div>
             </>
           )}
 
@@ -884,10 +1050,16 @@ const Chat: React.FC = () => {
 
                   if (!displayContent) return null;
 
+                  // Get timestamp - XMTP SDK may use sentAt, sentAtNs, or timestamp
+                  const msgTimestamp = msg.sentAt || msg.sentAtNs || (msg as any).timestamp || (msg as any).createdAt;
+
                   return (
                     <div key={idx} className={msg.isSent ? styles.sentMessage : styles.RecievedMessage}>
-                      <div style={{ fontSize: "12px", opacity: 0.8, marginBottom: "4px" }}>
-                        {msg.isSent ? "You" : msg.senderName}
+                      <div style={{ fontSize: "12px", opacity: 0.8, marginBottom: "4px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span>{msg.isSent ? "You" : msg.senderName}</span>
+                        <span style={{ fontSize: "10px", opacity: 0.6, marginLeft: "8px" }}>
+                          {msgTimestamp ? formatMessageTime(msgTimestamp) : ""}
+                        </span>
                       </div>
                       {displayContent}
                     </div>

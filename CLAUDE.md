@@ -6,6 +6,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 XAO Cult is a Web3 DAO-governed dApp built with Next.js, RainbowKit, and Wagmi for managing smart contract agreements as NFTs on the Base blockchain. It combines traditional contract management with blockchain technology, featuring event management, ticket authentication via QR codes, and financial statistics.
 
+### App Purpose
+
+The app helps create contracts for events. These contracts facilitate negotiations between two parties:
+- **Artists/Bands**: Performers looking to book events
+- **Venues**: Event spaces looking to host performances
+
+The chat/messaging feature (powered by XMTP) allows these parties to negotiate event details, terms, and conditions before finalizing a contract. Once agreed upon, contracts are minted as NFTs on the blockchain, providing an immutable record of the agreement.
+
+**Key Workflows:**
+1. User connects wallet via RainbowKit
+2. User browses existing conversations and events on the Search page
+3. User initiates chat with counterparty to negotiate event terms
+4. Once terms are agreed, a contract NFT is minted
+5. Both parties sign the contract on-chain
+6. Event tickets can be created and authenticated via QR codes
+
+## Development Guidelines
+
+**IMPORTANT: Always create task lists for work to be done.** When working on features or fixes:
+1. Create tasks using TaskCreate to track all items that need to be completed
+2. Update task status to `in_progress` when starting work
+3. Mark tasks as `completed` when finished
+4. This helps track progress and ensures nothing is missed
+
 ## Essential Commands
 
 ```bash

@@ -9,10 +9,9 @@ import Scrollbar from "../../components/Scrollbar";
 import Image from "next/image";
 import { useState, useEffect, useMemo } from "react";
 import { Client, type Identifier } from "@xmtp/browser-sdk";
-import { ethers } from "ethers";
 import { useAccount, useChainId } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useGetUserNFTs, useGetContractData } from "../../hooks/useContractNFT";
+import { useGetUserNFTs } from "../../hooks/useContractNFT";
 
 interface ConversationPreview {
   id: string;
@@ -24,9 +23,9 @@ interface ConversationPreview {
   conversation: any;
 }
 
-interface ContractPreview {
+interface EventPreview {
   id: string;
-  type: "contract";
+  type: "event";
   tokenId: bigint;
   party1: string;
   party2: string;
@@ -35,7 +34,7 @@ interface ContractPreview {
   isSigned: boolean;
 }
 
-type ListItem = ConversationPreview | ContractPreview;
+type ListItem = ConversationPreview | EventPreview;
 
 export default function Search() {
   const router = useRouter();
@@ -43,12 +42,12 @@ export default function Search() {
   const chainId = useChainId();
   const [searchQuery, setSearchQuery] = useState("");
   const [conversations, setConversations] = useState<ConversationPreview[]>([]);
-  const [contracts, setContracts] = useState<ContractPreview[]>([]);
+  const [events, setEvents] = useState<EventPreview[]>([]);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
-  const [isLoadingContracts, setIsLoadingContracts] = useState(false);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [xmtpClient, setXmtpClient] = useState<Client<any> | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"all" | "conversations" | "contracts">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "conversations" | "events">("all");
 
   // Get user's contract NFTs
   const { tokenIds, isLoading: isLoadingTokenIds } = useGetUserNFTs(address, chainId);
@@ -79,19 +78,19 @@ export default function Search() {
   };
 
   // Initialize XMTP and load conversations
+  // Uses the wallet address from wagmi (RainbowKit connection) - no need to create separate provider
   useEffect(() => {
     const initXMTP = async () => {
-      if (!isConnected || !(window as any).ethereum) return;
+      // Use the connected wallet address from wagmi/RainbowKit
+      if (!isConnected || !address) return;
 
       setIsLoadingConversations(true);
       setError(null);
 
       try {
-        const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-        const signer = provider.getSigner();
-        const walletAddress = (await signer.getAddress()).toLowerCase();
+        const walletAddress = address.toLowerCase();
 
-        // Create identifier for Client.build
+        // Create identifier for Client.build using the wagmi-connected wallet
         const identifier: Identifier = {
           identifier: walletAddress,
           identifierKind: "Ethereum",
@@ -229,34 +228,34 @@ export default function Search() {
     initXMTP();
   }, [isConnected, address]);
 
-  // Load contracts when token IDs are available
+  // Load events when token IDs are available
   useEffect(() => {
-    const loadContracts = async () => {
+    const loadEvents = async () => {
       if (!tokenIds || tokenIds.length === 0) {
-        setContracts([]);
+        setEvents([]);
         return;
       }
 
-      setIsLoadingContracts(true);
+      setIsLoadingEvents(true);
 
-      // For now, we'll just create contract previews from token IDs
-      // In a real implementation, you'd fetch contract data for each token
-      const contractPreviews: ContractPreview[] = tokenIds.map((tokenId, index) => ({
-        id: `contract-${tokenId.toString()}`,
-        type: "contract" as const,
+      // For now, we'll just create event previews from token IDs
+      // In a real implementation, you'd fetch event contract data for each token
+      const eventPreviews: EventPreview[] = tokenIds.map((tokenId, index) => ({
+        id: `event-${tokenId.toString()}`,
+        type: "event" as const,
         tokenId,
         party1: address || "",
         party2: "",
-        terms: `Contract #${tokenId.toString()}`,
+        terms: `Event #${tokenId.toString()}`,
         createdAt: new Date(),
         isSigned: false,
       }));
 
-      setContracts(contractPreviews);
-      setIsLoadingContracts(false);
+      setEvents(eventPreviews);
+      setIsLoadingEvents(false);
     };
 
-    loadContracts();
+    loadEvents();
   }, [tokenIds, address]);
 
   // Filter items based on search query and active tab
@@ -266,8 +265,8 @@ export default function Search() {
     if (activeTab === "all" || activeTab === "conversations") {
       items = [...items, ...conversations];
     }
-    if (activeTab === "all" || activeTab === "contracts") {
-      items = [...items, ...contracts];
+    if (activeTab === "all" || activeTab === "events") {
+      items = [...items, ...events];
     }
 
     if (!searchQuery.trim()) {
@@ -291,9 +290,9 @@ export default function Search() {
         );
       }
     });
-  }, [conversations, contracts, searchQuery, activeTab]);
+  }, [conversations, events, searchQuery, activeTab]);
 
-  const isLoading = isLoadingConversations || isLoadingContracts || isLoadingTokenIds;
+  const isLoading = isLoadingConversations || isLoadingEvents || isLoadingTokenIds;
 
   return (
     <Layout>
@@ -302,7 +301,7 @@ export default function Search() {
 
         <Head>
           <title>Search - XAO Cult</title>
-          <meta name="description" content="Search conversations and contracts" />
+          <meta name="description" content="Search conversations and events" />
           <link rel="icon" href="/favicon.ico" />
         </Head>
         <BackNavbar
@@ -323,7 +322,7 @@ export default function Search() {
             />
             <input
               type="text"
-              placeholder="Search conversations & contracts..."
+              placeholder="Search conversations & events..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={docStyles.searchInput}
@@ -332,7 +331,7 @@ export default function Search() {
 
           {/* Tab Filters */}
           <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-            {(["all", "conversations", "contracts"] as const).map((tab) => (
+            {(["all", "conversations", "events"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -357,7 +356,7 @@ export default function Search() {
           {/* Connect Wallet Prompt */}
           {!isConnected && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", marginTop: "20px" }}>
-              <p style={{ color: "white", textAlign: "center" }}>Connect your wallet to view conversations and contracts</p>
+              <p style={{ color: "white", textAlign: "center" }}>Connect your wallet to view conversations and events</p>
               <ConnectButton />
             </div>
           )}
@@ -379,7 +378,7 @@ export default function Search() {
           {/* Empty State */}
           {isConnected && !isLoading && filteredItems.length === 0 && !error && (
             <div style={{ color: "rgba(255,255,255,0.6)", textAlign: "center", padding: "20px" }}>
-              {searchQuery ? "No results found" : "No conversations or contracts yet"}
+              {searchQuery ? "No results found" : "No conversations or events yet"}
             </div>
           )}
 
@@ -419,7 +418,7 @@ export default function Search() {
                     ) : (
                       <Image
                         src="/contracts-Icons/Vector (2).svg"
-                        alt="Contract"
+                        alt="Event"
                         width={24}
                         height={24}
                       />
@@ -431,12 +430,12 @@ export default function Search() {
                     <h3 className={docStyles.searchResultTitle}>
                       {item.type === "conversation"
                         ? truncateAddress((item as ConversationPreview).peerAddress || (item as ConversationPreview).peerInboxId)
-                        : `Contract #${(item as ContractPreview).tokenId.toString()}`}
+                        : `Event #${(item as EventPreview).tokenId.toString()}`}
                     </h3>
                     <p className={docStyles.searchResultEvents}>
                       {item.type === "conversation"
                         ? (item as ConversationPreview).lastMessage || "No messages yet"
-                        : (item as ContractPreview).isSigned ? "Signed" : "Pending"}
+                        : (item as EventPreview).isSigned ? "Confirmed" : "Pending"}
                     </p>
                   </div>
 
@@ -448,7 +447,7 @@ export default function Search() {
                     }}>
                       {item.type === "conversation"
                         ? formatTime((item as ConversationPreview).lastMessageTime)
-                        : formatTime((item as ContractPreview).createdAt)}
+                        : formatTime((item as EventPreview).createdAt)}
                     </span>
                     <span style={{
                       fontSize: "10px",
@@ -459,7 +458,7 @@ export default function Search() {
                         : "rgba(0, 201, 255, 0.2)",
                       color: item.type === "conversation" ? "#FF8A00" : "#00C9FF",
                     }}>
-                      {item.type === "conversation" ? "Chat" : "Contract"}
+                      {item.type === "conversation" ? "Chat" : "Event"}
                     </span>
                   </div>
                 </div>

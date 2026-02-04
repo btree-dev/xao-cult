@@ -17,7 +17,7 @@ export interface ContractSummary {
 
 export const CONTRACT_STATUS_LABELS = ['Draft', 'Pending', 'Signed', 'Cancelled', 'Completed'];
 
-// Get all contracts from factory
+
 export const useGetAllContracts = (chainId?: number) => {
   const factoryAddress = chainId && chainId in CONTRACT_ADDRESSES
     ? (CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.EventContractFactory as `0x${string}`)
@@ -40,7 +40,7 @@ export const useGetAllContracts = (chainId?: number) => {
   };
 };
 
-// Get contracts for a specific user
+
 export const useGetUserContracts = (chainId?: number, userAddress?: `0x${string}`) => {
   const factoryAddress = chainId && chainId in CONTRACT_ADDRESSES
     ? (CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.EventContractFactory as `0x${string}`)

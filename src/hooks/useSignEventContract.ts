@@ -7,17 +7,6 @@ export const useSignEventContract = () => {
   const { isLoading: isWaiting, isSuccess } = useWaitForTransactionReceipt({
     hash,
   });
-
-  const signContract = (contractAddress: `0x${string}`, username: string) => {
-    writeContract({
-      address: contractAddress,
-      abi: EVENT_CONTRACT_ABI,
-      functionName: 'signContract',
-      args: [username],
-    });
-  };
-
-
   const signContractAsync = async (contractAddress: `0x${string}`, username: string) => {
     return writeContractAsync({
       address: contractAddress,
@@ -26,9 +15,7 @@ export const useSignEventContract = () => {
       args: [username],
     });
   };
-
   return {
-    signContract,
     signContractAsync,
     isLoading: isPending || isWaiting,
     isSuccess,

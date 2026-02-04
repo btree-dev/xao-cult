@@ -8,8 +8,7 @@ import PaymentsSection, { PaymentRow } from "./PaymentsSection";
 import styles from "../../styles/CreateContract.module.css";
 import { EventDocs } from "../../backend/eventsdata";
 import { Genres } from "../../backend/public-information-services/publicinfodata";
-import { contractAPI } from "../../backend/services/Contract";
-import { IContract } from "../../backend/services/types/api";
+import { handleImageSelection, toggleGenreSelection } from "../../backend/contract-services/createContract";
 const dropdownOptions = ["Option 1", "Option 2", "Option 3"];
 interface CreateContractsectionProps {
   party1: string;
@@ -86,7 +85,6 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     { ticketType: "", onSaleDate: "", numberOfTickets: "", ticketPrice: "" }
   ]);
 
-  
   const [securityDepositRows, setSecurityDepositRows] = useState<SecurityDepositRow[]>([
   { dateTime: "", percentage: "", dollarAmount: "" }
 ]);
@@ -160,16 +158,12 @@ const updateRiderRow = (index: number, value: string) => {
   const doorsInputRef = useRef<HTMLInputElement>(null);
   const setTimeInputRef = useRef<HTMLInputElement>(null);
   const setLengthInputRef = useRef<HTMLInputElement>(null);
-
-  // Add ticket row function
   const addTicketRow = () => {
     setTicketRows([
       ...ticketRows,
       { ticketType: "", onSaleDate: "", numberOfTickets: "", ticketPrice: "" }
     ]);
   };
-
-  // Update ticket row function
   const updateTicketRow = (index: number, field: keyof TicketRow, value: string) => {
   setTicketRows(prevRows => {
     const updatedRows = [...prevRows];
@@ -177,19 +171,14 @@ const updateRiderRow = (index: number, value: string) => {
     return updatedRows;
   });
 };
-
-  // Add security deposit row function
   const addSecurityDepositRow = () => {
     setSecurityDepositRows([...securityDepositRows, { dateTime: "", percentage: "", dollarAmount: "" }]);
   };
-
-  // Update security deposit row function
   const updateSecurityDepositRow = (index: number, field: keyof SecurityDepositRow, value: string) => {
     const updatedRows = [...securityDepositRows];
     updatedRows[index][field] = value;
     setSecurityDepositRows(updatedRows);
   };
-
   const SectionHeader = ({
     label,
     isOpen,
@@ -239,32 +228,12 @@ const updateRiderRow = (index: number, value: string) => {
   const [promotionImageFile, setPromotionImageFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const togglePromotionGenre = (genre: string) => {
-    setPromotionGenres((prev) =>
-      prev.includes(genre)
-        ? prev.filter((g) => g !== genre)
-        : [...prev, genre]
-    );
-  };
-
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setPromotionImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPromotionImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleImageClick = () => {
     fileInputRef.current?.click();
   };
 
   // Collect all contract data
-  const getContractData = (): Partial<IContract> => ({
+  const getContractData = () => ({
     party1: props.party1,
     party2: props.party2,
     datesAndTimes: {
@@ -459,7 +428,7 @@ const updateRiderRow = (index: number, value: string) => {
               <input
                 type="file"
                 ref={fileInputRef}
-                onChange={handleImageUpload}
+                onChange={(e) => handleImageSelection(e, setPromotionImageFile, setPromotionImage)}
                 accept="image/*"
                 style={{ display: 'none' }}
               />
@@ -522,7 +491,7 @@ const updateRiderRow = (index: number, value: string) => {
                       className={`${styles.genrePill} ${
                         promotionGenres.includes(genre) ? styles.genrePillSelected : ""
                       }`}
-                      onClick={() => togglePromotionGenre(genre)}
+                      onClick={() => toggleGenreSelection(genre, setPromotionGenres)}
                     >
                       {genre}
                     </button>

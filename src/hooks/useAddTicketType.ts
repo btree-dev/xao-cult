@@ -14,14 +14,12 @@ export const dateTimeToTimestamp = (dateTimeString: string): bigint => {
   return BigInt(Math.floor(date.getTime() / 1000));
 };
 
-
 export const dollarToWei = (dollarString: string): bigint => {
   if (!dollarString) return BigInt(0);
   const cleaned = dollarString.replace(/,/g, '');
   const value = parseFloat(cleaned) || 0;
   return BigInt(Math.floor(value * 1e18));
 };
-
 
 export const parseFormattedNumber = (value: string): bigint => {
   if (!value) return BigInt(0);
@@ -35,22 +33,6 @@ export const useAddTicketType = () => {
   const { isLoading: isWaiting, isSuccess } = useWaitForTransactionReceipt({
     hash,
   });
-
-  const addTicketType = (contractAddress: `0x${string}`, params: AddTicketTypeParams) => {
-    writeContract({
-      address: contractAddress,
-      abi: EVENT_CONTRACT_ABI,
-      functionName: 'addTicketType',
-      args: [
-        params.ticketTypeName,
-        params.onSaleDate,
-        params.numberOfTickets,
-        params.ticketPrice,
-      ],
-    });
-  };
-
- 
   const addTicketTypeAsync = async (contractAddress: `0x${string}`, params: AddTicketTypeParams) => {
     return writeContractAsync({
       address: contractAddress,
@@ -66,7 +48,6 @@ export const useAddTicketType = () => {
   };
 
   return {
-    addTicketType,
     addTicketTypeAsync,
     isLoading: isPending || isWaiting,
     isSuccess,

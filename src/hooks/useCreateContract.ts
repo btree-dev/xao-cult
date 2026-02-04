@@ -68,7 +68,6 @@ export const useCreateEventContract = (chainId?: number) => {
     hash,
   });
 
-  // Extract created contract address from ContractCreated event logs
   const createdContractAddress = receipt?.logs?.[0]?.topics?.[1]
     ? (`0x${receipt.logs[0].topics[1].slice(26)}` as `0x${string}`)
     : null;

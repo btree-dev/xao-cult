@@ -6,15 +6,11 @@ import {
   PayInConfig,
   CreateEventContractParams 
 } from '../../hooks/useCreateContract';
-
-
 export const dateToTimestamp = (dateString: string): bigint => {
   if (!dateString) return BigInt(0);
   const date = new Date(dateString);
   return BigInt(Math.floor(date.getTime() / 1000));
 };
-
-
 export const timeToSeconds = (timeString: string): bigint => {
   if (!timeString) return BigInt(0);
   const [hours, minutes] = timeString.split(':').map(Number);
@@ -55,8 +51,6 @@ export const buildContractParams = (formData: any, party1Username: string): Crea
     radiusDays: BigInt(parseInt(formData.location?.days || '0') || 0),
   };
 
-
-  // Parse total capacity - use provided value or calculate from ticket rows
   const totalCapacityValue = formData.tickets?.totalCapacity
     ? parseInt(formData.tickets.totalCapacity.replace(/,/g, '') || '0')
     : formData.tickets?.ticketRows?.reduce(
@@ -64,9 +58,7 @@ export const buildContractParams = (formData: any, party1Username: string): Crea
         0
       ) || 0;
 
-  // Parse sales tax percentage and convert to basis points (e.g., 8% = 800, 8.5% = 850)
   const salesTaxBasisPoints = percentageToBasisPoints(formData.tickets?.salesTax || '0');
-
   const ticketConfig: TicketConfig = {
     ticketsEnabled: formData.tickets?.ticketRows?.length > 0,
     totalCapacity: BigInt(totalCapacityValue),
@@ -81,7 +73,7 @@ export const buildContractParams = (formData: any, party1Username: string): Crea
   const resaleRules: ResaleRules = {
     party1Percentage: party1Resale,
     party2Percentage: party2Resale,
-    resellerPercentage: BigInt(10000) - party1Resale - party2Resale, // Ensure total is 10000
+    resellerPercentage: resellerResale,
   };
 
  
@@ -124,14 +116,6 @@ export const validateContractParams = (params: CreateEventContractParams): strin
   
   if (!params.eventName) {
     return 'Event name is required';
-  }
-
- 
-  const totalResale = params.resaleRules.party1Percentage + 
-                      params.resaleRules.party2Percentage + 
-                      params.resaleRules.resellerPercentage;
-  if (totalResale !== BigInt(10000)) {
-    return 'Resale percentages must equal 100%';
   }
 
   return null;

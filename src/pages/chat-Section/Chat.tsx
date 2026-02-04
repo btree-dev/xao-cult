@@ -46,6 +46,8 @@ const Chat: React.FC = () => {
   const signerRef = useRef<Signer | null>(null);
   const userNameRef = useRef(userName);
   const userImageRef = useRef(userImage);
+  const conversationStreamAbortRef = useRef<AbortController | null>(null);
+  const hasLoadedConversationsRef = useRef(false);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -208,6 +210,26 @@ const Chat: React.FC = () => {
 
       // Load conversations after client is ready
       await loadConversations(client);
+      hasLoadedConversationsRef.current = true;
+
+      // Start streaming conversations for real-time updates
+      if (conversationStreamAbortRef.current) {
+        conversationStreamAbortRef.current.abort();
+      }
+      conversationStreamAbortRef.current = new AbortController();
+      streamConversations(client, conversationStreamAbortRef.current.signal).catch(err => {
+        if (err.name !== 'AbortError') {
+          console.error("Conversation stream error:", err);
+        }
+      });
+
+      // Refresh conversations after a short delay to catch any that might have been missed
+      setTimeout(async () => {
+        if (client && hasLoadedConversationsRef.current) {
+          console.log("Refreshing conversations after delay...");
+          await loadConversations(client);
+        }
+      }, 2000);
 
       // Show welcome message for first-time users
       if (!hasSeenWelcome) {
@@ -219,6 +241,40 @@ const Chat: React.FC = () => {
 
       // Handle installation limit error
       if (err.message?.includes("installations") || err.message?.includes("10/10")) {
+        // Auto-attempt to revoke old installations if we haven't already tried
+        if (!forceRevoke) {
+          console.log("Installation limit reached, auto-attempting revocation...");
+          setError("Too many devices registered. Attempting to clear old installations...");
+
+          try {
+            // Clean up local databases first
+            const existingDbs = await findXmtpDatabases();
+            for (const dbName of existingDbs) {
+              try {
+                await new Promise<void>((resolve) => {
+                  const req = indexedDB.deleteDatabase(dbName);
+                  req.onsuccess = () => resolve();
+                  req.onerror = () => resolve();
+                  req.onblocked = () => resolve();
+                });
+              } catch (e) {
+                // Ignore errors
+              }
+            }
+            localStorage.removeItem("xmtp_encryption_key");
+
+            // Wait a bit then retry with forceRevoke
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Retry with forceRevoke flag
+            await initializeXMTP(signer, true);
+            return; // Exit early if retry succeeds
+          } catch (retryErr: any) {
+            console.error("Auto-revocation failed:", retryErr);
+          }
+        }
+
+        // If auto-revocation failed or we already tried, show manual options
         showCliInstructions();
         setError("Too many devices registered (10/10 limit). Click below to try clearing local data, or use XMTP CLI (see browser console for instructions).");
         setShowRevokeOption(true);
@@ -230,11 +286,38 @@ const Chat: React.FC = () => {
     }
   };
 
+  // Stream conversations for real-time updates
+  const streamConversations = async (client: Client<any>, signal: AbortSignal) => {
+    try {
+      const stream = await client.conversations.stream();
+
+      signal.addEventListener('abort', () => {
+        if (stream && stream.return) {
+          stream.return();
+        }
+      });
+
+      for await (const convo of stream) {
+        if (signal.aborted) break;
+        console.log("New conversation detected, refreshing list...");
+        // Refresh conversations list when a new conversation arrives
+        await loadConversations(client);
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError' && !signal.aborted) {
+        console.error("Failed to stream conversations:", err);
+      }
+    }
+  };
+
   // Load all conversations
   const loadConversations = async (client: Client<any>) => {
     try {
       setIsLoadingConversations(true);
+      // Sync twice to ensure we get all conversations (helps with first load)
       await client.conversations.sync();
+      // Small delay to ensure sync is fully processed
+      await new Promise(resolve => setTimeout(resolve, 100));
       const convos = await client.conversations.list();
 
       const previews: ConversationPreview[] = await Promise.all(
@@ -769,12 +852,16 @@ const Chat: React.FC = () => {
     };
   }, [needsWalletConnection]);
 
-  // Cleanup stream on unmount
+  // Cleanup streams on unmount
   useEffect(() => {
     return () => {
       if (streamAbortRef.current) {
         streamAbortRef.current.abort();
       }
+      if (conversationStreamAbortRef.current) {
+        conversationStreamAbortRef.current.abort();
+      }
+      hasLoadedConversationsRef.current = false;
     };
   }, []);
 

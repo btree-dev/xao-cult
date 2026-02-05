@@ -8,10 +8,10 @@ import BackNavbar from "../../components/BackNav";
 import Scrollbar from "../../components/Scrollbar";
 import Image from "next/image";
 import { useState, useEffect, useMemo } from "react";
-import { Client, type Identifier } from "@xmtp/browser-sdk";
 import { useAccount, useChainId } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useGetUserNFTs } from "../../hooks/useContractNFT";
+import { useXMTPClient } from "../../contexts/XMTPContext";
 
 interface ConversationPreview {
   id: string;
@@ -45,9 +45,16 @@ export default function Search() {
   const [events, setEvents] = useState<EventPreview[]>([]);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
-  const [xmtpClient, setXmtpClient] = useState<Client<any> | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"all" | "conversations" | "events">("all");
+
+  // Use shared XMTP client hook
+  const {
+    client: xmtpClient,
+    isLoading: isXmtpLoading,
+    error: xmtpError,
+    showRevokeOption,
+    handleRevokeAndRetry,
+  } = useXMTPClient();
 
   // Get user's contract NFTs
   const { tokenIds, isLoading: isLoadingTokenIds } = useGetUserNFTs(address, chainId);
@@ -77,63 +84,19 @@ export default function Search() {
     }
   };
 
-  // Initialize XMTP and load conversations
-  // Uses the wallet address from wagmi (RainbowKit connection) - no need to create separate provider
+  // Load conversations when XMTP client is ready
   useEffect(() => {
-    const initXMTP = async () => {
-      // Use the connected wallet address from wagmi/RainbowKit
-      if (!isConnected || !address) return;
+    const loadConversations = async () => {
+      if (!xmtpClient) return;
 
       setIsLoadingConversations(true);
-      setError(null);
 
       try {
-        const walletAddress = address.toLowerCase();
-
-        // Create identifier for Client.build using the wagmi-connected wallet
-        const identifier: Identifier = {
-          identifier: walletAddress,
-          identifierKind: "Ethereum",
-        };
-
-        const dbPath = `xmtp-${walletAddress}`;
-
-        let client: Client<any> | null = null;
-
-        // Try to restore existing client
-        try {
-          const builtClient = await Client.build(identifier, {
-            env: "dev",
-            appVersion: "xao-cult/1.0.0",
-            dbPath,
-          });
-
-          if (builtClient.inboxId) {
-            try {
-              await builtClient.conversations.sync();
-              client = builtClient;
-            } catch (syncErr: any) {
-              console.log("Client.build() sync failed:", syncErr.message);
-            }
-          }
-        } catch (buildErr) {
-          console.log("Client.build() failed:", buildErr);
-        }
-
-        // If build failed, don't try to create a new client here
-        // Direct user to Chat page which handles client creation and installation revocation
-        if (!client) {
-          console.log("No existing XMTP client found. User needs to visit Chat page first.");
-          setError("Please visit the Chat page first to set up messaging.");
-          setIsLoadingConversations(false);
-          return;
-        }
-
-        setXmtpClient(client);
-
-        // Load conversations
-        await client.conversations.sync();
-        const convos = await client.conversations.list();
+        // Sync and list all conversations
+        await xmtpClient.conversations.sync();
+        const convos = await xmtpClient.conversations.list({
+          consentStates: ["allowed", "unknown", "denied"],
+        });
 
         const previews: ConversationPreview[] = await Promise.all(
           convos.map(async (convo: any) => {
@@ -184,7 +147,7 @@ export default function Search() {
                 peerAddress = convo.peerAddresses[0];
               } else if (typeof convo.members === "function") {
                 const members = await convo.members();
-                const otherMember = members?.find((m: any) => m.inboxId !== client!.inboxId);
+                const otherMember = members?.find((m: any) => m.inboxId !== xmtpClient!.inboxId);
                 if (otherMember?.accountIdentifiers?.length > 0) {
                   peerAddress = otherMember.accountIdentifiers[0].identifier;
                 }
@@ -214,19 +177,14 @@ export default function Search() {
 
         setConversations(previews);
       } catch (err: any) {
-        console.error("Failed to initialize XMTP:", err);
-        if (err.message?.includes("installations") || err.message?.includes("10/10")) {
-          setError("Too many devices registered. Please visit the Chat page to resolve this.");
-        } else {
-          setError("Failed to load conversations");
-        }
+        console.error("[Search] Failed to load conversations:", err);
       } finally {
         setIsLoadingConversations(false);
       }
     };
 
-    initXMTP();
-  }, [isConnected, address]);
+    loadConversations();
+  }, [xmtpClient]);
 
   // Load events when token IDs are available
   useEffect(() => {
@@ -259,6 +217,19 @@ export default function Search() {
   }, [tokenIds, address]);
 
   // Filter items based on search query and active tab
+  // Check if search query is a valid wallet address
+  const isWalletAddress = (query: string): boolean => {
+    return /^0x[a-fA-F0-9]{40}$/.test(query.trim());
+  };
+
+  // Check if we already have a conversation with this address
+  const hasConversationWith = (walletAddress: string): boolean => {
+    const normalized = walletAddress.toLowerCase();
+    return conversations.some(
+      (c) => c.peerAddress?.toLowerCase() === normalized
+    );
+  };
+
   const filteredItems = useMemo(() => {
     let items: ListItem[] = [];
 
@@ -292,7 +263,18 @@ export default function Search() {
     });
   }, [conversations, events, searchQuery, activeTab]);
 
-  const isLoading = isLoadingConversations || isLoadingEvents || isLoadingTokenIds;
+  // Determine if we should show "Start new chat" option
+  const showNewChatOption = useMemo(() => {
+    const query = searchQuery.trim();
+    return (
+      isConnected &&
+      isWalletAddress(query) &&
+      !hasConversationWith(query) &&
+      query.toLowerCase() !== address?.toLowerCase()
+    );
+  }, [searchQuery, isConnected, conversations, address]);
+
+  const isLoading = isXmtpLoading || isLoadingConversations || isLoadingEvents || isLoadingTokenIds;
 
   return (
     <Layout>
@@ -369,14 +351,116 @@ export default function Search() {
           )}
 
           {/* Error State */}
-          {error && (
-            <div style={{ color: "#ff6b6b", textAlign: "center", padding: "20px" }}>
-              {error}
+          {xmtpError && (
+            <div style={{
+              color: "white",
+              textAlign: "center",
+              padding: "20px",
+              background: "rgba(255, 107, 107, 0.1)",
+              borderRadius: "12px",
+              margin: "0 0 16px 0"
+            }}>
+              <p style={{ marginBottom: showRevokeOption ? "12px" : "0" }}>{xmtpError}</p>
+              {showRevokeOption && (
+                <>
+                  <button
+                    onClick={handleRevokeAndRetry}
+                    style={{
+                      padding: "10px 20px",
+                      background: "linear-gradient(to right, #ff9900, #e100ff)",
+                      border: "none",
+                      borderRadius: "20px",
+                      color: "white",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      fontWeight: "bold",
+                      width: "100%",
+                      marginBottom: "16px"
+                    }}
+                  >
+                    Try Clearing Local Data
+                  </button>
+                  <div style={{ fontSize: "12px", opacity: 0.9, textAlign: "left" }}>
+                    <div style={{ fontWeight: "bold", marginBottom: "8px" }}>If that doesn&apos;t work, use XMTP CLI:</div>
+                    <code style={{
+                      display: "block",
+                      background: "rgba(0,0,0,0.3)",
+                      padding: "8px",
+                      borderRadius: "8px",
+                      marginBottom: "4px"
+                    }}>
+                      npm install -g @xmtp/cli
+                    </code>
+                    <code style={{
+                      display: "block",
+                      background: "rgba(0,0,0,0.3)",
+                      padding: "8px",
+                      borderRadius: "8px",
+                      marginBottom: "4px"
+                    }}>
+                      xmtp auth
+                    </code>
+                    <code style={{
+                      display: "block",
+                      background: "rgba(0,0,0,0.3)",
+                      padding: "8px",
+                      borderRadius: "8px"
+                    }}>
+                      xmtp installations revoke-all-other
+                    </code>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Start New Chat Option */}
+          {showNewChatOption && (
+            <div className={docStyles.searchResultsContainer}>
+              <div
+                className={docStyles.searchResultCard}
+                onClick={() => {
+                  router.push(`/chat-Section/Chat?peer=${encodeURIComponent(searchQuery.trim())}`);
+                }}
+              >
+                <div
+                  className={docStyles.searchResultImage}
+                  style={{
+                    background: "linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <span style={{ color: "white", fontWeight: "bold", fontSize: "18px" }}>
+                    {searchQuery.trim().slice(2, 4).toUpperCase()}
+                  </span>
+                </div>
+                <div className={docStyles.searchResultContent}>
+                  <h3 className={docStyles.searchResultTitle}>
+                    {truncateAddress(searchQuery.trim())}
+                  </h3>
+                  <p className={docStyles.searchResultEvents}>
+                    Start new conversation
+                  </p>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
+                  <span style={{
+                    fontSize: "10px",
+                    padding: "2px 8px",
+                    borderRadius: "10px",
+                    background: "rgba(0, 201, 255, 0.2)",
+                    color: "#00C9FF",
+                  }}>
+                    New
+                  </span>
+                </div>
+              </div>
             </div>
           )}
 
           {/* Empty State */}
-          {isConnected && !isLoading && filteredItems.length === 0 && !error && (
+          {isConnected && !isLoading && filteredItems.length === 0 && !showNewChatOption && !xmtpError && (
             <div style={{ color: "rgba(255,255,255,0.6)", textAlign: "center", padding: "20px" }}>
               {searchQuery ? "No results found" : "No conversations or events yet"}
             </div>
@@ -391,7 +475,10 @@ export default function Search() {
                   className={docStyles.searchResultCard}
                   onClick={() => {
                     if (item.type === "conversation") {
-                      router.push("/chat-Section/Chat");
+                      const convo = item as ConversationPreview;
+                      // Pass peer address or inbox ID to Chat page
+                      const peerParam = convo.peerAddress || convo.peerInboxId;
+                      router.push(`/chat-Section/Chat?peer=${encodeURIComponent(peerParam)}`);
                     } else {
                       router.push(`/contracts/contracts-detail?tokenId=${item.tokenId.toString()}`);
                     }
@@ -466,26 +553,6 @@ export default function Search() {
             </div>
           )}
 
-          {/* New Chat Button */}
-          {isConnected && (
-            <button
-              onClick={() => router.push("/chat-Section/Chat")}
-              style={{
-                width: "100%",
-                padding: "16px",
-                borderRadius: "30px",
-                border: "none",
-                background: "linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%)",
-                color: "white",
-                fontSize: "16px",
-                fontWeight: "500",
-                cursor: "pointer",
-                marginTop: "16px",
-              }}
-            >
-              Start New Chat
-            </button>
-          )}
         </main>
       </div>
     </Layout>

@@ -14,6 +14,7 @@ import store from '../store/store'
 import { Provider } from 'react-redux'
 import Navbar from '../components/Navbar';
 import Scrollbar from '../components/Scrollbar';
+import { XMTPProvider } from '../contexts/XMTPContext';
 
 const client = new QueryClient();
 
@@ -90,12 +91,14 @@ function MyApp({ Component, pageProps }: AppProps) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={client}>
         <RainbowKitProvider theme={darkTheme()}>
-          <Head>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-          </Head>
-          <Scrollbar />
-          {/* {userProfile && <Navbar userProfile={userProfile} />} */}
-          <Component {...pageProps} />
+          <XMTPProvider>
+            <Head>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+            </Head>
+            <Scrollbar />
+            {/* {userProfile && <Navbar userProfile={userProfile} />} */}
+            <Component {...pageProps} />
+          </XMTPProvider>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

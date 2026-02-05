@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from "react";
-import { Client, type Signer, type Identifier } from "@xmtp/browser-sdk";
+import { Client, type Signer, type Identifier, type ConsentState } from "@xmtp/browser-sdk";
 import { useAccount, useSignMessage } from "wagmi";
 
 interface XMTPContextType {
@@ -33,13 +33,17 @@ const findXmtpDatabases = async (): Promise<string[]> => {
 const clearXmtpOPFS = async (): Promise<void> => {
   try {
     const root = await navigator.storage.getDirectory();
-    for await (const [name] of root.entries()) {
-      if (name.includes("xmtp") || name.includes("libxmtp")) {
-        try {
-          await root.removeEntry(name, { recursive: true });
-          console.log(`[XMTP] Deleted OPFS: ${name}`);
-        } catch (e) {
-          console.error(`[XMTP] Failed to delete ${name}:`, e);
+    // Type assertion needed as entries() is not fully typed in all TS versions
+    const entries = (root as any).entries?.();
+    if (entries) {
+      for await (const [name] of entries) {
+        if (name.includes("xmtp") || name.includes("libxmtp")) {
+          try {
+            await root.removeEntry(name, { recursive: true });
+            console.log(`[XMTP] Deleted OPFS: ${name}`);
+          } catch (e) {
+            console.error(`[XMTP] Failed to delete ${name}:`, e);
+          }
         }
       }
     }
@@ -147,7 +151,7 @@ export function XMTPProvider({ children }: XMTPProviderProps) {
             // Try to sync - if it fails, the identity may need registration
             try {
               await builtClient.preferences.sync();
-              await builtClient.conversations.syncAll(["allowed", "unknown"]);
+              await builtClient.conversations.syncAll(["allowed", "unknown"] as unknown as ConsentState[]);
               xmtpClient = builtClient;
               console.log("[XMTP] Client restored and synced successfully");
             } catch (syncErr: any) {
@@ -166,7 +170,7 @@ export function XMTPProvider({ children }: XMTPProviderProps) {
 
                     // Retry sync after registration
                     await builtClient.preferences.sync();
-                    await builtClient.conversations.syncAll(["allowed", "unknown"]);
+                    await builtClient.conversations.syncAll(["allowed", "unknown"] as unknown as ConsentState[]);
                     xmtpClient = builtClient;
                     console.log("[XMTP] Client restored after registration");
                   }
@@ -195,7 +199,7 @@ export function XMTPProvider({ children }: XMTPProviderProps) {
           // Sync to get latest data
           try {
             await xmtpClient.preferences.sync();
-            await xmtpClient.conversations.syncAll(["allowed", "unknown"]);
+            await xmtpClient.conversations.syncAll(["allowed", "unknown"] as unknown as ConsentState[]);
           } catch (syncErr) {
             // Non-critical - may fail if no data exists yet
           }

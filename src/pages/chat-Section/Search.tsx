@@ -12,6 +12,7 @@ import { useAccount, useChainId } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useGetUserNFTs } from "../../hooks/useContractNFT";
 import { useXMTPClient } from "../../contexts/XMTPContext";
+import type { ConsentState } from "@xmtp/browser-sdk";
 
 interface ConversationPreview {
   id: string;
@@ -95,7 +96,7 @@ export default function Search() {
         // Sync and list all conversations
         await xmtpClient.conversations.sync();
         const convos = await xmtpClient.conversations.list({
-          consentStates: ["allowed", "unknown", "denied"],
+          consentStates: ["allowed", "unknown", "denied"] as unknown as ConsentState[],
         });
 
         const previews: ConversationPreview[] = await Promise.all(

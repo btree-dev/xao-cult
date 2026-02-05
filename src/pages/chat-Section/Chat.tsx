@@ -218,15 +218,18 @@ const Chat: React.FC = () => {
 
       for (const convo of convos) {
         try {
+          // Cast to any for flexible property access
+          const convoAny = convo as any;
+
           // Check peer addresses
-          if (convo.peerAddresses?.some((addr: string) => addr.toLowerCase() === normalizedPeer)) {
+          if (convoAny.peerAddresses?.some((addr: string) => addr.toLowerCase() === normalizedPeer)) {
             conversation = convo;
             break;
           }
 
           // Check members
-          if (typeof convo.members === "function") {
-            const members = await convo.members();
+          if (typeof convoAny.members === "function") {
+            const members = await convoAny.members();
             const peerMember = members?.find((m: any) =>
               m.accountIdentifiers?.some((id: any) => id.identifier?.toLowerCase() === normalizedPeer)
             );
@@ -237,7 +240,7 @@ const Chat: React.FC = () => {
           }
 
           // Check peerInboxId
-          let peerInboxId = convo.peerInboxId;
+          let peerInboxId = convoAny.peerInboxId;
           if (typeof peerInboxId === "function") peerInboxId = peerInboxId.call(convo);
           if (peerInboxId && typeof peerInboxId === "object" && "then" in peerInboxId) peerInboxId = await peerInboxId;
           if (String(peerInboxId).toLowerCase() === normalizedPeer) {
@@ -253,14 +256,20 @@ const Chat: React.FC = () => {
       if (!conversation) {
         console.log("[Chat] Creating new conversation with:", normalizedPeer);
 
+        // Create identifier for the peer
+        const peerIdentifier = {
+          identifier: normalizedPeer,
+          identifierKind: "Ethereum" as const,
+        };
+
         // Check if peer can receive messages
-        const canMessage = await client.canMessage([normalizedPeer]);
+        const canMessage = await client.canMessage([peerIdentifier]);
         if (!canMessage.get(normalizedPeer)) {
           throw new Error("This address hasn't enabled XMTP messaging yet.");
         }
 
-        // Create new DM
-        conversation = await client.conversations.newDm(normalizedPeer);
+        // Create new DM (newDm expects a string address)
+        conversation = await client.conversations.newDm(normalizedPeer as any);
         console.log("[Chat] New conversation created");
       }
 

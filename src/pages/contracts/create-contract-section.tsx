@@ -14,6 +14,7 @@ const dropdownOptions = ["Option 1", "Option 2", "Option 3"];
 interface CreateContractsectionProps {
   party1: string;
   party2: string;
+  initialData?: Partial<IContract>;
 }
 
 const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props, ref) => {
@@ -233,6 +234,91 @@ const updateRiderRow = (index: number, value: string) => {
       window.removeEventListener("mousedown", handleClick);
     };
   }, [activeDropdown]);
+
+  // Pre-populate form when initialData is provided (e.g., from received contract proposal)
+  useEffect(() => {
+    if (!props.initialData) return;
+    const data = props.initialData;
+
+    // Dates and Times
+    if (data.datesAndTimes) {
+      if (data.datesAndTimes.startTime) setStartTime(data.datesAndTimes.startTime);
+      if (data.datesAndTimes.endTime) setEndTime(data.datesAndTimes.endTime);
+      if (data.datesAndTimes.loadIn) setLoadIn(data.datesAndTimes.loadIn);
+      if (data.datesAndTimes.doors) setDoors(data.datesAndTimes.doors);
+      if (data.datesAndTimes.setTime) setSetTime(data.datesAndTimes.setTime);
+      if (data.datesAndTimes.setLength) setSetLength(data.datesAndTimes.setLength);
+      if (data.datesAndTimes.ticketsSale) setTicketsSale(data.datesAndTimes.ticketsSale);
+      if (data.datesAndTimes.showDate) setShowDate(data.datesAndTimes.showDate);
+      // Auto-expand section if it has data
+      if (Object.values(data.datesAndTimes).some(v => v)) setIsDatesTimeOpen(true);
+    }
+
+    // Location
+    if (data.location) {
+      if (data.location.venueName) setVenueName(data.location.venueName);
+      if (data.location.address) setAddress(data.location.address);
+      if (data.location.radiusDistance) setRadiusDistance(data.location.radiusDistance);
+      if (data.location.days) setDays(data.location.days);
+      if (Object.values(data.location).some(v => v)) setIsLocationOpen(true);
+    }
+
+    // Tickets
+    if (data.tickets) {
+      if (data.tickets.ticketRows && data.tickets.ticketRows.length > 0) {
+        setTicketRows(data.tickets.ticketRows);
+      }
+      if (data.tickets.resale) {
+        if (data.tickets.resale.party1) setResaleParty1(data.tickets.resale.party1);
+        if (data.tickets.resale.party2) setResaleParty2(data.tickets.resale.party2);
+        if (data.tickets.resale.reseller) setResaleReseller(data.tickets.resale.reseller);
+      }
+      setIsTicketsOpen(true);
+    }
+
+    // Money
+    if (data.money) {
+      if (data.money.securityDepositRows) setSecurityDepositRows(data.money.securityDepositRows);
+      if (data.money.cancelParty1Rows) setCancelParty1Rows(data.money.cancelParty1Rows);
+      if (data.money.depositbandInput) setdepositbandInput(data.money.depositbandInput);
+      if (data.money.bandCanceledBy) setbandCanceledBy(data.money.bandCanceledBy);
+      if (data.money.guaranteeInput) setguaranteeInput(data.money.guaranteeInput);
+      if (data.money.backendInput) setBackendInput(data.money.backendInput);
+      if (data.money.barsplitInput) setBarsplitInput(data.money.barsplitInput);
+      if (data.money.merchSplitInput) setMerchSplitInput(data.money.merchSplitInput);
+      if (data.money.cancelParty2DateTime) setCancelParty2DateTime(data.money.cancelParty2DateTime);
+      if (data.money.securitydepositAdd) setsecuritydepositAdd(data.money.securitydepositAdd);
+      if (data.money.securityDeposit2Rows) setSecurityDeposit2Rows(data.money.securityDeposit2Rows);
+      if (data.money.cancelParty2Rows) setCancelParty2Rows(data.money.cancelParty2Rows);
+      setIsMoneyOpen(true);
+    }
+
+    // Payments
+    if (data.payments) {
+      if (data.payments.party1) setPayoutRows(data.payments.party1);
+      if (data.payments.party2) setPayout2Rows(data.payments.party2);
+      setIsPaymentsOpen(true);
+    }
+
+    // Promotion
+    if (data.promotion) {
+      if (data.promotion.value) setPromotionValue(data.promotion.value);
+      if (data.promotion.genres) setPromotionGenres(data.promotion.genres);
+      setIsPromotionOpen(true);
+    }
+
+    // Rider
+    if (data.rider && data.rider.rows) {
+      setRiderRows(data.rider.rows);
+      setIsRiderOpen(true);
+    }
+
+    // Legal Agreement
+    if (data.legalAgreement) {
+      setLegalAgreementValue(data.legalAgreement);
+      setIsLegalAgreementOpen(true);
+    }
+  }, [props.initialData]);
 
   const [promotionGenres, setPromotionGenres] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);

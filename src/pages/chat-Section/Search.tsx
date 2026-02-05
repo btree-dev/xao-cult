@@ -12,6 +12,7 @@ import { useAccount, useChainId } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useGetUserNFTs } from "../../hooks/useContractNFT";
 import { useXMTPClient } from "../../contexts/XMTPContext";
+import { useProfileCache, CachedProfile } from "../../contexts/ProfileCacheContext";
 import type { ConsentState } from "@xmtp/browser-sdk";
 
 interface ConversationPreview {
@@ -57,6 +58,9 @@ export default function Search() {
     handleRevokeAndRetry,
   } = useXMTPClient();
 
+  // Profile cache for displaying usernames
+  const { getProfile } = useProfileCache();
+
   // Get user's contract NFTs
   const { tokenIds, isLoading: isLoadingTokenIds } = useGetUserNFTs(address, chainId);
 
@@ -65,6 +69,23 @@ export default function Search() {
     if (!addr || typeof addr !== "string") return "Unknown";
     if (addr.length <= 16) return addr;
     return `${addr.slice(0, 8)}...${addr.slice(-6)}`;
+  };
+
+  // Get display name for a wallet address (from cache or truncated)
+  const getDisplayName = (walletAddress: string | undefined): string => {
+    if (!walletAddress) return "Unknown";
+    const cachedProfile = getProfile(walletAddress);
+    if (cachedProfile?.username) {
+      return cachedProfile.username;
+    }
+    return truncateAddress(walletAddress);
+  };
+
+  // Get profile picture URL if available
+  const getProfilePicture = (walletAddress: string | undefined): string | undefined => {
+    if (!walletAddress) return undefined;
+    const cachedProfile = getProfile(walletAddress);
+    return cachedProfile?.profilePictureUrl;
   };
 
   // Format time for display
@@ -497,14 +518,27 @@ export default function Search() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
+                      overflow: "hidden",
                     }}
                   >
                     {item.type === "conversation" ? (
-                      <span style={{ color: "white", fontWeight: "bold", fontSize: "18px" }}>
-                        {((item as ConversationPreview).peerAddress || (item as ConversationPreview).peerInboxId || "?")
-                          .slice(2, 4)
-                          .toUpperCase()}
-                      </span>
+                      getProfilePicture((item as ConversationPreview).peerAddress) ? (
+                        <img
+                          src={getProfilePicture((item as ConversationPreview).peerAddress)}
+                          alt="Profile"
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : (
+                        <span style={{ color: "white", fontWeight: "bold", fontSize: "18px" }}>
+                          {((item as ConversationPreview).peerAddress || (item as ConversationPreview).peerInboxId || "?")
+                            .slice(2, 4)
+                            .toUpperCase()}
+                        </span>
+                      )
                     ) : (
                       <Image
                         src="/contracts-Icons/Vector (2).svg"
@@ -519,7 +553,7 @@ export default function Search() {
                   <div className={docStyles.searchResultContent}>
                     <h3 className={docStyles.searchResultTitle}>
                       {item.type === "conversation"
-                        ? truncateAddress((item as ConversationPreview).peerAddress || (item as ConversationPreview).peerInboxId)
+                        ? getDisplayName((item as ConversationPreview).peerAddress || (item as ConversationPreview).peerInboxId)
                         : `Event #${(item as EventPreview).tokenId.toString()}`}
                     </h3>
                     <p className={docStyles.searchResultEvents}>

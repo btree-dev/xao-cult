@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Layout from "../../components/Layout";
 import styles from "../../styles/CreateContract.module.css";
 import ContractsNav from "../../components/ContractsNav";
@@ -11,6 +11,8 @@ import { ChatComponent } from "../../components/Chat";
 import { useMintContractNFT } from "../../hooks/useMintContractNFT";
 import { useWeb3 } from "../../hooks/useWeb3";
 import { buildMintArgsFromTerms, validateBaseChain } from "../../backend/contracts";
+import { useXMTPConversation } from "../../hooks/useXMTPConversation";
+import { ContractProposalMessage } from "../../types/contractMessage";
 
 const CreateContract = () => {
   const [selected, setSelected] = useState<"chat" | "contract">("contract");
@@ -20,8 +22,69 @@ const CreateContract = () => {
   const [mintError, setMintError] = useState("");
   const contractSectionRef = useRef<any>(null);
 
+  // Contract proposal state
+  const [activeProposal, setActiveProposal] = useState<ContractProposalMessage | null>(null);
+  const [revisionNumber, setRevisionNumber] = useState(1);
+  const [isSendingProposal, setIsSendingProposal] = useState(false);
+
   const { address, isConnected, chain } = useWeb3();
   const { mintNFT, isLoading, isSuccess, error } = useMintContractNFT(chain?.id);
+
+  // XMTP for sending contract proposals
+  const { sendContractProposal, isClientReady } = useXMTPConversation({
+    peerAddress: party2 || null,
+  });
+
+  // Handle receiving a contract proposal from chat
+  const handleContractProposalSelect = useCallback((proposal: ContractProposalMessage) => {
+    setActiveProposal(proposal);
+    setRevisionNumber(proposal.revisionNumber + 1);
+    // Pre-fill party addresses from proposal if available
+    if (proposal.data.party1 && !party1) setParty1(proposal.data.party1);
+    if (proposal.data.party2 && !party2) setParty2(proposal.data.party2);
+    // Switch to contract view to show the form
+    setSelected("contract");
+  }, [party1, party2]);
+
+  // Send contract proposal to Party2
+  const handleSendProposal = async () => {
+    if (!party2) {
+      setMintError("Please enter Party 2 address to send proposal");
+      return;
+    }
+
+    if (!isClientReady) {
+      setMintError("Chat not ready. Please wait...");
+      return;
+    }
+
+    setIsSendingProposal(true);
+    setMintError("");
+
+    try {
+      // Get contract data from the form
+      const termsObject = contractSectionRef.current?.getContractData
+        ? contractSectionRef.current.getContractData()
+        : { party1, party2 };
+
+      // Send the proposal
+      await sendContractProposal(termsObject, revisionNumber);
+
+      // Update revision number for next edit
+      setRevisionNumber((prev) => prev + 1);
+
+      // Clear active proposal since we've sent a new one
+      setActiveProposal(null);
+
+      // Switch to chat view to see the sent message
+      setSelected("chat");
+    } catch (err) {
+      console.error("Failed to send proposal:", err);
+      setMintError("Failed to send contract proposal");
+    } finally {
+      setIsSendingProposal(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!isConnected) {
@@ -114,6 +177,7 @@ const CreateContract = () => {
               <ChatComponent
                 peerAddress={party2 || null}
                 embedded={true}
+                onContractProposalSelect={handleContractProposalSelect}
               />
             ) : (
               <>
@@ -163,6 +227,7 @@ const CreateContract = () => {
                   ref={contractSectionRef}
                   party1={party1}
                   party2={party2}
+                  initialData={activeProposal?.data}
                 />
                 {mintError && (
                   <div style={{ color: "red", marginTop: "10px" }}>
@@ -174,6 +239,24 @@ const CreateContract = () => {
                     Please connect your wallet to save contracts
                   </div>
                 )}
+
+                {/* Send Proposal Button */}
+                <button
+                  type="button"
+                  onClick={handleSendProposal}
+                  disabled={isSendingProposal || !party2 || !isClientReady}
+                  className={styles.documentButton}
+                  style={{
+                    marginBottom: "10px",
+                    opacity: (!party2 || !isClientReady) ? 0.5 : 1,
+                  }}
+                >
+                  {isSendingProposal
+                    ? "Sending..."
+                    : `Send to Party 2 (Rev. ${revisionNumber})`}
+                </button>
+
+                {/* Save/Mint Button */}
                 <button
                   type="button"
                   onClick={handleSave}

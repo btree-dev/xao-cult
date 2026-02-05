@@ -1,6 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Client, type DecodedMessage } from "@xmtp/browser-sdk";
 import { useXMTPClient } from "../contexts/XMTPContext";
+import {
+  ContactCardMessage,
+  isContactCard,
+  createContactCard,
+} from "../types/contactMessage";
+import {
+  ContractProposalMessage,
+  isContractProposal,
+  createContractProposal,
+} from "../types/contractMessage";
+import { IContract } from "../backend/services/types/api";
 
 export interface MessageWithMetadata extends DecodedMessage<any> {
   senderName?: string;
@@ -18,7 +29,12 @@ export interface UseXMTPConversationResult {
   isLoading: boolean;
   isSyncing: boolean;
   error: string | null;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string | object) => Promise<void>;
+  sendContactCard: (username: string, profilePictureUrl?: string) => Promise<void>;
+  sendContractProposal: (
+    contractData: Partial<IContract>,
+    revisionNumber?: number
+  ) => Promise<void>;
   syncMessages: () => Promise<void>;
   peerAddress: string | null;
   // Forwarded from useXMTPClient
@@ -28,6 +44,9 @@ export interface UseXMTPConversationResult {
   showRevokeOption: boolean;
   handleRevokeAndRetry: () => Promise<void>;
   walletAddress: string | null;
+  // Contact card tracking
+  hasSentContactCard: boolean;
+  receivedContactCard: ContactCardMessage | null;
 }
 
 // Truncate address for display
@@ -47,6 +66,22 @@ const isSystemMessage = (content: any): boolean => {
   return false;
 };
 
+// Try to parse message content as JSON (for structured messages like contact cards and proposals)
+const parseMessageContent = (content: any): any => {
+  if (typeof content === "string") {
+    try {
+      const parsed = JSON.parse(content);
+      // Check if it's a structured message type we recognize
+      if (parsed && typeof parsed === "object" && parsed.type) {
+        return parsed;
+      }
+    } catch {
+      // Not JSON, return as-is
+    }
+  }
+  return content;
+};
+
 export function useXMTPConversation({
   peerAddress: peerAddressProp,
 }: UseXMTPConversationOptions): UseXMTPConversationResult {
@@ -56,10 +91,13 @@ export function useXMTPConversation({
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPeerAddress, setCurrentPeerAddress] = useState<string | null>(null);
+  const [hasSentContactCard, setHasSentContactCard] = useState(false);
+  const [receivedContactCard, setReceivedContactCard] = useState<ContactCardMessage | null>(null);
 
   const streamAbortRef = useRef<AbortController | null>(null);
   const currentPeerRef = useRef<string | null>(null);
   const hasInitializedRef = useRef(false);
+  const contactCardSentForPeerRef = useRef<string | null>(null);
 
   // Use shared XMTP client hook
   const {
@@ -92,12 +130,29 @@ export function useXMTPConversation({
         console.debug("Could not resolve member addresses:", e);
       }
 
+      // Check for received contact cards in messages
+      let foundContactCard: ContactCardMessage | null = null;
+      for (const msg of msgs) {
+        const parsedContent = parseMessageContent(msg.content);
+        if (msg.senderInboxId !== client.inboxId && isContactCard(parsedContent)) {
+          // Found a contact card from peer
+          foundContactCard = parsedContent;
+          break; // Use the first (oldest) one
+        }
+      }
+      if (foundContactCard) {
+        setReceivedContactCard(foundContactCard);
+      }
+
       const formattedMessages = msgs
         .filter((msg: DecodedMessage<any>) => !isSystemMessage(msg.content))
         .map((msg: DecodedMessage<any>) => {
           const senderAddress = addressMap.get(msg.senderInboxId) || msg.senderInboxId;
+          // Parse content to handle JSON-encoded structured messages
+          const parsedContent = parseMessageContent(msg.content);
           return {
             ...msg,
+            content: parsedContent,
             senderName:
               msg.senderInboxId === client.inboxId
                 ? "You"
@@ -142,8 +197,19 @@ export function useXMTPConversation({
 
           if (isSystemMessage(msg.content)) continue;
 
+          // Parse content to handle JSON-encoded structured messages
+          const parsedContent = parseMessageContent(msg.content);
+
+          // Check if this is a contact card from peer
+          if (msg.senderInboxId !== client.inboxId && isContactCard(parsedContent)) {
+            setReceivedContactCard(parsedContent);
+            // Contact cards are processed but not added to visible messages
+            continue;
+          }
+
           const messageWithMetadata: MessageWithMetadata = {
             ...msg,
+            content: parsedContent,
             senderName:
               msg.senderInboxId === client.inboxId
                 ? "You"
@@ -280,21 +346,78 @@ export function useXMTPConversation({
     [loadMessages, streamMessages]
   );
 
-  // Send message
+  // Send message (supports both string and object content)
   const sendMessage = useCallback(
-    async (content: string) => {
-      if (!content.trim() || !conversation) {
+    async (content: string | object) => {
+      if (!conversation) {
+        return;
+      }
+
+      // For string content, check if empty
+      if (typeof content === "string" && !content.trim()) {
         return;
       }
 
       try {
-        await conversation.send(content);
+        // XMTP requires text - serialize objects to JSON string
+        const messageContent = typeof content === "string"
+          ? content
+          : JSON.stringify(content);
+        await conversation.send(messageContent);
       } catch (err) {
         console.error("Failed to send message:", err);
         setError("Failed to send message");
       }
     },
     [conversation]
+  );
+
+  // Send contact card
+  const sendContactCard = useCallback(
+    async (username: string, profilePictureUrl?: string) => {
+      if (!conversation || !walletAddress) return;
+      if (contactCardSentForPeerRef.current === currentPeerRef.current) {
+        // Already sent contact card to this peer
+        return;
+      }
+
+      try {
+        const card = createContactCard(walletAddress, username, profilePictureUrl);
+        // Serialize to JSON for XMTP
+        await conversation.send(JSON.stringify(card));
+        contactCardSentForPeerRef.current = currentPeerRef.current;
+        setHasSentContactCard(true);
+        console.log("[XMTP] Contact card sent");
+      } catch (err) {
+        console.error("Failed to send contact card:", err);
+      }
+    },
+    [conversation, walletAddress]
+  );
+
+  // Send contract proposal
+  const sendContractProposal = useCallback(
+    async (contractData: Partial<IContract>, revisionNumber: number = 1) => {
+      if (!conversation || !walletAddress) {
+        console.error("Cannot send proposal: no conversation or wallet address");
+        return;
+      }
+
+      try {
+        const proposal = createContractProposal(
+          contractData,
+          walletAddress,
+          revisionNumber
+        );
+        // Serialize to JSON for XMTP
+        await conversation.send(JSON.stringify(proposal));
+        console.log("[XMTP] Contract proposal sent, revision:", revisionNumber);
+      } catch (err) {
+        console.error("Failed to send contract proposal:", err);
+        setError("Failed to send contract proposal");
+      }
+    },
+    [conversation, walletAddress]
   );
 
   // Sync messages manually
@@ -323,8 +446,11 @@ export function useXMTPConversation({
       setMessages([]);
       setCurrentPeerAddress(null);
       setError(null);
+      setHasSentContactCard(false);
+      setReceivedContactCard(null);
       currentPeerRef.current = null;
       hasInitializedRef.current = false;
+      contactCardSentForPeerRef.current = null;
       return;
     }
 
@@ -345,10 +471,13 @@ export function useXMTPConversation({
       streamAbortRef.current.abort();
     }
 
-    // Reset messages for new peer
+    // Reset messages and contact card state for new peer
     setMessages([]);
     setConversation(null);
     setError(null);
+    setHasSentContactCard(false);
+    setReceivedContactCard(null);
+    contactCardSentForPeerRef.current = null;
 
     // Initialize conversation with new peer
     currentPeerRef.current = normalizedPeer;
@@ -371,6 +500,8 @@ export function useXMTPConversation({
     isSyncing,
     error: error || xmtpError,
     sendMessage,
+    sendContactCard,
+    sendContractProposal,
     syncMessages,
     peerAddress: currentPeerAddress,
     isClientReady: !!xmtpClient,
@@ -379,5 +510,7 @@ export function useXMTPConversation({
     showRevokeOption,
     handleRevokeAndRetry,
     walletAddress,
+    hasSentContactCard,
+    receivedContactCard,
   };
 }

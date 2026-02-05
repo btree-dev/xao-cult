@@ -2,12 +2,17 @@ import React, { useEffect, useRef, useState } from "react";
 import styles from "../../styles/CreateContract.module.css";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useXMTPConversation, MessageWithMetadata } from "../../hooks/useXMTPConversation";
+import { isContactCard } from "../../types/contactMessage";
+import { isContractProposal, ContractProposalMessage } from "../../types/contractMessage";
+import { useProfileCache } from "../../contexts/ProfileCacheContext";
+import ContractCard from "./ContractCard";
 
 export interface ChatComponentProps {
   peerAddress: string | null;
   onBack?: () => void;
   embedded?: boolean;
   onMessageSent?: (msg: string) => void;
+  onContractProposalSelect?: (proposal: ContractProposalMessage) => void;
 }
 
 // Format timestamp for message display
@@ -46,12 +51,14 @@ const formatMessageTime = (sentAt: Date | string | number | bigint | undefined):
   }
 };
 
-// Check if message is a system/metadata message
-const isSystemMessage = (content: any): boolean => {
+// Check if message is a system/metadata message or contact card (should be hidden)
+const isHiddenMessage = (content: any): boolean => {
   if (typeof content === "object" && content !== null) {
     if ("initiatedByInboxId" in content) return true;
     if ("membersAdded" in content) return true;
     if ("membersRemoved" in content) return true;
+    // Contact cards are hidden from chat display
+    if (isContactCard(content)) return true;
   }
   return false;
 };
@@ -61,6 +68,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
   onBack,
   embedded = false,
   onMessageSent,
+  onContractProposalSelect,
 }) => {
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -73,12 +81,36 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
     isSyncing,
     error,
     sendMessage,
+    sendContactCard,
     syncMessages,
     isClientReady,
     isClientLoading,
     showRevokeOption,
     handleRevokeAndRetry,
+    receivedContactCard,
   } = useXMTPConversation({ peerAddress });
+
+  // Profile cache for contact cards
+  const { currentUserProfile, setProfile } = useProfileCache();
+
+  // Send contact card when conversation is ready and we have a profile
+  useEffect(() => {
+    if (conversation && currentUserProfile && peerAddress) {
+      sendContactCard(currentUserProfile.username, currentUserProfile.profilePictureUrl);
+    }
+  }, [conversation, currentUserProfile, peerAddress, sendContactCard]);
+
+  // Save received contact card to profile cache
+  useEffect(() => {
+    if (receivedContactCard) {
+      setProfile({
+        walletAddress: receivedContactCard.walletAddress,
+        username: receivedContactCard.username,
+        profilePictureUrl: receivedContactCard.profilePictureUrl,
+        cachedAt: Date.now(),
+      });
+    }
+  }, [receivedContactCard, setProfile]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -263,8 +295,25 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
             )}
 
             {messages
-              .filter((msg) => !isSystemMessage(msg.content))
+              .filter((msg) => !isHiddenMessage(msg.content))
               .map((msg: MessageWithMetadata, idx) => {
+                const msgTimestamp = msg.sentAtNs || (msg as any).sentAt || (msg as any).timestamp;
+
+                // Check if this is a contract proposal
+                if (isContractProposal(msg.content)) {
+                  return (
+                    <ContractCard
+                      key={msg.id || idx}
+                      proposal={msg.content}
+                      isSent={msg.isSent || false}
+                      senderName={msg.isSent ? "You" : msg.senderName}
+                      sentAt={msgTimestamp}
+                      onViewEdit={() => onContractProposalSelect?.(msg.content)}
+                    />
+                  );
+                }
+
+                // Regular text message
                 let displayContent = "";
                 if (typeof msg.content === "string") {
                   displayContent = msg.content;
@@ -277,8 +326,6 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
                 }
 
                 if (!displayContent) return null;
-
-                const msgTimestamp = msg.sentAtNs || (msg as any).sentAt || (msg as any).timestamp;
 
                 return (
                   <div

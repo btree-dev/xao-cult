@@ -1,0 +1,148 @@
+/* ContractCard Styles */
+
+.contractCard {
+  position: relative;
+  border-radius: 18px;
+  padding: 12px 16px;
+  max-width: 85%;
+  width: fit-content;
+  word-break: break-word;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.contractCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.contractCardSent {
+  background: black;
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(black, black),
+    linear-gradient(to right, #ff9900, #e100ff);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  color: #fff;
+  align-self: flex-end;
+}
+
+.contractCardReceived {
+  background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  color: #fff;
+  align-self: flex-start;
+  border: none;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.cardSender {
+  font-weight: 500;
+}
+
+.cardTime {
+  font-size: 10px;
+  opacity: 0.6;
+  margin-left: 8px;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.cardIcon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+}
+
+.cardTitleText {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.revisionBadge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  margin-left: auto;
+}
+
+.cardSummary {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.summaryRow {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.summaryLabel {
+  font-weight: 500;
+  opacity: 0.7;
+  min-width: 50px;
+}
+
+.summaryValue {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.viewButtonSent {
+  background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  color: #fff;
+}
+
+.viewButtonReceived {
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+}
+
+.viewButton:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.viewButtonIcon {
+  width: 16px;
+  height: 16px;
+}

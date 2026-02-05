@@ -88,6 +88,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
     showRevokeOption,
     handleRevokeAndRetry,
     receivedContactCard,
+    hasSentContactCard,
   } = useXMTPConversation({ peerAddress });
 
   // Profile cache for contact cards
@@ -143,16 +144,44 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
 
   return (
     <div className={containerClass}>
-      {/* Sync button header for embedded mode */}
-      {embedded && isClientReady && peerAddress && (
+      {/* Action buttons header (sync + share profile) */}
+      {isClientReady && peerAddress && (
         <div
           style={{
             display: "flex",
             justifyContent: "flex-end",
+            gap: "8px",
             padding: "8px 20px",
             borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
           }}
         >
+          <button
+            onClick={() => {
+              if (currentUserProfile) {
+                // Use force=true to allow re-sending (e.g., after profile update)
+                sendContactCard(currentUserProfile.username, currentUserProfile.profilePictureUrl, true);
+              }
+            }}
+            disabled={!currentUserProfile || isLoadingState}
+            title={hasSentContactCard ? "Click to re-send your profile" : "Share your profile"}
+            style={{
+              padding: "6px 14px",
+              background: hasSentContactCard
+                ? "rgba(100, 200, 100, 0.2)"
+                : "rgba(255, 255, 255, 0.1)",
+              border: hasSentContactCard
+                ? "1px solid rgba(100, 200, 100, 0.4)"
+                : "1px solid rgba(255, 255, 255, 0.2)",
+              borderRadius: "16px",
+              color: "white",
+              cursor: !currentUserProfile || isLoadingState ? "not-allowed" : "pointer",
+              fontSize: "12px",
+              opacity: !currentUserProfile || isLoadingState ? 0.6 : 1,
+              transition: "all 0.2s ease",
+            }}
+          >
+            {hasSentContactCard ? "✓ Share Again" : "👤 Share Profile"}
+          </button>
           <button
             onClick={syncMessages}
             disabled={isSyncing || isLoadingState}

@@ -372,11 +372,11 @@ export function useXMTPConversation({
     [conversation]
   );
 
-  // Send contact card
+  // Send contact card (force=true to re-send even if already sent)
   const sendContactCard = useCallback(
-    async (username: string, profilePictureUrl?: string) => {
+    async (username: string, profilePictureUrl?: string, force: boolean = false) => {
       if (!conversation || !walletAddress) return;
-      if (contactCardSentForPeerRef.current === currentPeerRef.current) {
+      if (!force && contactCardSentForPeerRef.current === currentPeerRef.current) {
         // Already sent contact card to this peer
         return;
       }

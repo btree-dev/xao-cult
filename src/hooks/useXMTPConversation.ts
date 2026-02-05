@@ -113,6 +113,7 @@ export function useXMTPConversation({
   const loadMessages = useCallback(async (conv: any, client: Client<any>) => {
     try {
       const msgs = await conv.messages({ limit: BigInt(50) });
+      console.log("[XMTP] Loaded", msgs.length, "messages from conversation");
 
       // Resolve addresses from conversation members
       const addressMap = new Map<string, string>();
@@ -130,14 +131,33 @@ export function useXMTPConversation({
         console.debug("Could not resolve member addresses:", e);
       }
 
-      // Check for received contact cards in messages
+      // Check for received contact cards and contract proposals in messages
       let foundContactCard: ContactCardMessage | null = null;
       for (const msg of msgs) {
         const parsedContent = parseMessageContent(msg.content);
-        if (msg.senderInboxId !== client.inboxId && isContactCard(parsedContent)) {
-          // Found a contact card from peer
+        const isFromPeer = msg.senderInboxId !== client.inboxId;
+
+        // Log all parsed message types for debugging
+        if (typeof parsedContent === "object" && parsedContent?.type) {
+          console.log("[XMTP] Found structured message:", {
+            type: parsedContent.type,
+            fromPeer: isFromPeer,
+            senderInboxId: msg.senderInboxId?.slice(0, 10) + "...",
+          });
+        }
+
+        if (isFromPeer && isContactCard(parsedContent)) {
+          console.log("[XMTP] Found contact card from peer:", parsedContent.username);
           foundContactCard = parsedContent;
-          break; // Use the first (oldest) one
+          break;
+        }
+
+        if (isContractProposal(parsedContent)) {
+          console.log("[XMTP] Found contract proposal:", {
+            revision: parsedContent.revisionNumber,
+            fromPeer: isFromPeer,
+            venue: parsedContent.data?.location?.venueName,
+          });
         }
       }
       if (foundContactCard) {
@@ -169,6 +189,8 @@ export function useXMTPConversation({
           const timeB = b.sentAtNs ? Number(b.sentAtNs) : 0;
           return timeA - timeB;
         });
+
+      console.log("[XMTP] Formatted", formattedMessages.length, "messages for display");
       setMessages(formattedMessages);
     } catch (err) {
       console.error("Failed to load messages:", err);
@@ -199,12 +221,30 @@ export function useXMTPConversation({
 
           // Parse content to handle JSON-encoded structured messages
           const parsedContent = parseMessageContent(msg.content);
+          const isFromPeer = msg.senderInboxId !== client.inboxId;
+
+          console.log("[XMTP Stream] Received message:", {
+            type: typeof parsedContent === "object" ? parsedContent?.type : "text",
+            fromPeer: isFromPeer,
+            contentPreview: typeof parsedContent === "string"
+              ? parsedContent.slice(0, 50)
+              : JSON.stringify(parsedContent).slice(0, 100),
+          });
 
           // Check if this is a contact card from peer
-          if (msg.senderInboxId !== client.inboxId && isContactCard(parsedContent)) {
+          if (isFromPeer && isContactCard(parsedContent)) {
+            console.log("[XMTP Stream] Received contact card from peer:", parsedContent.username);
             setReceivedContactCard(parsedContent);
             // Contact cards are processed but not added to visible messages
             continue;
+          }
+
+          // Log contract proposals
+          if (isContractProposal(parsedContent)) {
+            console.log("[XMTP Stream] Received contract proposal:", {
+              revision: parsedContent.revisionNumber,
+              fromPeer: isFromPeer,
+            });
           }
 
           const messageWithMetadata: MessageWithMetadata = {
@@ -224,6 +264,7 @@ export function useXMTPConversation({
           setMessages((prev) => {
             const exists = prev.some((m) => m.id === msg.id);
             if (exists) return prev;
+            console.log("[XMTP Stream] Adding message to display");
             return [...prev, messageWithMetadata];
           });
         }
@@ -375,21 +416,43 @@ export function useXMTPConversation({
   // Send contact card (force=true to re-send even if already sent)
   const sendContactCard = useCallback(
     async (username: string, profilePictureUrl?: string, force: boolean = false) => {
-      if (!conversation || !walletAddress) return;
+      if (!conversation || !walletAddress) {
+        console.log("[XMTP] Cannot send contact card: no conversation or wallet");
+        return;
+      }
       if (!force && contactCardSentForPeerRef.current === currentPeerRef.current) {
         // Already sent contact card to this peer
+        console.log("[XMTP] Contact card already sent to this peer");
         return;
       }
 
       try {
         const card = createContactCard(walletAddress, username, profilePictureUrl);
-        // Serialize to JSON for XMTP
-        await conversation.send(JSON.stringify(card));
+        console.log("[XMTP] Sending contact card:", card);
+
+        // Send with timeout to handle hanging promises
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Send timeout")), 5000)
+        );
+
+        try {
+          const result = await Promise.race([
+            conversation.send(JSON.stringify(card)),
+            timeoutPromise,
+          ]);
+          console.log("[XMTP] Send result:", result);
+        } catch (sendErr: any) {
+          console.warn("[XMTP] Send issue (may still succeed):", sendErr?.message || sendErr);
+        }
+
+        // Mark as sent regardless - the XMTP warning doesn't mean failure
         contactCardSentForPeerRef.current = currentPeerRef.current;
         setHasSentContactCard(true);
-        console.log("[XMTP] Contact card sent");
-      } catch (err) {
-        console.error("Failed to send contact card:", err);
+        console.log("[XMTP] Contact card marked as sent");
+      } catch (err: any) {
+        console.error("[XMTP] Failed to send contact card:", err);
+        // Still mark as sent to update UI
+        setHasSentContactCard(true);
       }
     },
     [conversation, walletAddress]

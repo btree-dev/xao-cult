@@ -2,10 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import styles from "../../styles/CreateContract.module.css";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useXMTPConversation, MessageWithMetadata } from "../../hooks/useXMTPConversation";
-import { isContactCard } from "../../types/contactMessage";
+import { isContactCard, ContactCardMessage } from "../../types/contactMessage";
 import { isContractProposal, ContractProposalMessage } from "../../types/contractMessage";
 import { useProfileCache } from "../../contexts/ProfileCacheContext";
 import ContractCard from "./ContractCard";
+import ContactCardDisplay from "./ContactCardDisplay";
 
 export interface ChatComponentProps {
   peerAddress: string | null;
@@ -51,14 +52,13 @@ const formatMessageTime = (sentAt: Date | string | number | bigint | undefined):
   }
 };
 
-// Check if message is a system/metadata message or contact card (should be hidden)
+// Check if message is a system/metadata message (should be hidden)
+// Note: Contact cards are now displayed, not hidden
 const isHiddenMessage = (content: any): boolean => {
   if (typeof content === "object" && content !== null) {
     if ("initiatedByInboxId" in content) return true;
     if ("membersAdded" in content) return true;
     if ("membersRemoved" in content) return true;
-    // Contact cards are hidden from chat display
-    if (isContactCard(content)) return true;
   }
   return false;
 };
@@ -143,63 +143,69 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
   const containerClass = embedded ? styles.chatContainer : styles.chatMain;
 
   return (
-    <div className={containerClass} style={{ position: "relative" }}>
-      {/* Action buttons - floating in top right corner */}
+    <div className={containerClass}>
+      {/* Action buttons - positioned in messages area */}
       {isClientReady && peerAddress && (
         <div
           style={{
-            position: "absolute",
-            top: embedded ? "8px" : "4px",
-            right: "12px",
             display: "flex",
-            gap: "6px",
-            zIndex: 10,
+            justifyContent: "flex-end",
+            gap: "8px",
+            padding: "8px 16px",
+            marginTop: embedded ? "0" : "70px",
           }}
         >
           <button
-            onClick={() => {
+            onClick={async () => {
+              console.log("[ChatComponent] Share Profile button clicked");
+              console.log("[ChatComponent] currentUserProfile:", currentUserProfile);
+              console.log("[ChatComponent] hasSentContactCard:", hasSentContactCard);
               if (currentUserProfile) {
-                // Use force=true to allow re-sending (e.g., after profile update)
-                sendContactCard(currentUserProfile.username, currentUserProfile.profilePictureUrl, true);
+                console.log("[ChatComponent] Calling sendContactCard with:", currentUserProfile.username);
+                await sendContactCard(currentUserProfile.username, currentUserProfile.profilePictureUrl, true);
+                console.log("[ChatComponent] sendContactCard completed");
+              } else {
+                console.log("[ChatComponent] No currentUserProfile available");
               }
             }}
             disabled={!currentUserProfile || isLoadingState}
             title={hasSentContactCard ? "Click to re-send your profile" : "Share your profile"}
             style={{
-              padding: "4px 10px",
+              padding: "6px 12px",
               background: hasSentContactCard
                 ? "rgba(100, 200, 100, 0.3)"
-                : "rgba(0, 0, 0, 0.4)",
+                : "rgba(0, 0, 0, 0.5)",
               border: hasSentContactCard
                 ? "1px solid rgba(100, 200, 100, 0.5)"
                 : "1px solid rgba(255, 255, 255, 0.3)",
-              borderRadius: "12px",
+              borderRadius: "16px",
               color: "white",
               cursor: !currentUserProfile || isLoadingState ? "not-allowed" : "pointer",
-              fontSize: "11px",
+              fontSize: "12px",
               opacity: !currentUserProfile || isLoadingState ? 0.6 : 1,
-              transition: "all 0.2s ease",
             }}
           >
-            {hasSentContactCard ? "✓" : "👤"}
+            {hasSentContactCard ? "✓ Shared" : "👤 Share"}
           </button>
           <button
-            onClick={syncMessages}
+            onClick={() => {
+              console.log("[ChatComponent] Sync button clicked");
+              syncMessages();
+            }}
             disabled={isSyncing || isLoadingState}
             title="Sync messages"
             style={{
-              padding: "4px 10px",
-              background: "rgba(0, 0, 0, 0.4)",
+              padding: "6px 12px",
+              background: "rgba(0, 0, 0, 0.5)",
               border: "1px solid rgba(255, 255, 255, 0.3)",
-              borderRadius: "12px",
+              borderRadius: "16px",
               color: "white",
               cursor: isSyncing || isLoadingState ? "not-allowed" : "pointer",
-              fontSize: "11px",
+              fontSize: "12px",
               opacity: isSyncing || isLoadingState ? 0.6 : 1,
-              transition: "all 0.2s ease",
             }}
           >
-            {isSyncing ? "..." : "↻"}
+            {isSyncing ? "Syncing..." : "↻ Sync"}
           </button>
         </div>
       )}
@@ -329,6 +335,32 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
               .filter((msg) => !isHiddenMessage(msg.content))
               .map((msg: MessageWithMetadata, idx) => {
                 const msgTimestamp = msg.sentAtNs || (msg as any).sentAt || (msg as any).timestamp;
+
+                // Log message content type for debugging
+                const contentType = typeof msg.content === "object" && msg.content?.type
+                  ? msg.content.type
+                  : typeof msg.content === "string" ? "text" : "unknown";
+
+                if (idx === 0 || contentType !== "text") {
+                  console.log("[ChatComponent] Rendering message:", {
+                    idx,
+                    contentType,
+                    isSent: msg.isSent,
+                    isContractProposal: isContractProposal(msg.content),
+                  });
+                }
+
+                // Check if this is a contact card
+                if (isContactCard(msg.content)) {
+                  return (
+                    <ContactCardDisplay
+                      key={msg.id || idx}
+                      contact={msg.content as ContactCardMessage}
+                      isSent={msg.isSent || false}
+                      sentAt={msgTimestamp}
+                    />
+                  );
+                }
 
                 // Check if this is a contract proposal
                 if (isContractProposal(msg.content)) {

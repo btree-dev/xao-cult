@@ -4,7 +4,7 @@ import Layout from "../../components/Layout";
 import styles from "../../styles/CreateContract.module.css";
 import ContractsNav from "../../components/ContractsNav";
 import Image from "next/image";
-import router from "next/router";
+import { useRouter } from "next/router";
 import CreateContractsection from "./create-contract-section";
 import Scrollbar from "../../components/Scrollbar";
 import { ChatComponent } from "../../components/Chat";
@@ -15,6 +15,9 @@ import { useXMTPConversation } from "../../hooks/useXMTPConversation";
 import { ContractProposalMessage } from "../../types/contractMessage";
 
 const CreateContract = () => {
+  const router = useRouter();
+  const { peer: peerParam } = router.query;
+
   const [selected, setSelected] = useState<"chat" | "contract">("contract");
   const [party1, setParty1] = useState("");
   const [party2, setParty2] = useState("");
@@ -28,6 +31,32 @@ const CreateContract = () => {
   const [isSendingProposal, setIsSendingProposal] = useState(false);
 
   const { address, isConnected, chain } = useWeb3();
+
+  // Load proposal from sessionStorage if navigating from Chat page
+  useEffect(() => {
+    // Set party2 from URL param if provided
+    if (peerParam && typeof peerParam === "string" && !party2) {
+      setParty2(peerParam);
+    }
+
+    // Check for stored proposal from Chat page
+    const storedProposal = sessionStorage.getItem("selectedContractProposal");
+    if (storedProposal) {
+      try {
+        const proposal = JSON.parse(storedProposal) as ContractProposalMessage;
+        console.log("[CreateContract] Loaded proposal from sessionStorage:", proposal);
+        setActiveProposal(proposal);
+        setRevisionNumber(proposal.revisionNumber + 1);
+        if (proposal.data.party1 && !party1) setParty1(proposal.data.party1);
+        if (proposal.data.party2 && !party2) setParty2(proposal.data.party2);
+        // Clear the stored proposal after loading
+        sessionStorage.removeItem("selectedContractProposal");
+      } catch (err) {
+        console.error("[CreateContract] Failed to parse stored proposal:", err);
+        sessionStorage.removeItem("selectedContractProposal");
+      }
+    }
+  }, [peerParam, party1, party2]);
   const { mintNFT, isLoading, isSuccess, error } = useMintContractNFT(chain?.id);
 
   // XMTP for sending contract proposals

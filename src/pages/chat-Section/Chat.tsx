@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 import BackNavbar from "../../components/BackNav";
 import Layout from "../../components/Layout";
@@ -6,6 +6,7 @@ import Head from "next/head";
 import styles from "../../styles/CreateContract.module.css";
 import { supabase } from "../../lib/supabase";
 import { ChatComponent } from "../../components/Chat";
+import { ContractProposalMessage } from "../../types/contractMessage";
 
 // Truncate address for display
 const truncateAddress = (address: string | unknown): string => {
@@ -55,6 +56,15 @@ const Chat: React.FC = () => {
     router.push("/chat-Section/Search");
   };
 
+  // Handle contract proposal selection - navigate to create-contract page
+  const handleContractProposalSelect = useCallback((proposal: ContractProposalMessage) => {
+    console.log("[Chat] Contract proposal selected:", proposal);
+    // Store proposal in sessionStorage for the create-contract page to read
+    sessionStorage.setItem("selectedContractProposal", JSON.stringify(proposal));
+    // Navigate to create-contract with peer address
+    router.push(`/contracts/create-contract?peer=${encodeURIComponent(peerAddress || "")}`);
+  }, [router, peerAddress]);
+
   return (
     <Layout>
       <div className={styles.container}>
@@ -70,7 +80,12 @@ const Chat: React.FC = () => {
           onBackClick={handleBack}
         />
 
-        <ChatComponent peerAddress={peerAddress} onBack={handleBack} embedded={false} />
+        <ChatComponent
+          peerAddress={peerAddress}
+          onBack={handleBack}
+          embedded={false}
+          onContractProposalSelect={handleContractProposalSelect}
+        />
       </div>
     </Layout>
   );

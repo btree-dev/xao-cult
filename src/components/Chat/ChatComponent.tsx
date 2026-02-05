@@ -143,16 +143,17 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
   const containerClass = embedded ? styles.chatContainer : styles.chatMain;
 
   return (
-    <div className={containerClass}>
-      {/* Action buttons header (sync + share profile) */}
+    <div className={containerClass} style={{ position: "relative" }}>
+      {/* Action buttons - floating in top right corner */}
       {isClientReady && peerAddress && (
         <div
           style={{
+            position: "absolute",
+            top: embedded ? "8px" : "4px",
+            right: "12px",
             display: "flex",
-            justifyContent: "flex-end",
-            gap: "8px",
-            padding: "8px 20px",
-            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+            gap: "6px",
+            zIndex: 10,
           }}
         >
           <button
@@ -165,39 +166,40 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
             disabled={!currentUserProfile || isLoadingState}
             title={hasSentContactCard ? "Click to re-send your profile" : "Share your profile"}
             style={{
-              padding: "6px 14px",
+              padding: "4px 10px",
               background: hasSentContactCard
-                ? "rgba(100, 200, 100, 0.2)"
-                : "rgba(255, 255, 255, 0.1)",
+                ? "rgba(100, 200, 100, 0.3)"
+                : "rgba(0, 0, 0, 0.4)",
               border: hasSentContactCard
-                ? "1px solid rgba(100, 200, 100, 0.4)"
-                : "1px solid rgba(255, 255, 255, 0.2)",
-              borderRadius: "16px",
+                ? "1px solid rgba(100, 200, 100, 0.5)"
+                : "1px solid rgba(255, 255, 255, 0.3)",
+              borderRadius: "12px",
               color: "white",
               cursor: !currentUserProfile || isLoadingState ? "not-allowed" : "pointer",
-              fontSize: "12px",
+              fontSize: "11px",
               opacity: !currentUserProfile || isLoadingState ? 0.6 : 1,
               transition: "all 0.2s ease",
             }}
           >
-            {hasSentContactCard ? "✓ Share Again" : "👤 Share Profile"}
+            {hasSentContactCard ? "✓" : "👤"}
           </button>
           <button
             onClick={syncMessages}
             disabled={isSyncing || isLoadingState}
+            title="Sync messages"
             style={{
-              padding: "6px 14px",
-              background: "rgba(255, 255, 255, 0.1)",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-              borderRadius: "16px",
+              padding: "4px 10px",
+              background: "rgba(0, 0, 0, 0.4)",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
+              borderRadius: "12px",
               color: "white",
               cursor: isSyncing || isLoadingState ? "not-allowed" : "pointer",
-              fontSize: "12px",
+              fontSize: "11px",
               opacity: isSyncing || isLoadingState ? 0.6 : 1,
               transition: "all 0.2s ease",
             }}
           >
-            {isSyncing ? "Syncing..." : "↻ Sync"}
+            {isSyncing ? "..." : "↻"}
           </button>
         </div>
       )}
@@ -337,7 +339,15 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
                       isSent={msg.isSent || false}
                       senderName={msg.isSent ? "You" : msg.senderName}
                       sentAt={msgTimestamp}
-                      onViewEdit={() => onContractProposalSelect?.(msg.content)}
+                      onViewEdit={() => {
+                        console.log("[ChatComponent] onViewEdit called, onContractProposalSelect:", typeof onContractProposalSelect);
+                        if (onContractProposalSelect) {
+                          console.log("[ChatComponent] Calling onContractProposalSelect with proposal:", msg.content);
+                          onContractProposalSelect(msg.content);
+                        } else {
+                          console.log("[ChatComponent] WARNING: onContractProposalSelect is not provided!");
+                        }
+                      }}
                     />
                   );
                 }

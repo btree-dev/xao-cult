@@ -140,7 +140,17 @@ const ContractCard: React.FC<ContractCardProps> = ({
       </div>
 
       {/* View/Edit Button */}
-      <button className={buttonClass} onClick={(e) => { e.stopPropagation(); onViewEdit?.(); }}>
+      <button className={buttonClass} onClick={(e) => {
+        e.stopPropagation();
+        console.log("[ContractCard] View/Edit button clicked, onViewEdit:", typeof onViewEdit);
+        if (onViewEdit) {
+          console.log("[ContractCard] Calling onViewEdit...");
+          onViewEdit();
+          console.log("[ContractCard] onViewEdit called successfully");
+        } else {
+          console.log("[ContractCard] WARNING: onViewEdit is undefined!");
+        }
+      }}>
         <svg
           className={styles.viewButtonIcon}
           viewBox="0 0 24 24"

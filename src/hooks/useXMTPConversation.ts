@@ -30,7 +30,7 @@ export interface UseXMTPConversationResult {
   isSyncing: boolean;
   error: string | null;
   sendMessage: (content: string | object) => Promise<void>;
-  sendContactCard: (username: string, profilePictureUrl?: string) => Promise<void>;
+  sendContactCard: (username: string, profilePictureUrl?: string, force?: boolean) => Promise<void>;
   sendContractProposal: (
     contractData: Partial<IContract>,
     revisionNumber?: number

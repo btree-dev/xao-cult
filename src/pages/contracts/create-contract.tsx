@@ -7,7 +7,7 @@ import Image from "next/image";
 import router from "next/router";
 import CreateContractsection from "./create-contract-section";
 import Scrollbar from "../../components/Scrollbar";
-import ContractChat from "./ContractChat";
+import { ChatComponent } from "../../components/Chat";
 import { useMintContractNFT } from "../../hooks/useMintContractNFT";
 import { useWeb3 } from "../../hooks/useWeb3";
 import { buildMintArgsFromTerms, validateBaseChain } from "../../backend/contracts";
@@ -111,7 +111,10 @@ const CreateContract = () => {
           </div>
           <div className={styles.content}>
             {selected === "chat" ? (
-              <ContractChat />
+              <ChatComponent
+                peerAddress={party2 || null}
+                embedded={true}
+              />
             ) : (
               <>
                 <div className={styles.docContainer}>

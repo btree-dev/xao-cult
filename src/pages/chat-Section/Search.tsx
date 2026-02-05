@@ -187,34 +187,36 @@ export default function Search() {
   }, [xmtpClient]);
 
   // Load events when token IDs are available
+  // Load events when token IDs are available
   useEffect(() => {
-    const loadEvents = async () => {
-      if (!tokenIds || tokenIds.length === 0) {
+    // Only process if we have token IDs
+    if (!tokenIds || tokenIds.length === 0) {
+      // Only clear if we have events to clear
+      if (events.length > 0) {
         setEvents([]);
-        return;
       }
+      return;
+    }
 
-      setIsLoadingEvents(true);
+    setIsLoadingEvents(true);
 
-      // For now, we'll just create event previews from token IDs
-      // In a real implementation, you'd fetch event contract data for each token
-      const eventPreviews: EventPreview[] = tokenIds.map((tokenId, index) => ({
-        id: `event-${tokenId.toString()}`,
-        type: "event" as const,
-        tokenId,
-        party1: address || "",
-        party2: "",
-        terms: `Event #${tokenId.toString()}`,
-        createdAt: new Date(),
-        isSigned: false,
-      }));
+    // For now, we'll just create event previews from token IDs
+    // In a real implementation, you'd fetch event contract data for each token
+    const eventPreviews: EventPreview[] = tokenIds.map((tokenId) => ({
+      id: `event-${tokenId.toString()}`,
+      type: "event" as const,
+      tokenId,
+      party1: address || "",
+      party2: "",
+      terms: `Event #${tokenId.toString()}`,
+      createdAt: new Date(),
+      isSigned: false,
+    }));
 
-      setEvents(eventPreviews);
-      setIsLoadingEvents(false);
-    };
-
-    loadEvents();
-  }, [tokenIds, address]);
+    setEvents(eventPreviews);
+    setIsLoadingEvents(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokenIds?.length, address]);
 
   // Filter items based on search query and active tab
   // Check if search query is a valid wallet address

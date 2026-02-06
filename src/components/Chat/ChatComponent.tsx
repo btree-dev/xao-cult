@@ -317,20 +317,6 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
               .map((msg: MessageWithMetadata, idx) => {
                 const msgTimestamp = msg.sentAtNs || (msg as any).sentAt || (msg as any).timestamp;
 
-                // Log message content type for debugging
-                const contentType = typeof msg.content === "object" && msg.content?.type
-                  ? msg.content.type
-                  : typeof msg.content === "string" ? "text" : "unknown";
-
-                if (idx === 0 || contentType !== "text") {
-                  console.log("[ChatComponent] Rendering message:", {
-                    idx,
-                    contentType,
-                    isSent: msg.isSent,
-                    isContractProposal: isContractProposal(msg.content),
-                  });
-                }
-
                 // Check if this is a contract proposal
                 if (isContractProposal(msg.content)) {
                   return (
@@ -341,12 +327,8 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
                       senderName={msg.isSent ? "You" : msg.senderName}
                       sentAt={msgTimestamp}
                       onViewEdit={() => {
-                        console.log("[ChatComponent] onViewEdit called, onContractProposalSelect:", typeof onContractProposalSelect);
                         if (onContractProposalSelect) {
-                          console.log("[ChatComponent] Calling onContractProposalSelect with proposal:", msg.content);
                           onContractProposalSelect(msg.content);
-                        } else {
-                          console.log("[ChatComponent] WARNING: onContractProposalSelect is not provided!");
                         }
                       }}
                     />

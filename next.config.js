@@ -1,8 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  webpack: (config) => {
+  webpack: (config, { isServer, dev }) => {
     config.externals.push('pino-pretty', 'lokijs', 'encoding');
+
+    // Enable WebAssembly support (required for @xmtp/wasm-bindings)
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+
+    // Fix WASM file path for production builds on Vercel
+    config.output.webassemblyModuleFilename =
+      isServer && !dev
+        ? "../static/wasm/[modulehash].wasm"
+        : "static/wasm/[modulehash].wasm";
+
     return config;
   },
   images: {

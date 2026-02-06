@@ -13,6 +13,8 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useGetUserNFTs } from "../../hooks/useContractNFT";
 import { useXMTPClient } from "../../contexts/XMTPContext";
 import { useProfileCache, CachedProfile } from "../../contexts/ProfileCacheContext";
+import { isContactCard } from "../../types/contactMessage";
+import { isContractProposal } from "../../types/contractMessage";
 import type { ConsentState } from "@xmtp/browser-sdk";
 
 interface ConversationPreview {
@@ -135,13 +137,41 @@ export default function Search() {
             let lastMessageTime: Date | undefined;
 
             try {
-              const msgs = await convo.messages({ limit: BigInt(5) });
-              for (const msg of msgs) {
+              await convo.sync();
+              const msgs = await convo.messages({ limit: BigInt(100) });
+              // Iterate newest first to find the latest visible message
+              for (let i = msgs.length - 1; i >= 0; i--) {
+                const msg = msgs[i];
+                // Skip system messages
                 if (typeof msg.content === "object" && msg.content !== null) {
                   if ("initiatedByInboxId" in msg.content) continue;
                   if ("membersAdded" in msg.content) continue;
                   if ("membersRemoved" in msg.content) continue;
                 }
+
+                // Try to parse JSON strings (contact cards, contract proposals)
+                let parsed = msg.content;
+                if (typeof parsed === "string") {
+                  try {
+                    const json = JSON.parse(parsed);
+                    if (json && typeof json === "object" && json.type) {
+                      parsed = json;
+                    }
+                  } catch {
+                    // Not JSON, keep as string
+                  }
+                }
+
+                // Skip contact cards
+                if (isContactCard(parsed)) continue;
+
+                // Show indicator for contract proposals
+                if (isContractProposal(parsed)) {
+                  lastMessage = "📋 Contract proposal received";
+                  lastMessageTime = msg.sentAtNs ? new Date(Number(msg.sentAtNs) / 1000000) : undefined;
+                  break;
+                }
+
                 if (typeof msg.content === "string") {
                   lastMessage = msg.content;
                 } else if (msg.content?.text) {

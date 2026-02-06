@@ -356,7 +356,12 @@ export function useXMTPConversation({
           streamAbortRef.current.abort();
         }
 
-        // Load messages and start streaming
+        // Sync conversation to get latest messages, then load
+        try {
+          await conv.sync();
+        } catch (e) {
+          console.debug("[XMTP] Conversation sync skipped:", e);
+        }
         await loadMessages(conv, client);
 
         streamAbortRef.current = new AbortController();

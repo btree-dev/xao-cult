@@ -131,37 +131,27 @@ export function useXMTPConversation({
         console.debug("Could not resolve member addresses:", e);
       }
 
-      // Check for received contact cards and contract proposals in messages
+      // Check for contact cards and contract proposals in messages
       let foundContactCard: ContactCardMessage | null = null;
+      let alreadySentOwnCard = false;
       for (const msg of msgs) {
         const parsedContent = parseMessageContent(msg.content);
         const isFromPeer = msg.senderInboxId !== client.inboxId;
 
-        // Log all parsed message types for debugging
-        if (typeof parsedContent === "object" && parsedContent?.type) {
-          console.log("[XMTP] Found structured message:", {
-            type: parsedContent.type,
-            fromPeer: isFromPeer,
-            senderInboxId: msg.senderInboxId?.slice(0, 10) + "...",
-          });
-        }
-
-        if (isFromPeer && isContactCard(parsedContent)) {
-          console.log("[XMTP] Found contact card from peer:", parsedContent.username);
+        if (isFromPeer && isContactCard(parsedContent) && !foundContactCard) {
           foundContactCard = parsedContent;
-          break;
         }
 
-        if (isContractProposal(parsedContent)) {
-          console.log("[XMTP] Found contract proposal:", {
-            revision: parsedContent.revisionNumber,
-            fromPeer: isFromPeer,
-            venue: parsedContent.data?.location?.venueName,
-          });
+        if (!isFromPeer && isContactCard(parsedContent)) {
+          alreadySentOwnCard = true;
         }
       }
       if (foundContactCard) {
         setReceivedContactCard(foundContactCard);
+      }
+      if (alreadySentOwnCard) {
+        contactCardSentForPeerRef.current = currentPeerRef.current;
+        setHasSentContactCard(true);
       }
 
       const formattedMessages = msgs

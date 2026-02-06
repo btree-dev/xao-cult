@@ -94,13 +94,6 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
   // Profile cache for contact cards
   const { currentUserProfile, setProfile } = useProfileCache();
 
-  // Send contact card when conversation is ready and we have a profile
-  useEffect(() => {
-    if (conversation && currentUserProfile && peerAddress) {
-      sendContactCard(currentUserProfile.username, currentUserProfile.profilePictureUrl);
-    }
-  }, [conversation, currentUserProfile, peerAddress, sendContactCard]);
-
   // Save received contact card to profile cache
   useEffect(() => {
     if (receivedContactCard) {
@@ -157,15 +150,8 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
         >
           <button
             onClick={async () => {
-              console.log("[ChatComponent] Share Profile button clicked");
-              console.log("[ChatComponent] currentUserProfile:", currentUserProfile);
-              console.log("[ChatComponent] hasSentContactCard:", hasSentContactCard);
               if (currentUserProfile) {
-                console.log("[ChatComponent] Calling sendContactCard with:", currentUserProfile.username);
                 await sendContactCard(currentUserProfile.username, currentUserProfile.profilePictureUrl, true);
-                console.log("[ChatComponent] sendContactCard completed");
-              } else {
-                console.log("[ChatComponent] No currentUserProfile available");
               }
             }}
             disabled={!currentUserProfile || isLoadingState}
@@ -188,10 +174,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
             {hasSentContactCard ? "✓ Shared" : "👤 Share"}
           </button>
           <button
-            onClick={() => {
-              console.log("[ChatComponent] Sync button clicked");
-              syncMessages();
-            }}
+            onClick={() => syncMessages()}
             disabled={isSyncing || isLoadingState}
             title="Sync messages"
             style={{

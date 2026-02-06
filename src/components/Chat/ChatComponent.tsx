@@ -90,7 +90,12 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
   } = useXMTPConversation({ peerAddress });
 
   // Profile cache for contact cards
-  const { currentUserProfile, setProfile } = useProfileCache();
+  const { currentUserProfile, setProfile, getProfile } = useProfileCache();
+
+  // Get peer display name from profile cache
+  const peerDisplayName = peerAddress
+    ? getProfile(peerAddress)?.username || undefined
+    : undefined;
 
   // Save received contact card to profile cache
   useEffect(() => {
@@ -324,7 +329,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
                       key={msg.id || idx}
                       proposal={msg.content}
                       isSent={msg.isSent || false}
-                      senderName={msg.isSent ? "You" : msg.senderName}
+                      senderName={msg.isSent ? "You" : (peerDisplayName || msg.senderName)}
                       sentAt={msgTimestamp}
                       onViewEdit={() => {
                         if (onContractProposalSelect) {
@@ -364,7 +369,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
                         alignItems: "center",
                       }}
                     >
-                      <span>{msg.isSent ? "You" : msg.senderName}</span>
+                      <span>{msg.isSent ? "You" : (peerDisplayName || msg.senderName)}</span>
                       <span style={{ fontSize: "10px", opacity: 0.6, marginLeft: "8px" }}>
                         {msgTimestamp ? formatMessageTime(msgTimestamp) : ""}
                       </span>

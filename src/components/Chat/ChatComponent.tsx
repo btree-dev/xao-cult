@@ -2,11 +2,10 @@ import React, { useEffect, useRef, useState } from "react";
 import styles from "../../styles/CreateContract.module.css";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useXMTPConversation, MessageWithMetadata } from "../../hooks/useXMTPConversation";
-import { isContactCard, ContactCardMessage } from "../../types/contactMessage";
+import { isContactCard } from "../../types/contactMessage";
 import { isContractProposal, ContractProposalMessage } from "../../types/contractMessage";
 import { useProfileCache } from "../../contexts/ProfileCacheContext";
 import ContractCard from "./ContractCard";
-import ContactCardDisplay from "./ContactCardDisplay";
 
 export interface ChatComponentProps {
   peerAddress: string | null;
@@ -53,7 +52,6 @@ const formatMessageTime = (sentAt: Date | string | number | bigint | undefined):
 };
 
 // Check if message is a system/metadata message (should be hidden)
-// Note: Contact cards are now displayed, not hidden
 const isHiddenMessage = (content: any): boolean => {
   if (typeof content === "object" && content !== null) {
     if ("initiatedByInboxId" in content) return true;
@@ -315,7 +313,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
             )}
 
             {messages
-              .filter((msg) => !isHiddenMessage(msg.content))
+              .filter((msg) => !isHiddenMessage(msg.content) && !isContactCard(msg.content))
               .map((msg: MessageWithMetadata, idx) => {
                 const msgTimestamp = msg.sentAtNs || (msg as any).sentAt || (msg as any).timestamp;
 
@@ -331,18 +329,6 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
                     isSent: msg.isSent,
                     isContractProposal: isContractProposal(msg.content),
                   });
-                }
-
-                // Check if this is a contact card
-                if (isContactCard(msg.content)) {
-                  return (
-                    <ContactCardDisplay
-                      key={msg.id || idx}
-                      contact={msg.content as ContactCardMessage}
-                      isSent={msg.isSent || false}
-                      sentAt={msgTimestamp}
-                    />
-                  );
                 }
 
                 // Check if this is a contract proposal

@@ -8,7 +8,7 @@ import BackNavbar from "../../components/BackNav";
 import Scrollbar from "../../components/Scrollbar";
 import Image from "next/image";
 import { useState, useEffect, useMemo } from "react";
-import { useAccount, useChainId } from "wagmi";
+import { useAccount, useChainId, useDisconnect } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useGetUserNFTs } from "../../hooks/useContractNFT";
 import { useXMTPClient } from "../../contexts/XMTPContext";
@@ -41,6 +41,7 @@ type ListItem = ConversationPreview | EventPreview;
 export default function Search() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
+  const { disconnect } = useDisconnect();
   const chainId = useChainId();
   const [searchQuery, setSearchQuery] = useState("");
   const [conversations, setConversations] = useState<ConversationPreview[]>([]);
@@ -105,6 +106,14 @@ export default function Search() {
       return date.toLocaleDateString([], { month: "short", day: "numeric" });
     }
   };
+
+  // Clear conversations when wallet disconnects
+  useEffect(() => {
+    if (!isConnected) {
+      setConversations([]);
+      setEvents([]);
+    }
+  }, [isConnected]);
 
   // Load conversations when XMTP client is ready
   useEffect(() => {
@@ -317,6 +326,55 @@ export default function Search() {
         />
         <Scrollbar />
         <main className={docStyles.searchContainer}>
+          {/* Wallet Info & Disconnect */}
+          {isConnected && address && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "12px 16px",
+              marginBottom: "16px",
+              background: "rgba(0, 0, 0, 0.3)",
+              borderRadius: "16px",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "white",
+                  fontWeight: "bold",
+                  fontSize: "12px",
+                }}>
+                  {address.slice(2, 4).toUpperCase()}
+                </div>
+                <span style={{ color: "white", fontSize: "14px" }}>
+                  {truncateAddress(address)}
+                </span>
+              </div>
+              <button
+                onClick={() => disconnect()}
+                style={{
+                  padding: "6px 14px",
+                  background: "rgba(255, 107, 107, 0.2)",
+                  border: "1px solid rgba(255, 107, 107, 0.4)",
+                  borderRadius: "12px",
+                  color: "#FF6B6B",
+                  fontSize: "12px",
+                  cursor: "pointer",
+                  fontWeight: "500",
+                }}
+              >
+                Disconnect
+              </button>
+            </div>
+          )}
+
           {/* Search Bar */}
           <div className={docStyles.searchBarContainer}>
             <Image

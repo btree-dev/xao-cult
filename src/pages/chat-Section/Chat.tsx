@@ -7,6 +7,7 @@ import styles from "../../styles/CreateContract.module.css";
 import { supabase } from "../../lib/supabase";
 import { ChatComponent } from "../../components/Chat";
 import { ContractProposalMessage } from "../../types/contractMessage";
+import { useProfileCache } from "../../contexts/ProfileCacheContext";
 
 // Truncate address for display
 const truncateAddress = (address: string | unknown): string => {
@@ -24,6 +25,11 @@ const Chat: React.FC = () => {
 
   // Get peer address from URL
   const peerAddress = peerParam ? decodeURIComponent(String(peerParam)) : null;
+
+  // Get peer's display name from profile cache (updated when contact card received)
+  const { getProfile } = useProfileCache();
+  const peerProfile = peerAddress ? getProfile(peerAddress) : null;
+  const peerDisplayName = peerProfile?.username || (peerAddress ? truncateAddress(peerAddress) : userName);
 
   // Get user profile for navbar
   useEffect(() => {
@@ -75,8 +81,8 @@ const Chat: React.FC = () => {
           <link rel="icon" href="/favicon.ico" />
         </Head>
         <BackNavbar
-          userName={peerAddress ? truncateAddress(peerAddress) : userName}
-          userImage={userImage}
+          userName={peerDisplayName}
+          userImage={peerProfile?.profilePictureUrl || userImage}
           onBackClick={handleBack}
         />
 

@@ -130,79 +130,25 @@ export function XMTPProvider({ children }: XMTPProviderProps) {
       currentAddressRef.current = normalizedAddress;
 
       try {
-        const identifier: Identifier = {
-          identifier: normalizedAddress,
-          identifierKind: "Ethereum",
-        };
+        // Always use Client.create() which provides a signer for registration.
+        // It restores from local DB if it exists, and auto-registers if needed.
+        console.log("[XMTP] Creating/restoring client...");
+        const signer = createSigner();
+        signerRef.current = signer;
 
-        let xmtpClient: Client<any> | null = null;
+        const xmtpClient = await Client.create(signer, {
+          env: "dev",
+          appVersion: "xao-cult/1.0.0",
+        });
+        console.log("[XMTP] Client ready, inboxId:", xmtpClient.inboxId);
 
-        // Try to restore existing client from database
+        // Sync to get latest data
         try {
-          console.log("[XMTP] Attempting to restore client...");
-          const builtClient = await Client.build(identifier, {
-            env: "dev",
-            appVersion: "xao-cult/1.0.0",
-          });
-
-          if (builtClient.inboxId) {
-            console.log("[XMTP] Client.build() succeeded, inboxId:", builtClient.inboxId);
-
-            // Try to sync - if it fails, the identity may need registration
-            try {
-              await builtClient.preferences.sync();
-              await builtClient.conversations.syncAll(["allowed", "unknown"] as unknown as ConsentState[]);
-              xmtpClient = builtClient;
-              console.log("[XMTP] Client restored and synced successfully");
-            } catch (syncErr: any) {
-              console.log("[XMTP] Sync failed:", syncErr.message);
-
-              // Try to register identity if sync failed due to uninitialized identity
-              if (syncErr.message?.includes("Uninitialized") || syncErr.message?.includes("identity")) {
-                console.log("[XMTP] Attempting to register identity...");
-                try {
-                  const signatureRequest = (builtClient as any).createInboxSignatureRequest?.();
-                  if (signatureRequest) {
-                    const signer = createSigner();
-                    signerRef.current = signer;
-                    await (builtClient as any).registerIdentity(signer, signatureRequest);
-                    console.log("[XMTP] Identity registered, retrying sync...");
-
-                    // Retry sync after registration
-                    await builtClient.preferences.sync();
-                    await builtClient.conversations.syncAll(["allowed", "unknown"] as unknown as ConsentState[]);
-                    xmtpClient = builtClient;
-                    console.log("[XMTP] Client restored after registration");
-                  }
-                } catch (regErr: any) {
-                  console.log("[XMTP] Registration failed:", regErr.message);
-                }
-              }
-            }
-          }
-        } catch (buildErr: any) {
-          console.log("[XMTP] Client.build() failed:", buildErr.message);
-        }
-
-        // Create new client if build/restore failed
-        if (!xmtpClient) {
-          console.log("[XMTP] Creating new client (signature required)...");
-          const signer = createSigner();
-          signerRef.current = signer;
-
-          xmtpClient = await Client.create(signer, {
-            env: "dev",
-            appVersion: "xao-cult/1.0.0",
-          });
-          console.log("[XMTP] Client created, inboxId:", xmtpClient.inboxId);
-
-          // Sync to get latest data
-          try {
-            await xmtpClient.preferences.sync();
-            await xmtpClient.conversations.syncAll(["allowed", "unknown"] as unknown as ConsentState[]);
-          } catch (syncErr) {
-            // Non-critical - may fail if no data exists yet
-          }
+          await xmtpClient.preferences.sync();
+          await xmtpClient.conversations.syncAll(["allowed", "unknown"] as unknown as ConsentState[]);
+          console.log("[XMTP] Synced successfully");
+        } catch (syncErr) {
+          console.log("[XMTP] Initial sync skipped (may be new identity)");
         }
 
         // Revoke old installations if requested

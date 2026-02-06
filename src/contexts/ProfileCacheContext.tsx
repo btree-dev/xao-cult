@@ -87,10 +87,7 @@ export function ProfileCacheProvider({ children }: ProfileCacheProviderProps) {
   // Fetch current user's profile from Supabase when wallet connects
   useEffect(() => {
     const fetchCurrentUserProfile = async () => {
-      console.log("[ProfileCache] fetchCurrentUserProfile called, isConnected:", isConnected, "address:", address);
-
       if (!isConnected || !address) {
-        console.log("[ProfileCache] Not connected or no address, clearing profile");
         setCurrentUserProfile(null);
         return;
       }
@@ -98,18 +95,13 @@ export function ProfileCacheProvider({ children }: ProfileCacheProviderProps) {
       setIsLoadingCurrentUser(true);
 
       try {
-        // First, get the current Supabase auth user
-        console.log("[ProfileCache] Calling supabase.auth.getUser()...");
         const { data: authData, error: authError } = await supabase.auth.getUser();
-
-        console.log("[ProfileCache] Auth result - user:", authData?.user?.id, "email:", authData?.user?.email, "error:", authError);
 
         if (authError) {
           console.error("[ProfileCache] Auth error:", authError);
         }
 
         if (!authData?.user) {
-          console.log("[ProfileCache] No Supabase auth user found, using wallet address fallback");
           setCurrentUserProfile({
             username: `User-${address.slice(2, 8)}`,
             profilePictureUrl: undefined,
@@ -119,33 +111,27 @@ export function ProfileCacheProvider({ children }: ProfileCacheProviderProps) {
         }
 
         const user = authData.user;
-        console.log("[ProfileCache] Supabase user found, id:", user.id, "querying profiles table...");
 
-        // Query profiles table by user ID (same as dashboard - using select('*'))
+        // Query profiles table by user ID
         const { data, error } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", user.id)
           .single();
 
-        console.log("[ProfileCache] Profile query result - data:", data, "error:", error);
-
         if (error) {
-          console.error("[ProfileCache] Error fetching profile - code:", error.code, "message:", error.message, "details:", error.details, "hint:", error.hint);
+          console.error("[ProfileCache] Error fetching profile:", error.message);
           if (error.code !== "PGRST116") {
             // PGRST116 = no rows found, other errors are real errors
           }
         }
 
         if (data) {
-          console.log("[ProfileCache] ✓ Found user profile! username:", data.username, "picture:", data.profile_picture_url);
           setCurrentUserProfile({
             username: data.username || `User-${address.slice(2, 8)}`,
             profilePictureUrl: data.profile_picture_url,
           });
         } else {
-          // No profile found, use default
-          console.log("[ProfileCache] No profile row found for user id:", user.id, "using fallback");
           setCurrentUserProfile({
             username: `User-${address.slice(2, 8)}`,
             profilePictureUrl: undefined,

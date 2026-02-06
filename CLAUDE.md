@@ -32,10 +32,18 @@ The chat/messaging feature (powered by XMTP) allows these parties to negotiate e
 
 ## Essential Commands
 
+**IMPORTANT: Before running `yarn dev`, `yarn build`, or `yarn start`, always check if a dev server is already running:**
+```bash
+# Check if dev server is already running
+pgrep -af "next dev|yarn dev" || echo "No dev server running"
+```
+
+If a dev server is already running, you don't need to start another one. The app will hot-reload on file changes.
+
 ```bash
 # Development
 yarn dev              # Start Next.js dev server (localhost:3000)
-yarn build            # Production build
+yarn build            # Production build (will fail if dev server is using the port)
 yarn start            # Start production server
 
 # Smart Contracts (Hardhat)

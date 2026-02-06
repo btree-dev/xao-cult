@@ -353,8 +353,8 @@ export function useXMTPConversation({
             throw new Error("This address hasn't enabled XMTP messaging yet.");
           }
 
-          // Create new DM (newDm expects a string address)
-          conv = await client.conversations.newDm(normalizedPeer as any);
+          // Create new DM using identifier (address + kind)
+          conv = await (client.conversations as any).newDmWithIdentifier(peerIdentifier);
           console.log("[useXMTPConversation] New conversation created");
         }
 

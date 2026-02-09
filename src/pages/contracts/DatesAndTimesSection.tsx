@@ -40,6 +40,12 @@ export interface DatesAndTimesProps {
   doorsInputRef: React.RefObject<HTMLInputElement | null>;
   setTimeInputRef: React.RefObject<HTMLInputElement | null>;
   setLengthInputRef: React.RefObject<HTMLInputElement | null>;
+  announcementDate: string;
+  setAnnouncementDate: (v: string) => void;
+  showDate: string;
+  setShowDate: (v: string) => void;
+  eventEndDate: string;
+  setEventEndDate: (v: string) => void;
 }
 
 const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
@@ -69,6 +75,12 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
   doorsInputRef,
   setTimeInputRef,
   setLengthInputRef,
+  announcementDate,
+  setAnnouncementDate,
+  showDate,
+  setShowDate,
+  eventEndDate,
+  setEventEndDate,
 }) => (
   <div className={`${styles.docContainer} ${isOpen ? styles.open : styles.closed}`}>
     <div
@@ -102,7 +114,7 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
             <button type="button" className={styles.contracticon} onClick={() => dateInputRef.current?.showPicker?.()}>
                 <Image src="/contracts-Icons/Calendar.svg" alt="Calendar" width={24} height={24} />
             </button>
-            <input type="datetime-local" placeholder="Event Announcement" ref={dateInputRef} onClick={() => dateInputRef.current?.showPicker?.()} className={styles.input} required />
+            <input type="datetime-local" placeholder="Event Announcement" ref={dateInputRef} value={announcementDate} onChange={e => setAnnouncementDate(e.target.value)} onClick={() => dateInputRef.current?.showPicker?.()} className={styles.input} required />
             </div>
         </div>
         <div className={styles.ticketInputWrapper}>
@@ -111,7 +123,7 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
             <button type="button" className={styles.contracticon} onClick={() => showDateInputRef.current?.showPicker?.()}>
                 <Image src="/contracts-Icons/Calendar.svg" alt="Calendar" width={24} height={24} />
             </button>
-            <input type="datetime-local" placeholder="Event Start Date" ref={showDateInputRef} onClick={() => showDateInputRef.current?.showPicker?.()} className={styles.input} required />
+            <input type="datetime-local" placeholder="Event Start Date" ref={showDateInputRef} value={showDate} onChange={e => setShowDate(e.target.value)} onClick={() => showDateInputRef.current?.showPicker?.()} className={styles.input} required />
             </div>
         </div>
         <div className={styles.ticketInputWrapper}>
@@ -120,7 +132,7 @@ const DatesAndTimesSection: React.FC<DatesAndTimesProps> = ({
             <button type="button" className={styles.contracticon} onClick={() => eventEndDateInputRef.current?.showPicker?.()}>
                 <Image src="/contracts-Icons/Calendar.svg" alt="Calendar" width={24} height={24} />
             </button>
-            <input type="datetime-local" placeholder="Event End Date" ref={eventEndDateInputRef} onClick={() => eventEndDateInputRef.current?.showPicker?.()} className={styles.input} required />
+            <input type="datetime-local" placeholder="Event End Date" ref={eventEndDateInputRef} value={eventEndDate} onChange={e => setEventEndDate(e.target.value)} onClick={() => eventEndDateInputRef.current?.showPicker?.()} className={styles.input} required />
             </div>
         </div>
         <div className={styles.contractRow}>

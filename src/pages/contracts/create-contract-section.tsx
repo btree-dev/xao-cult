@@ -28,6 +28,8 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
   const [setLength, setSetLength] = useState("");
   const [ticketsSale, setTicketsSale] = useState("");
   const [showDate, setShowDate] = useState("");
+  const [announcementDate, setAnnouncementDate] = useState("");
+  const [eventEndDate, setEventEndDate] = useState("");
   const [LegalAgreementValue, setLegalAgreementValue] = useState("");
   const [isDatesTimeOpen, setIsDatesTimeOpen] = useState(false);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
@@ -250,6 +252,8 @@ const updateRiderRow = (index: number, value: string) => {
       if (data.datesAndTimes.setLength) setSetLength(data.datesAndTimes.setLength);
       if (data.datesAndTimes.ticketsSale) setTicketsSale(data.datesAndTimes.ticketsSale);
       if (data.datesAndTimes.showDate) setShowDate(data.datesAndTimes.showDate);
+      if (data.datesAndTimes.announcementDate) setAnnouncementDate(data.datesAndTimes.announcementDate);
+      if (data.datesAndTimes.eventEndDate) setEventEndDate(data.datesAndTimes.eventEndDate);
       // Auto-expand section if it has data
       if (Object.values(data.datesAndTimes).some(v => v)) setIsDatesTimeOpen(true);
     }
@@ -268,6 +272,8 @@ const updateRiderRow = (index: number, value: string) => {
       if (data.tickets.ticketRows && data.tickets.ticketRows.length > 0) {
         setTicketRows(data.tickets.ticketRows);
       }
+      if (data.tickets.totalCapacity) setTotalCapacity(data.tickets.totalCapacity);
+      if (data.tickets.comps) setComps(data.tickets.comps);
       if (data.tickets.resale) {
         if (data.tickets.resale.party1) setResaleParty1(data.tickets.resale.party1);
         if (data.tickets.resale.party2) setResaleParty2(data.tickets.resale.party2);
@@ -318,6 +324,12 @@ const updateRiderRow = (index: number, value: string) => {
       setLegalAgreementValue(data.legalAgreement);
       setIsLegalAgreementOpen(true);
     }
+
+    // Ticket Legal Language
+    if (data.ticketLegalLanguage) {
+      setTicketLegalLanguageValue(data.ticketLegalLanguage);
+      setIsTicketLegalLanguageOpen(true);
+    }
   }, [props.initialData]);
 
   const [promotionGenres, setPromotionGenres] = useState<string[]>([]);
@@ -359,6 +371,8 @@ const updateRiderRow = (index: number, value: string) => {
       setLength,
       ticketsSale,
       showDate,
+      announcementDate,
+      eventEndDate,
     },
     location: {
       venueName,
@@ -368,6 +382,8 @@ const updateRiderRow = (index: number, value: string) => {
     },
     tickets: {
       ticketRows,
+      totalCapacity,
+      comps,
       resale: {
         party1: resaleParty1,
         party2: resaleParty2,
@@ -400,6 +416,7 @@ const updateRiderRow = (index: number, value: string) => {
       rows: riderRows,
     },
     legalAgreement: LegalAgreementValue,
+    ticketLegalLanguage: ticketLegalLanguageValue,
     updatedAt: new Date(),
   });
 
@@ -437,6 +454,12 @@ const updateRiderRow = (index: number, value: string) => {
         doorsInputRef={doorsInputRef}
         setTimeInputRef={setTimeInputRef}
         setLengthInputRef={setLengthInputRef}
+        announcementDate={announcementDate}
+        setAnnouncementDate={setAnnouncementDate}
+        showDate={showDate}
+        setShowDate={setShowDate}
+        eventEndDate={eventEndDate}
+        setEventEndDate={setEventEndDate}
       />
       <LocationSection
         isOpen={isLocationOpen}
@@ -655,6 +678,7 @@ const updateRiderRow = (index: number, value: string) => {
                 <input
                   type="text"
                   placeholder="Value"
+                  value={LegalAgreementValue}
                   onChange={(e) => setLegalAgreementValue(e.target.value)}
                   className={styles.input}
                   required
@@ -676,6 +700,7 @@ const updateRiderRow = (index: number, value: string) => {
                 <input
                   type="text"
                   placeholder="Value"
+                  value={ticketLegalLanguageValue}
                   onChange={(e) => setTicketLegalLanguageValue(e.target.value)}
                   className={styles.input}
                   required

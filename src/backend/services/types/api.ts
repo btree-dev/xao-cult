@@ -169,6 +169,8 @@ export interface IContract {
     setLength?: string;
     ticketsSale?: string;
     showDate?: string;
+    announcementDate?: string;
+    eventEndDate?: string;
   };
   location?: {
     venueName?: string;
@@ -182,6 +184,7 @@ export interface IContract {
   promotion?: any;
   rider?: any;
   legalAgreement?: string;
+  ticketLegalLanguage?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

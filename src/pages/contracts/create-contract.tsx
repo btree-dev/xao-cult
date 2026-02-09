@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Layout from "../../components/Layout";
 import styles from "../../styles/CreateContract.module.css";
 import ContractsNav from "../../components/ContractsNav";
@@ -32,6 +32,15 @@ const CreateContract = () => {
 
   const { address, isConnected, chain } = useWeb3();
 
+  // Derive XMTP peer: whichever party address does NOT match the connected wallet
+  const peerAddress = useMemo(() => {
+    const norm = address?.toLowerCase();
+    if (norm && party1 && party1.toLowerCase() === norm) return party2 || null;
+    if (norm && party2 && party2.toLowerCase() === norm) return party1 || null;
+    // Fallback to URL param until both addresses are entered
+    return peerParam ? String(peerParam) : null;
+  }, [address, party1, party2, peerParam]);
+
   // Load proposal from sessionStorage if navigating from Chat page
   useEffect(() => {
     // Set party2 from URL param if provided
@@ -61,7 +70,7 @@ const CreateContract = () => {
 
   // XMTP for sending contract proposals
   const { sendContractProposal, isClientReady } = useXMTPConversation({
-    peerAddress: party2 || null,
+    peerAddress,
   });
 
   // Handle receiving a contract proposal from chat
@@ -77,8 +86,8 @@ const CreateContract = () => {
 
   // Send contract proposal to Party2
   const handleSendProposal = async () => {
-    if (!party2) {
-      setMintError("Please enter Party 2 address to send proposal");
+    if (!peerAddress) {
+      setMintError("Please enter both party addresses (one must match your wallet)");
       return;
     }
 
@@ -204,7 +213,7 @@ const CreateContract = () => {
           <div className={styles.content}>
             {selected === "chat" ? (
               <ChatComponent
-                peerAddress={party2 || null}
+                peerAddress={peerAddress}
                 embedded={true}
                 onContractProposalSelect={handleContractProposalSelect}
               />
@@ -230,6 +239,7 @@ const CreateContract = () => {
                     <div className={styles.inputRow}>
                       <input
                         type="text"
+                        value={party1}
                         onChange={(e) => setParty1(e.target.value)}
                         placeholder="Party1"
                         className={styles.input}
@@ -243,6 +253,7 @@ const CreateContract = () => {
                     <div className={styles.inputRow}>
                       <input
                         type="text"
+                        value={party2}
                         onChange={(e) => setParty2(e.target.value)}
                         placeholder="Party2"
                         className={styles.input}
@@ -273,16 +284,16 @@ const CreateContract = () => {
                 <button
                   type="button"
                   onClick={handleSendProposal}
-                  disabled={isSendingProposal || !party2 || !isClientReady}
+                  disabled={isSendingProposal || !peerAddress || !isClientReady}
                   className={styles.documentButton}
                   style={{
                     marginBottom: "10px",
-                    opacity: (!party2 || !isClientReady) ? 0.5 : 1,
+                    opacity: (!peerAddress || !isClientReady) ? 0.5 : 1,
                   }}
                 >
                   {isSendingProposal
                     ? "Sending..."
-                    : `Send to Party 2 (Rev. ${revisionNumber})`}
+                    : `Send to ${peerAddress === party1 ? "Party 1" : peerAddress === party2 ? "Party 2" : "Peer"} (Rev. ${revisionNumber})`}
                 </button>
 
                 {/* Save/Mint Button */}

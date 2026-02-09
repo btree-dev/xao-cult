@@ -287,7 +287,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
           <div className={styles.RecievedMessage}>
             <div style={{ marginBottom: "12px" }}>
               {embedded
-                ? "Enter Party 2 wallet address to start chatting."
+                ? "Enter the other party's wallet address to start chatting."
                 : "No conversation selected."}
             </div>
             {onBack && !embedded && (

@@ -7,7 +7,7 @@ import styles from '../../styles/Home.module.css';
 import Navbar from '../../components/Navbar';
 import Scrollbar from '../../components/Scrollbar';
 import ShareModal from '../../components/ShareModal';
-import { eventAPI, venueAPI } from '../../backend/services/Event';
+
 import { IEvent, IVenue } from '../../backend/services/types/api';
 
 const EventDetails: NextPage = () => {

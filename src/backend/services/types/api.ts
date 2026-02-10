@@ -168,8 +168,8 @@ export interface IContract {
     setTime?: string;
     setLength?: string;
     ticketsSale?: string;
-    showDate?: string;
-    announcementDate?: string;
+    eventStartDate?: string;
+    eventAnnouncementDate?: string;
     eventEndDate?: string;
   };
   location?: {

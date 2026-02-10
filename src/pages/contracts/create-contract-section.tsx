@@ -8,7 +8,6 @@ import PaymentsSection, { PaymentRow } from "./PaymentsSection";
 import styles from "../../styles/CreateContract.module.css";
 import { EventDocs } from "../../backend/eventsdata";
 import { Genres } from "../../backend/public-information-services/publicinfodata";
-import { contractAPI } from "../../backend/services/Contract";
 import { IContract } from "../../backend/services/types/api";
 const dropdownOptions = ["Option 1", "Option 2", "Option 3"];
 interface CreateContractsectionProps {
@@ -27,8 +26,8 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
   const [setTime, setSetTime] = useState("");
   const [setLength, setSetLength] = useState("");
   const [ticketsSale, setTicketsSale] = useState("");
-  const [showDate, setShowDate] = useState("");
-  const [announcementDate, setAnnouncementDate] = useState("");
+  const [eventStartDate, setEventStartDate] = useState("");
+  const [eventAnnouncementDate, setEventAnnouncementDate] = useState("");
   const [eventEndDate, setEventEndDate] = useState("");
   const [LegalAgreementValue, setLegalAgreementValue] = useState("");
   const [isDatesTimeOpen, setIsDatesTimeOpen] = useState(false);
@@ -156,7 +155,7 @@ const updateRiderRow = (index: number, value: string) => {
   const endTimeInputRef = useRef<HTMLInputElement | null>(null);
   const dateInputRef = useRef<HTMLInputElement | null>(null);
   const ticketsSaleDateInputRef = useRef<HTMLInputElement | null>(null);
-  const showDateInputRef = useRef<HTMLInputElement | null>(null);
+  const eventStartDateInputRef = useRef<HTMLInputElement | null>(null);
   const eventEndDateInputRef = useRef<HTMLInputElement | null>(null);
   const loadInInputRef = useRef<HTMLInputElement>(null);
   const doorsInputRef = useRef<HTMLInputElement>(null);
@@ -251,8 +250,8 @@ const updateRiderRow = (index: number, value: string) => {
       if (data.datesAndTimes.setTime) setSetTime(data.datesAndTimes.setTime);
       if (data.datesAndTimes.setLength) setSetLength(data.datesAndTimes.setLength);
       if (data.datesAndTimes.ticketsSale) setTicketsSale(data.datesAndTimes.ticketsSale);
-      if (data.datesAndTimes.showDate) setShowDate(data.datesAndTimes.showDate);
-      if (data.datesAndTimes.announcementDate) setAnnouncementDate(data.datesAndTimes.announcementDate);
+      if (data.datesAndTimes.eventStartDate) setEventStartDate(data.datesAndTimes.eventStartDate);
+      if (data.datesAndTimes.eventAnnouncementDate) setEventAnnouncementDate(data.datesAndTimes.eventAnnouncementDate);
       if (data.datesAndTimes.eventEndDate) setEventEndDate(data.datesAndTimes.eventEndDate);
       // Auto-expand section if it has data
       if (Object.values(data.datesAndTimes).some(v => v)) setIsDatesTimeOpen(true);
@@ -370,8 +369,8 @@ const updateRiderRow = (index: number, value: string) => {
       setTime,
       setLength,
       ticketsSale,
-      showDate,
-      announcementDate,
+      eventStartDate,
+      eventAnnouncementDate,
       eventEndDate,
     },
     location: {
@@ -411,6 +410,7 @@ const updateRiderRow = (index: number, value: string) => {
     promotion: {
       value: promotionValue,
       genres: promotionGenres,
+      imageData: promotionImage,
     },
     rider: {
       rows: riderRows,
@@ -434,7 +434,7 @@ const updateRiderRow = (index: number, value: string) => {
         setActiveDropdown={setActiveDropdown}
         dateInputRef={dateInputRef}
         ticketsSaleDateInputRef={ticketsSaleDateInputRef}
-        showDateInputRef={showDateInputRef}
+        eventStartDateInputRef={eventStartDateInputRef}
         eventEndDateInputRef={eventEndDateInputRef}
         startTimeInputRef={startTimeInputRef}
         endTimeInputRef={endTimeInputRef}
@@ -454,10 +454,10 @@ const updateRiderRow = (index: number, value: string) => {
         doorsInputRef={doorsInputRef}
         setTimeInputRef={setTimeInputRef}
         setLengthInputRef={setLengthInputRef}
-        announcementDate={announcementDate}
-        setAnnouncementDate={setAnnouncementDate}
-        showDate={showDate}
-        setShowDate={setShowDate}
+        eventAnnouncementDate={eventAnnouncementDate}
+        setEventAnnouncementDate={setEventAnnouncementDate}
+        eventStartDate={eventStartDate}
+        setEventStartDate={setEventStartDate}
         eventEndDate={eventEndDate}
         setEventEndDate={setEventEndDate}
       />

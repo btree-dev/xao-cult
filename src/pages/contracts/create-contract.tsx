@@ -8,38 +8,59 @@ import { useRouter } from "next/router";
 import CreateContractsection from "./create-contract-section";
 import Scrollbar from "../../components/Scrollbar";
 import { ChatComponent } from "../../components/Chat";
-import { useMintContractNFT } from "../../hooks/useMintContractNFT";
+import { useCreateEventContract } from "../../hooks/useCreateContract";
+import { useSignEventContract } from "../../hooks/useSignEventContract";
+import { useAddTicketType } from "../../hooks/useAddTicketType";
 import { useWeb3 } from "../../hooks/useWeb3";
-import { buildMintArgsFromTerms, validateBaseChain } from "../../backend/contracts";
 import { useXMTPConversation } from "../../hooks/useXMTPConversation";
 import { ContractProposalMessage } from "../../types/contractMessage";
+import { handleSaveContract, handleSignContract, addTicketsToContract } from "../../backend/contract-services/createContract";
+import { TicketRow } from "./TicketsSection";
 
 const CreateContract = () => {
   const router = useRouter();
   const { peer: peerParam } = router.query;
 
   const [selected, setSelected] = useState<"chat" | "contract">("contract");
-  const [party1, setParty1] = useState("");
-  const [party2, setParty2] = useState("");
-  const [isMinting, setIsMinting] = useState(false);
-  const [mintError, setMintError] = useState("");
+  const [party1, setParty1] = useState(""); // Username for Party 1
+  const [party2, setParty2] = useState(""); // Wallet address for Party 2 (peer)
+  const [isContractCreating, setIsContractCreating] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [creationError, setCreationError] = useState("");
+  const [pendingSign, setPendingSign] = useState(false);
   const contractSectionRef = useRef<any>(null);
 
-  // Contract proposal state
+  // Contract proposal state (XMTP)
   const [activeProposal, setActiveProposal] = useState<ContractProposalMessage | null>(null);
   const [revisionNumber, setRevisionNumber] = useState(1);
   const [isSendingProposal, setIsSendingProposal] = useState(false);
 
   const { address, isConnected, chain } = useWeb3();
 
-  // Derive XMTP peer: whichever party address does NOT match the connected wallet
+  // Contract creation hooks
+  const { createEventContract, isLoading, isSuccess, error, transactionHash, contractAddress: newContractAddress } = useCreateEventContract(chain?.id);
+  const { signContractAsync, isLoading: isSignLoading, isSuccess: isSignSuccess, error: signError, transactionHash: signTxHash } = useSignEventContract();
+  const { addTicketTypeAsync } = useAddTicketType();
+  const [ticketRowsToAdd, setTicketRowsToAdd] = useState<TicketRow[]>([]);
+
+  // State setters object for backend functions
+  const stateSetters = {
+    setIsContractCreating,
+    setCreationError,
+    setIsUploading,
+    setTicketRowsToAdd,
+    setPendingSign,
+  };
+
+  // Derive XMTP peer: party2 is always the peer (since party1 is the current user's username)
+  // The connected wallet address is party1's wallet, so party2 is the peer to chat with
   const peerAddress = useMemo(() => {
-    const norm = address?.toLowerCase();
-    if (norm && party1 && party1.toLowerCase() === norm) return party2 || null;
-    if (norm && party2 && party2.toLowerCase() === norm) return party1 || null;
-    // Fallback to URL param until both addresses are entered
+    // If party2 wallet address is set, use it as the peer
+    if (party2 && party2.startsWith('0x')) return party2;
+    // Fallback to URL param
     return peerParam ? String(peerParam) : null;
-  }, [address, party1, party2, peerParam]);
+  }, [party2, peerParam]);
 
   // Load proposal from sessionStorage if navigating from Chat page
   useEffect(() => {
@@ -66,7 +87,6 @@ const CreateContract = () => {
       }
     }
   }, [peerParam, party1, party2]);
-  const { mintNFT, isLoading, isSuccess, error } = useMintContractNFT(chain?.id);
 
   // XMTP for sending contract proposals
   const { sendContractProposal, isClientReady } = useXMTPConversation({
@@ -84,20 +104,20 @@ const CreateContract = () => {
     setSelected("contract");
   }, [party1, party2]);
 
-  // Send contract proposal to Party2
+  // Send contract proposal to Party2 via XMTP
   const handleSendProposal = async () => {
     if (!peerAddress) {
-      setMintError("Please enter both party addresses (one must match your wallet)");
+      setCreationError("Please enter both party addresses (one must match your wallet)");
       return;
     }
 
     if (!isClientReady) {
-      setMintError("Chat not ready. Please wait...");
+      setCreationError("Chat not ready. Please wait...");
       return;
     }
 
     setIsSendingProposal(true);
-    setMintError("");
+    setCreationError("");
 
     try {
       // Get contract data from the form
@@ -118,66 +138,90 @@ const CreateContract = () => {
       setSelected("chat");
     } catch (err) {
       console.error("Failed to send proposal:", err);
-      setMintError("Failed to send contract proposal");
+      setCreationError("Failed to send contract proposal");
     } finally {
       setIsSendingProposal(false);
     }
   };
 
-  const handleSave = async () => {
-    if (!isConnected) {
-      setMintError("Please connect your wallet");
-      return;
-    }
+  // Handle save contract (draft) using helper function
+  const handleSave = () => handleSaveContract(
+    isConnected,
+    chain?.id,
+    contractSectionRef,
+    party1,
+    party2,
+    stateSetters,
+    createEventContract
+  );
 
-    const chainError = validateBaseChain(chain?.id);
-    if (chainError) {
-      setMintError(chainError);
-      return;
-    }
+  // Handle sign contract using helper function
+  const handleSign = () => handleSignContract(
+    isConnected,
+    chain?.id,
+    contractSectionRef,
+    party1,
+    party2,
+    stateSetters,
+    createEventContract
+  );
 
-    try {
-      setIsMinting(true);
-      setMintError("");
-
-      // Gather full contract terms from the section via ref, serialize to JSON
-      const termsObject = contractSectionRef.current?.getContractData
-        ? contractSectionRef.current.getContractData()
-        : { party1, party2 };
-      const terms = JSON.stringify(termsObject);
-
-      const { args } = await buildMintArgsFromTerms(party1, party2, terms);
-      // Mint NFT using prepared args
-      mintNFT(...args);
-    } catch (err) {
-      setMintError(
-        err instanceof Error ? err.message : "Failed to mint contract NFT"
-      );
-      setIsMinting(false);
-    }
-  };
-
-  // Handle successful mint
+  // Handle successful creation
   useEffect(() => {
-    if (isSuccess) {
-      setIsMinting(false);
-      // Show success message and redirect
-      alert("Contract NFT minted successfully!");
+    const processContractCreation = async () => {
+      if (isSuccess && newContractAddress) {
+        try {
+          await addTicketsToContract(newContractAddress, ticketRowsToAdd, addTicketTypeAsync);
+
+          setIsContractCreating(false);
+
+          // If pendingSign is true, automatically sign after creation and adding tickets
+          if (pendingSign) {
+            setIsSigning(true);
+            await signContractAsync(newContractAddress, party1);
+          } else {
+            alert("Contract saved as draft on blockchain!");
+            router.push("/dashboard");
+          }
+        } catch (err) {
+          setCreationError(err instanceof Error ? err.message : "Failed to process contract");
+          setIsContractCreating(false);
+          setIsSigning(false);
+          setPendingSign(false);
+        }
+      }
+    };
+
+    processContractCreation();
+  }, [isSuccess, newContractAddress]);
+
+  // Handle successful signing
+  useEffect(() => {
+    if (isSignSuccess) {
+      setIsSigning(false);
+      setPendingSign(false);
+      alert("Contract signed successfully on blockchain!");
       router.push("/dashboard");
     }
-  }, [isSuccess]);
+  }, [isSignSuccess]);
 
-  // Handle mint error
+  // Handle create error
   useEffect(() => {
     if (error) {
-      setMintError(error.message || "Transaction failed");
-      setIsMinting(false);
+      setCreationError(error.message || "Transaction failed");
+      setIsContractCreating(false);
+      setPendingSign(false);
     }
   }, [error]);
 
-  const handleSign = () => {
-    router.push("/dashboard");
-  };
+  // Handle sign error
+  useEffect(() => {
+    if (signError) {
+      setCreationError(signError.message || "Signing failed");
+      setIsSigning(false);
+      setPendingSign(false);
+    }
+  }, [signError]);
 
   return (
     <Layout>
@@ -269,9 +313,9 @@ const CreateContract = () => {
                   party2={party2}
                   initialData={activeProposal?.data}
                 />
-                {mintError && (
+                {creationError && (
                   <div style={{ color: "red", marginTop: "10px" }}>
-                    {mintError}
+                    {creationError}
                   </div>
                 )}
                 {!isConnected && (
@@ -279,8 +323,13 @@ const CreateContract = () => {
                     Please connect your wallet to save contracts
                   </div>
                 )}
+                {(transactionHash || signTxHash) && (
+                  <div style={{ color: "green", marginTop: "10px", fontSize: "12px" }}>
+                    Transaction: {(signTxHash || transactionHash)?.slice(0, 10)}...{(signTxHash || transactionHash)?.slice(-8)}
+                  </div>
+                )}
 
-                {/* Send Proposal Button */}
+                {/* Send Proposal Button (XMTP) */}
                 <button
                   type="button"
                   onClick={handleSendProposal}
@@ -296,22 +345,26 @@ const CreateContract = () => {
                     : `Send to ${peerAddress === party1 ? "Party 1" : peerAddress === party2 ? "Party 2" : "Peer"} (Rev. ${revisionNumber})`}
                 </button>
 
-                {/* Save/Mint Button */}
+                {/* Save/Draft Button */}
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={isMinting || isLoading || !isConnected}
+                  disabled={isContractCreating || isLoading || isSigning || isSignLoading || isUploading || !isConnected}
                   className={styles.confirmButton}
                 >
-                  {isMinting || isLoading ? "Minting..." : "Save"}
+                  {isUploading ? "Uploading Image..." : isContractCreating || isLoading ? "Saving Draft..." : "Save"}
                 </button>
+
+                {/* Sign Button */}
                 <button
                   type="button"
-                  onClick={() => router.push("/dashboard")}
+                  onClick={handleSign}
+                  disabled={isSigning || isSignLoading || isContractCreating || isLoading || isUploading || !isConnected}
                   className={styles.documentButton}
                 >
-                  Cancel
+                  {isUploading ? "Uploading Image..." : isSigning || isSignLoading ? "Signing..." : "Sign"}
                 </button>
+
               </>
             )}
           </div>

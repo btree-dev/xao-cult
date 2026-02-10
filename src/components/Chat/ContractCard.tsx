@@ -62,7 +62,7 @@ const ContractCard: React.FC<ContractCardProps> = ({
 
   // Extract summary info from contract data
   const venueName = data.location?.venueName;
-  const showDate = data.datesAndTimes?.showDate;
+  const eventStartDate = data.datesAndTimes?.eventStartDate;
   const party1 = data.party1;
   const party2 = data.party2;
 
@@ -114,10 +114,10 @@ const ContractCard: React.FC<ContractCardProps> = ({
             <span className={styles.summaryValue}>{venueName}</span>
           </div>
         )}
-        {showDate && (
+        {eventStartDate && (
           <div className={styles.summaryRow}>
             <span className={styles.summaryLabel}>Date:</span>
-            <span className={styles.summaryValue}>{showDate}</span>
+            <span className={styles.summaryValue}>{eventStartDate}</span>
           </div>
         )}
         {party1 && (
@@ -132,7 +132,7 @@ const ContractCard: React.FC<ContractCardProps> = ({
             <span className={styles.summaryValue}>{truncateAddress(party2)}</span>
           </div>
         )}
-        {!venueName && !showDate && !party1 && !party2 && (
+        {!venueName && !eventStartDate && !party1 && !party2 && (
           <div className={styles.summaryRow}>
             <span className={styles.summaryValue}>Contract details attached</span>
           </div>

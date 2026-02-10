@@ -18,7 +18,7 @@ const Home: NextPage = () => {
   // Check if wallet is connected and redirect to profile creation
   useEffect(() => {
     const checkSession = async () => {
-      try {
+      try { 
         setCheckingAuth(true);
         
         // Check if there's a Supabase session

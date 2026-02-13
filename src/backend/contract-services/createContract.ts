@@ -29,11 +29,15 @@ export const getFormData = (
 };
 
 // Helper to handle image upload
+// If new base64 imageData exists, upload it (new image selected by user).
+// Otherwise, use formData.eventImageUri (from getContractData) or existingImageUri as fallback.
 export const handleImageUpload = async (
   formData: any,
-  setIsUploading: (value: boolean) => void
+  setIsUploading: (value: boolean) => void,
+  existingImageUri?: string | null
 ): Promise<void> => {
-  if (formData.promotion?.imageData) {
+  // New image selected — base64 data present and no IPFS URI yet
+  if (formData.promotion?.imageData && !formData.eventImageUri) {
     setIsUploading(true);
     try {
       const imageUrl = await uploadImageToIPFS(
@@ -46,6 +50,15 @@ export const handleImageUpload = async (
       formData.eventImageUri = '';
     }
     setIsUploading(false);
+    return;
+  }
+  // Already has URI from getContractData (e.g. received proposal image unchanged)
+  if (formData.eventImageUri) {
+    return;
+  }
+  // Fallback to previously uploaded URI
+  if (existingImageUri) {
+    formData.eventImageUri = existingImageUri;
   }
 };
 
@@ -75,7 +88,8 @@ export const handleSaveContract = async (
   party1: string,
   party2: string,
   stateSetters: ContractStateSetters,
-  createEventContract: (params: CreateEventContractParams) => void
+  createEventContract: (params: CreateEventContractParams) => void,
+  existingImageUri?: string | null
 ): Promise<void> => {
   const { setIsContractCreating, setCreationError, setIsUploading, setTicketRowsToAdd } = stateSetters;
 
@@ -95,7 +109,7 @@ export const handleSaveContract = async (
     setCreationError("");
 
     const formData = getFormData(contractSectionRef, party1, party2);
-    await handleImageUpload(formData, setIsUploading);
+    await handleImageUpload(formData, setIsUploading, existingImageUri);
     setTicketRowsToAdd(getTicketRows(formData));
 
     const { params, error: validationError } = buildAndValidateParams(formData, party1, party2, 'SAVED');
@@ -123,7 +137,8 @@ export const handleSignContract = async (
   party1: string,
   party2: string,
   stateSetters: ContractStateSetters,
-  createEventContract: (params: CreateEventContractParams) => void
+  createEventContract: (params: CreateEventContractParams) => void,
+  existingImageUri?: string | null
 ): Promise<void> => {
   const { setIsContractCreating, setCreationError, setIsUploading, setTicketRowsToAdd, setPendingSign } = stateSetters;
 
@@ -143,7 +158,7 @@ export const handleSignContract = async (
     setCreationError("");
 
     const formData = getFormData(contractSectionRef, party1, party2);
-    await handleImageUpload(formData, setIsUploading);
+    await handleImageUpload(formData, setIsUploading, existingImageUri);
     setTicketRowsToAdd(getTicketRows(formData));
 
     const { params, error: validationError } = buildAndValidateParams(formData, party1, party2, 'SIGNED');

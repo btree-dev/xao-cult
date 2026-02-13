@@ -74,7 +74,9 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     value: string;
   }
   const [riderRows, setRiderRows] = useState<RiderRow[]>([{ value: "" }]);
-  const [promotionImage, setPromotionImage] = useState<string | null>(null);
+  const [promotionImage, setPromotionImage] = useState<string | null>(null); // base64 preview
+  const [promotionImageUri, setPromotionImageUri] = useState<string | null>(null); // IPFS URI
+  const [isImageUploading, setIsImageUploading] = useState(false);
   const [payoutDateTime, setPayoutDateTime] = useState("");
   const [payoutPercentage, setPayoutPercentage] = useState("");
   const [payoutDollarAmount, setPayoutDollarAmount] = useState("");
@@ -312,6 +314,13 @@ const updateRiderRow = (index: number, value: string) => {
       setIsPromotionOpen(true);
     }
 
+    // Event Image - use IPFS URI to display image in promotion section
+    if (data.eventImageUri) {
+      setPromotionImage(data.eventImageUri);
+      setPromotionImageUri(data.eventImageUri);
+      setIsPromotionOpen(true);
+    }
+
     // Rider
     if (data.rider && data.rider.rows) {
       setRiderRows(data.rider.rows);
@@ -345,6 +354,8 @@ const updateRiderRow = (index: number, value: string) => {
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Clear existing IPFS URI so the new image gets uploaded
+      setPromotionImageUri(null);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPromotionImage(reader.result as string);
@@ -412,6 +423,7 @@ const updateRiderRow = (index: number, value: string) => {
       genres: promotionGenres,
       imageData: promotionImage,
     },
+    eventImageUri: promotionImageUri || undefined,
     rider: {
       rows: riderRows,
     },
@@ -560,7 +572,7 @@ const updateRiderRow = (index: number, value: string) => {
               />
               <div className={styles.promotionImageContainer}>
                 {promotionImage ? (
-                  <>
+                  <div onClick={handleImageClick} style={{ cursor: 'pointer', position: 'relative' }}>
                     <img
                       src={promotionImage}
                       alt="Uploaded promotion"
@@ -577,7 +589,7 @@ const updateRiderRow = (index: number, value: string) => {
                         Sat. 19 December
                       </span>
                     </div>
-                  </>
+                  </div>
                 ) : (
                   <div
                     className={styles.promotionImagePlaceholder}

@@ -14,7 +14,7 @@ import { useAddTicketType } from "../../hooks/useAddTicketType";
 import { useWeb3 } from "../../hooks/useWeb3";
 import { useXMTPConversation } from "../../hooks/useXMTPConversation";
 import { ContractProposalMessage } from "../../types/contractMessage";
-import { handleSaveContract, handleSignContract, addTicketsToContract } from "../../backend/contract-services/createContract";
+import { handleSaveContract, handleSignContract, addTicketsToContract, handleImageUpload } from "../../backend/contract-services/createContract";
 import { TicketRow } from "./TicketsSection";
 
 const CreateContract = () => {
@@ -35,6 +35,7 @@ const CreateContract = () => {
   const [activeProposal, setActiveProposal] = useState<ContractProposalMessage | null>(null);
   const [revisionNumber, setRevisionNumber] = useState(1);
   const [isSendingProposal, setIsSendingProposal] = useState(false);
+  const [imageUri, setImageUri] = useState<string | null>(null);
 
   const { address, isConnected, chain } = useWeb3();
 
@@ -125,6 +126,18 @@ const CreateContract = () => {
         ? contractSectionRef.current.getContractData()
         : { party1, party2 };
 
+      // Upload image to IPFS via Pinata (or reuse existing URI)
+      await handleImageUpload(termsObject, setIsUploading, imageUri);
+      // Store the uploaded URI for reuse in save/sign
+      if (termsObject.eventImageUri) {
+        setImageUri(termsObject.eventImageUri);
+      }
+
+      // Remove base64 imageData before sending over XMTP
+      if (termsObject.promotion) {
+        delete termsObject.promotion.imageData;
+      }
+
       // Send the proposal
       await sendContractProposal(termsObject, revisionNumber);
 
@@ -152,7 +165,8 @@ const CreateContract = () => {
     party1,
     party2,
     stateSetters,
-    createEventContract
+    createEventContract,
+    imageUri
   );
 
   // Handle sign contract using helper function
@@ -163,7 +177,8 @@ const CreateContract = () => {
     party1,
     party2,
     stateSetters,
-    createEventContract
+    createEventContract,
+    imageUri
   );
 
   // Handle successful creation

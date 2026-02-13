@@ -12,7 +12,8 @@ import ShareModal from '../components/ShareModal';
 import CalendarFilter, { FilterOptions, LocationFilterData } from '../components/CalendarFilter';
 import { EventDocs } from '../backend/eventsdata';
 import { useWeb3 } from '../hooks/useWeb3';
-import { useUserContractsWithSummaries, CONTRACT_STATUS_LABELS, formatContractDate } from '../hooks/useGetContracts';
+import { useAllContractsWithSummaries, CONTRACT_STATUS_LABELS, formatContractDate } from '../hooks/useGetContracts';
+import { DEFAULT_CHAIN } from '../lib/web3/chains';
 import {
   getStoredLocationFilter,
   getStoredDateFilters,
@@ -37,7 +38,7 @@ const Dashboard: NextPage = () => {
 
   // Web3 hooks for blockchain contracts
   const { address, isConnected, chain } = useWeb3();
-  const { contracts, isLoading: contractsLoading, refetch: refetchContracts } = useUserContractsWithSummaries(chain?.id, address);
+  const { contracts, isLoading: contractsLoading, refetch: refetchContracts } = useAllContractsWithSummaries(chain?.id || DEFAULT_CHAIN);
 
   // Load filters from sessionStorage on mount
   useEffect(() => {
@@ -265,7 +266,7 @@ const Dashboard: NextPage = () => {
       </div>
 
         {/* Blockchain Contracts Section */}
-        {isConnected && contracts && contracts.length > 0 && (
+        {contracts && contracts.length > 0 && (
           <div className={styles.feedContainer}>
             {contracts.map((contract, index) => {
               // Debug: Log the image URI from blockchain

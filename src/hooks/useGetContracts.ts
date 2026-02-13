@@ -169,6 +169,24 @@ export const useUserContractsWithSummaries = (chainId?: number, userAddress?: `0
 };
 
 
+export const useAllContractsWithSummaries = (chainId?: number) => {
+  const { contractAddresses, isLoading: addressesLoading, error: addressesError, refetch: refetchAddresses } = useGetAllContracts(chainId);
+  const { summaries, isLoading: summariesLoading, error: summariesError, refetch: refetchSummaries } = useGetContractSummaries(contractAddresses);
+
+  const refetch = async () => {
+    await refetchAddresses();
+    await refetchSummaries();
+  };
+
+  return {
+    contracts: summaries,
+    isLoading: addressesLoading || summariesLoading,
+    error: addressesError || summariesError,
+    refetch,
+  };
+};
+
+
 export const formatContractDate = (timestamp: bigint | number | undefined): string => {
 
   if (!timestamp) return 'TBD';

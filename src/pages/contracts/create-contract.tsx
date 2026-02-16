@@ -14,7 +14,7 @@ import { useAddTicketType } from "../../hooks/useAddTicketType";
 import { useWeb3 } from "../../hooks/useWeb3";
 import { useXMTPConversation } from "../../hooks/useXMTPConversation";
 import { ContractProposalMessage } from "../../types/contractMessage";
-import { handleSaveContract, handleSignContract, addTicketsToContract, handleImageUpload } from "../../backend/contract-services/createContract";
+import { handleSaveContract, handleSignContract, addTicketsToContract, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
 import { TicketRow } from "./TicketsSection";
 
 const CreateContract = () => {
@@ -195,6 +195,8 @@ const CreateContract = () => {
             setIsSigning(true);
             await signContractAsync(newContractAddress, party1);
           } else {
+            // Delete proposal image group from Pinata (cleanup)
+            deleteProposalImageGroup(contractSectionRef);
             alert("Contract saved as draft on blockchain!");
             router.push("/dashboard");
           }
@@ -215,6 +217,8 @@ const CreateContract = () => {
     if (isSignSuccess) {
       setIsSigning(false);
       setPendingSign(false);
+      // Delete proposal image group from Pinata (cleanup)
+      deleteProposalImageGroup(contractSectionRef);
       alert("Contract signed successfully on blockchain!");
       router.push("/dashboard");
     }

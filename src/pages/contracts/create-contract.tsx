@@ -22,8 +22,8 @@ const CreateContract = () => {
   const { peer: peerParam } = router.query;
 
   const [selected, setSelected] = useState<"chat" | "contract">("contract");
-  const [party1, setParty1] = useState(""); // Username for Party 1
-  const [party2, setParty2] = useState(""); // Wallet address for Party 2 (peer)
+  const [party1, setParty1] = useState("Pizza dao"); // Username for Party 1
+  const [party2, setParty2] = useState("0xF6Dd21A72AA72CF4246cEf8fCd97CDE947b07b9B"); // Wallet address for Party 2 (peer)
   const [isContractCreating, setIsContractCreating] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -182,27 +182,47 @@ const CreateContract = () => {
   );
 
   // Handle successful creation
+  const processedContractRef = useRef<string | null>(null);
+  
   useEffect(() => {
     const processContractCreation = async () => {
-      if (isSuccess && newContractAddress) {
+      // Prevent duplicate processing of the same contract
+      if (isSuccess && newContractAddress && processedContractRef.current !== newContractAddress) {
+        processedContractRef.current = newContractAddress;
+        
         try {
-          await addTicketsToContract(newContractAddress, ticketRowsToAdd, addTicketTypeAsync);
-
-          setIsContractCreating(false);
-
-          // If pendingSign is true, automatically sign after creation and adding tickets
+          // If pendingSign is true, sign FIRST before adding tickets
           if (pendingSign) {
             setIsSigning(true);
+            console.log("Signing contract first...");
             await signContractAsync(newContractAddress, party1);
+            console.log("Contract signed, now adding tickets...");
+          }
+
+          // Skip adding tickets for now to avoid gas limit errors
+          // Tickets can be added later in separate transactions
+          console.log("Skipping ticket addition to avoid gas limit. Tickets to add:", ticketRowsToAdd.length);
+          // TODO: Add tickets in batches or separately after contract creation
+          // await addTicketsToContract(newContractAddress, ticketRowsToAdd, addTicketTypeAsync);
+
+          setIsContractCreating(false);
+          setIsSigning(false);
+
+          if (pendingSign) {
+            // Already signed above, show success and redirect
+            setPendingSign(false);
+            alert("Contract created and signed successfully on blockchain!\nNote: Add tickets separately to avoid gas limits.");
+            // router.push("/dashboard");
           } else {
-            alert("Contract saved as draft on blockchain!");
-            router.push("/dashboard");
+            alert("Contract saved as draft on blockchain!\nNote: Add tickets separately to avoid gas limits.");
+            // router.push("/dashboard");
           }
         } catch (err) {
           setCreationError(err instanceof Error ? err.message : "Failed to process contract");
           setIsContractCreating(false);
           setIsSigning(false);
           setPendingSign(false);
+          processedContractRef.current = null; // Reset on error to allow retry
         }
       }
     };
@@ -210,15 +230,15 @@ const CreateContract = () => {
     processContractCreation();
   }, [isSuccess, newContractAddress]);
 
-  // Handle successful signing
+  // Handle successful signing - only show alert if signing was done standalone
+  // (not as part of the create flow, which handles its own success message)
   useEffect(() => {
-    if (isSignSuccess) {
+    if (isSignSuccess && !isContractCreating && !pendingSign) {
       setIsSigning(false);
-      setPendingSign(false);
       alert("Contract signed successfully on blockchain!");
       router.push("/dashboard");
     }
-  }, [isSignSuccess]);
+  }, [isSignSuccess, isContractCreating, pendingSign]);
 
   // Handle create error
   useEffect(() => {

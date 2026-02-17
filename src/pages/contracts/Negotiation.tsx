@@ -3,20 +3,42 @@ import Head from "next/head";
 import Layout from "../../components/Layout";
 import ContractsNav from "../../components/ContractsNav";
 import styles from "../../styles/CreateContract.module.css";
-import { WaitingList, AttentionList } from "../../backend/contract-services/negotiation";
+import { useAllContractsWithSummaries } from "../../hooks/useGetContracts";
+import { useWeb3 } from "../../hooks/useWeb3";
 import { useRouter } from "next/router";
 
 const Negotiation: React.FC = () => {
   const router = useRouter();
+  const { address, chain } = useWeb3();
+  const { contracts, isLoading } = useAllContractsWithSummaries(chain?.id);
+
+  console.log("=== NEGOTIATION DEBUG ===");
+  console.log("Connected address:", address);
+  console.log("Chain ID:", chain?.id);
+  console.log("All contracts:", contracts);
+
+  // Filter for contracts under negotiation
+  // Since contracts have status 1, show them as "Requires Attention"
+  const attentionContracts = contracts.filter(
+    (contract) => contract.status === 1
+  );
+  const waitingContracts = contracts.filter(
+    (contract) => contract.status === 0
+  );
+  
+  // console.log("Attention contracts (status=1):", attentionContracts);
+  // console.log("Waiting contracts (status=0):", waitingContracts);
 
   const handleImageClick = (item: any) => {
     router.push({
       pathname: "/contracts/contracts-detail",
       query: {
-        id: item.id,
-        ticketsold: item.TicketsSold,
-        totalrevenue: item.TotalRevenue,
+        id: item.contractAddress,
+        ticketsold: "0",
+        totalrevenue: "0",
         source: "negotiation",
+        party1: item.party1Address,
+        party2: item.party2Address,
       },
     });
   };
@@ -29,58 +51,80 @@ const Negotiation: React.FC = () => {
           <title>Contract Under Negotiation - XAO Cult</title>
         </Head>
         <ContractsNav />
-        <main className={styles.contractHomecontainer}> 
+        <main className={styles.contractHomecontainer}>
           <div className={styles.topSection}>
             <h1 className={styles.heading}>Contract Under Negotiation</h1>
           </div>
-          {AttentionList.map((contract) => (
+          {attentionContracts.map((contract) => (
             <div
-              key={contract.id}
+              key={contract.contractAddress}
               className={styles.ImageContainer}
               style={{ cursor: "pointer" }}
               onClick={() => handleImageClick(contract)}
             >
               <div className={styles.attentionTitle}>Requires Attention</div>
               <img
-                src={contract.image}
-                alt={contract.title}
+                src={
+                  contract.eventImageUri ||
+                  "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80"
+                }
+                alt={contract.eventName}
                 className={styles.AttentionImage}
               />
               <div className={styles.AttentionDetailsOverlay}>
-                <h2 className={styles.promotionTitle}>{contract.title}</h2>
+                <h2 className={styles.promotionTitle}>{contract.eventName}</h2>
                 <span className={styles.promotionLocation}>
-                  <img src="/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
-                  {contract.Location}
+                  <img
+                    src="/Map_Pin.svg"
+                    alt="Location"
+                    className={styles.promotionIcon}
+                  />
+                  {contract.venueName}
                 </span>
                 <span className={styles.promotionDate}>
-                  <img src="/Calendar_Days.svg" alt="Date" className={styles.promotionIcon} />
-                  {contract.Date}
+                  <img
+                    src="/Calendar_Days.svg"
+                    alt="Date"
+                    className={styles.promotionIcon}
+                  />
+                  {contract.showDate}
                 </span>
               </div>
             </div>
           ))}
-          {WaitingList.map((waiting) => (
+          {waitingContracts.map((waiting) => (
             <div
-              key={waiting.id}
+              key={waiting.contractAddress}
               className={styles.ImageContainer}
               style={{ cursor: "pointer" }}
               onClick={() => handleImageClick(waiting)}
             >
               <div className={styles.waitingTitle}>Waiting</div>
               <img
-                src={waiting.image}
-                alt={waiting.title}
+                src={
+                  waiting.eventImageUri ||
+                  "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80"
+                }
+                alt={waiting.eventName}
                 className={styles.waitingImage}
               />
               <div className={styles.AttentionDetailsOverlay}>
-                <h2 className={styles.promotionTitle}>{waiting.title}</h2>
+                <h2 className={styles.promotionTitle}>{waiting.eventName}</h2>
                 <span className={styles.promotionLocation}>
-                  <img src="/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
-                  {waiting.Location}
+                  <img
+                    src="/Map_Pin.svg"
+                    alt="Location"
+                    className={styles.promotionIcon}
+                  />
+                  {waiting.venueName}
                 </span>
                 <span className={styles.promotionDate}>
-                  <img src="/Calendar_Days.svg" alt="Date" className={styles.promotionIcon} />
-                  {waiting.Date}
+                  <img
+                    src="/Calendar_Days.svg"
+                    alt="Date"
+                    className={styles.promotionIcon}
+                  />
+                  {waiting.showDate}
                 </span>
               </div>
             </div>

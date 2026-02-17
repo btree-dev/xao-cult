@@ -1,44 +1,44 @@
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { CONTRACT_ADDRESSES } from '../lib/web3/chains';
-import { EVENT_CONTRACT_FACTORY_ABI } from '../lib/web3/eventcontract';
+import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { CHAINS, CONTRACT_ADDRESSES } from "../lib/web3/chains";
+import { EVENT_CONTRACT_FACTORY_ABI } from "../lib/web3/eventcontract";
 
 export interface DatesAndTimes {
-  eventAnnouncement: bigint;
-  showDate: bigint;
+  announce: bigint;
+  show: bigint;
   loadIn: bigint;
   doors: bigint;
-  startTime: bigint;
-  endTime: bigint;
+  start: bigint;
+  end: bigint;
   setTime: bigint;
   setLength: bigint;
 }
 
 export interface Location {
-  venueName: string;
-  physicalAddress: string;
-  radiusMiles: bigint;
-  radiusDays: bigint;
+  venue: string;
+  addr: string;
+  radius: bigint;
+  days1: bigint;
 }
 
 export interface TicketConfig {
-  ticketsEnabled: boolean;
-  totalCapacity: bigint;
-  salesTaxPercentage: bigint;
-  ticketTypeCount: bigint;
+  enabled: boolean;
+  capacity: bigint;
+  taxPct: bigint;
+  typeCount: bigint;
 }
 
 export interface ResaleRules {
-  party1Percentage: bigint;
-  party2Percentage: bigint;
-  resellerPercentage: bigint;
+  p1Pct: bigint;
+  p2Pct: bigint;
+  rPct: bigint;
 }
 
 export interface PayInConfig {
-  guaranteeAmount: bigint;
-  guaranteePercentage: bigint;
-  backendPercentage: bigint;
-  barSplitPercentage: bigint;
-  merchSplitPercentage: bigint;
+  guarantee: bigint;
+  guaPct: bigint;
+  backPct: bigint;
+  barPct: bigint;
+  merchPct: bigint;
 }
 
 export interface CreateEventContractParams {
@@ -55,16 +55,23 @@ export interface CreateEventContractParams {
   rider: string;
   contractLegalLanguage: string;
   ticketLegalLanguage: string;
+  chainId?: number;
 }
 
 export const useCreateEventContract = (chainId?: number) => {
-  const contractAddress = chainId && chainId in CONTRACT_ADDRESSES
-    ? (CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.EventContractFactory as `0x${string}`)
-    : '0x';
+  const contractAddress =
+    chainId && chainId in CONTRACT_ADDRESSES
+      ? (CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]
+          ?.EventContractFactory as `0x${string}`)
+      : "0x";
 
   const { writeContract, isPending, error, data: hash } = useWriteContract();
 
-  const { isLoading: isWaiting, isSuccess, data: receipt } = useWaitForTransactionReceipt({
+  const {
+    isLoading: isWaiting,
+    isSuccess,
+    data: receipt,
+  } = useWaitForTransactionReceipt({
     hash,
   });
 
@@ -73,14 +80,21 @@ export const useCreateEventContract = (chainId?: number) => {
     : null;
 
   const createEventContract = (params: CreateEventContractParams) => {
-    console.log('=== CREATE CONTRACT DEBUG ===');
-    console.log('Chain ID:', chainId);
-    console.log('Contract Address:', contractAddress);
-    console.log('Params:', params);
+    // Prevent duplicate transactions
+    if (isPending || isWaiting) {
+      console.log("Transaction already in progress, skipping duplicate call");
+      return;
+    }
+
+    console.log("=== CREATE CONTRACT DEBUG ===");
+    console.log("Chain ID:", chainId);
+    console.log("Contract Address:", contractAddress);
+    console.log("Params:", params);
     writeContract({
       address: contractAddress,
       abi: EVENT_CONTRACT_FACTORY_ABI,
-      functionName: 'createEventContract',
+      functionName: "createEventContract",
+      chainId: CHAINS.baseSepolia.id,
       args: [
         params.party1Username,
         params.party2Address,
@@ -91,7 +105,6 @@ export const useCreateEventContract = (chainId?: number) => {
         params.payIn,
         params.eventName,
         params.eventImageUri,
-        params.genres,
         params.rider,
         params.contractLegalLanguage,
         params.ticketLegalLanguage,

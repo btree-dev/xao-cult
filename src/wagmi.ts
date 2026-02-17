@@ -9,25 +9,9 @@ import {
 } from "@wagmi/chains";
 
 import { type Chain } from 'viem';
+import { baseSepolia } from 'viem/chains';
 
-// Define Base Sepolia chain
-const baseSepolia: Chain = {
-  id: 84532,
-  name: 'Base Sepolia',
-  nativeCurrency: {
-    name: 'Ether',
-    symbol: 'ETH',
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: { http: ['https://sepolia.base.org'] },
-    public: { http: ['https://sepolia.base.org'] },
-  },
-  blockExplorers: {
-    default: { name: 'BaseScan', url: 'https://sepolia.basescan.org' },
-  },
-  testnet: true,
-};
+
 
 export const config = getDefaultConfig({
   appName: 'XAO Cult',

@@ -26,7 +26,7 @@ export const useGetAllContracts = (chainId?: number) => {
   const { data: contractAddresses, isLoading, error, refetch } = useReadContract({
     address: factoryAddress,
     abi: EVENT_CONTRACT_FACTORY_ABI,
-    functionName: 'getAllContracts',
+    functionName: 'getContracts',
     query: {
       enabled: !!factoryAddress && factoryAddress !== '0x',
     },
@@ -64,77 +64,66 @@ export const useGetUserContracts = (chainId?: number, userAddress?: `0x${string}
   };
 };
 
-// Get contract summary for a single contract
+// Get contract summary for a single contract - using individual field reads
 export const useGetContractSummary = (contractAddress?: `0x${string}`) => {
-  const { data, isLoading, error } = useReadContract({
-    address: contractAddress,
-    abi: EVENT_CONTRACT_ABI,
-    functionName: 'getContractSummary',
-    query: {
-      enabled: !!contractAddress,
-    },
-  });
-
-  const summary: ContractSummary | undefined = data ? {
-    contractAddress: contractAddress!,
-    party1Address: (data as any)[0],
-    party2Address: (data as any)[1],
-    eventName: (data as any)[2],
-    venueName: (data as any)[3],
-    showDate: (data as any)[4],
-    status: Number((data as any)[5]),
-    party1Signed: (data as any)[6],
-    party2Signed: (data as any)[7],
-  } : undefined;
-
+  // This function is deprecated - use useGetContractSummaries instead
+  // which fetches multiple fields in parallel
   return {
-    summary,
-    isLoading,
-    error,
+    summary: undefined,
+    isLoading: false,
+    error: null,
   };
 };
 
 export const useGetContractSummaries = (contractAddresses?: `0x${string}`[]) => {
-
-  const summaryContracts = contractAddresses?.map((address) => ({
-    address,
-    abi: EVENT_CONTRACT_ABI as any,
-    functionName: 'getContractSummary' as const,
-  })) || [];
-
-
-  const imageContracts = contractAddresses?.map((address) => ({
-    address,
-    abi: EVENT_CONTRACT_ABI as any,
-    functionName: 'eventImageUri' as const,
-  })) || [];
-
-  
-  const allContracts = [...summaryContracts, ...imageContracts];
+  // Build contracts array to fetch all needed fields in parallel
+  const contracts = contractAddresses?.flatMap((address) => [
+    { address, abi: EVENT_CONTRACT_ABI as any, functionName: 'party1' as const },
+    { address, abi: EVENT_CONTRACT_ABI as any, functionName: 'party2' as const },
+    { address, abi: EVENT_CONTRACT_ABI as any, functionName: 'name' as const },
+    { address, abi: EVENT_CONTRACT_ABI as any, functionName: 'location' as const },
+    { address, abi: EVENT_CONTRACT_ABI as any, functionName: 'dates' as const },
+    { address, abi: EVENT_CONTRACT_ABI as any, functionName: 'imageUri' as const },
+    { address, abi: EVENT_CONTRACT_ABI as any, functionName: 'status' as const },
+    { address, abi: EVENT_CONTRACT_ABI as any, functionName: 'p1Signed' as const },
+    { address, abi: EVENT_CONTRACT_ABI as any, functionName: 'p2Signed' as const },
+  ]) || [];
 
   const { data, isLoading, error, refetch } = useReadContracts({
-    contracts: allContracts,
+    contracts,
     query: {
-      enabled: allContracts.length > 0,
+      enabled: contracts.length > 0,
     },
   });
 
   const summaries: ContractSummary[] = contractAddresses?.map((address, index) => {
-    const summaryResult = data?.[index];
-    const imageResult = data?.[contractAddresses.length + index];
+    const baseIndex = index * 9; // 9 fields per contract
+    const party1Result = data?.[baseIndex];
+    const party2Result = data?.[baseIndex + 1];
+    const nameResult = data?.[baseIndex + 2];
+    const locationResult = data?.[baseIndex + 3];
+    const datesResult = data?.[baseIndex + 4];
+    const imageResult = data?.[baseIndex + 5];
+    const statusResult = data?.[baseIndex + 6];
+    const p1SignedResult = data?.[baseIndex + 7];
+    const p2SignedResult = data?.[baseIndex + 8];
 
-    if (summaryResult?.status === 'success' && summaryResult.result) {
-      const r = summaryResult.result as any;
+    if (party1Result?.status === 'success' && party2Result?.status === 'success') {
+      const party1 = party1Result.result as any;
+      const party2 = party2Result.result as any;
+      const location = locationResult?.status === 'success' ? (locationResult.result as any) : null;
+      const dates = datesResult?.status === 'success' ? (datesResult.result as any) : null;
+
       const summary: ContractSummary = {
         contractAddress: address,
-        party1Address: r[0],
-        party2Address: r[1],
-        eventName: r[2],
-        venueName: r[3],
-        showDate: r[4],
-        status: Number(r[5]),
-        party1Signed: r[6],
-        party2Signed: r[7],
+        party1Address: party1.addr || party1[0],
+        party2Address: party2.addr || party2[0],
+        eventName: nameResult?.status === 'success' ? (nameResult.result as string) : 'Untitled',
+        venueName: location ? (location.venue || location[0]) : 'No venue',
+        showDate: dates ? (dates.show || dates[1]) : BigInt(0),
+        status: statusResult?.status === 'success' ? Number(statusResult.result) : 0,
+        party1Signed: p1SignedResult?.status === 'success' ? (p1SignedResult.result as boolean) : false,
+        party2Signed: p2SignedResult?.status === 'success' ? (p2SignedResult.result as boolean) : false,
         eventImageUri: imageResult?.status === 'success' ? (imageResult.result as string) : undefined,
       };
       return summary;

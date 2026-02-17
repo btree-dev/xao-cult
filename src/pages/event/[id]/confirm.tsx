@@ -4,6 +4,9 @@ import Head from "next/head";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import styles from "../../../styles/Home.module.css";
+import { useBuyTickets } from "../../../hooks/useBuyTickets";
+import { useWeb3 } from "../../../hooks/useWeb3";
+import { parseEther, formatEther } from "viem";
 
 import Navbar from "../../../components/Navbar";
 
@@ -11,8 +14,18 @@ const PurchaseConfirmation: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<any>(null);
   const [selectedTickets, setSelectedTickets] = useState<any[]>([]);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string>("");
   const router = useRouter();
   const { id, tickets } = router.query;
+  
+  // Web3 hooks
+  const { address, isConnected } = useWeb3();
+  const { buyTickets, isPending, isWaiting, isSuccess, error: txError } = useBuyTickets();
+  
+  // Check if ID is a contract address
+  const isContractAddress = typeof id === 'string' && id.startsWith('0x');
+  const contractAddress = isContractAddress ? (id as `0x${string}`) : undefined;
 
   useEffect(() => {
     if (tickets) {
@@ -96,19 +109,63 @@ const PurchaseConfirmation: NextPage = () => {
   };
 
  
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    // If it's a blockchain contract, call buyTickets
+    if (isContractAddress && contractAddress) {
+      if (!isConnected) {
+        setPurchaseError("Please connect your wallet to purchase tickets");
+        return;
+      }
 
-    router.push({
-      pathname: `/event/${id}/ticket-confirmation`,
-      query: {
-        event: event.title,
-        date: event.date,
-        time: event.time,
-        image: event.image,
-        location: event.location,
-        tickets: JSON.stringify(selectedTickets),
-      },
-    });
+      setIsPurchasing(true);
+      setPurchaseError("");
+
+      try {
+        // For now, assume typeId 0 and calculate total price
+        // In a real implementation, you'd get typeId from ticket selection
+        const typeId = 0; // First ticket type
+        const quantity = selectedTickets.reduce((sum, t) => sum + t.count, 0);
+        const totalAmount = selectedTickets.reduce((sum, t) => sum + t.count * t.price, 0);
+        const totalPriceEth = (totalAmount / 1000).toString(); // Convert to ETH (assuming price is in dollars, adjust as needed)
+
+        console.log('Purchasing tickets:', { typeId, quantity, totalPriceEth });
+
+        await buyTickets(contractAddress, typeId, quantity, totalPriceEth);
+        
+        // Wait a moment for transaction to be confirmed
+        setTimeout(() => {
+          router.push({
+            pathname: `/event/${id}/ticket-confirmation`,
+            query: {
+              event: event.title,
+              date: event.date,
+              time: event.time,
+              image: event.image,
+              location: event.location,
+              tickets: JSON.stringify(selectedTickets),
+              contractAddress: contractAddress,
+            },
+          });
+        }, 2000);
+      } catch (err) {
+        console.error('Purchase failed:', err);
+        setPurchaseError(err instanceof Error ? err.message : "Failed to purchase tickets");
+        setIsPurchasing(false);
+      }
+    } else {
+      // Mock event - just navigate
+      router.push({
+        pathname: `/event/${id}/ticket-confirmation`,
+        query: {
+          event: event.title,
+          date: event.date,
+          time: event.time,
+          image: event.image,
+          location: event.location,
+          tickets: JSON.stringify(selectedTickets),
+        },
+      });
+    }
   };
 
   if (loading || !event) {
@@ -243,9 +300,23 @@ const PurchaseConfirmation: NextPage = () => {
 
             {/* Confirm Button */}
             <div className={styles.confirmButtonContainer}>
-              <button className={styles.confirmButton} onClick={handleConfirm}>
-                Confirm Purchase
+              {purchaseError && (
+                <div style={{ color: 'red', marginBottom: '10px', textAlign: 'center' }}>
+                  {purchaseError}
+                </div>
+              )}
+              <button 
+                className={styles.confirmButton} 
+                onClick={handleConfirm}
+                disabled={isPurchasing || isPending || isWaiting}
+              >
+                {isPurchasing || isPending || isWaiting ? 'Processing...' : 'Confirm Purchase'}
               </button>
+              {isContractAddress && !isConnected && (
+                <p style={{ color: 'yellow', marginTop: '10px', textAlign: 'center', fontSize: '14px' }}>
+                  Please connect your wallet to purchase tickets
+                </p>
+              )}
             </div>
           </div>
         </div>

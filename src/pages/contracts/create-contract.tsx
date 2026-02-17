@@ -14,7 +14,7 @@ import { useAddTicketType } from "../../hooks/useAddTicketType";
 import { useWeb3 } from "../../hooks/useWeb3";
 import { useXMTPConversation } from "../../hooks/useXMTPConversation";
 import { ContractProposalMessage } from "../../types/contractMessage";
-import { handleSaveContract, handleSignContract, addTicketsToContract, handleImageUpload } from "../../backend/contract-services/createContract";
+import { handleSaveContract, handleSignContract, addTicketsToContract, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
 import { TicketRow } from "./TicketsSection";
 
 const CreateContract = () => {
@@ -216,6 +216,10 @@ const CreateContract = () => {
           } else {
             alert("Contract saved as draft on blockchain!\nNote: Add tickets separately to avoid gas limits.");
             // router.push("/dashboard");
+            // Delete proposal image group from Pinata (cleanup)
+            deleteProposalImageGroup(contractSectionRef);
+            alert("Contract saved as draft on blockchain!");
+            router.push("/dashboard");
           }
         } catch (err) {
           setCreationError(err instanceof Error ? err.message : "Failed to process contract");

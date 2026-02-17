@@ -11,7 +11,6 @@ export interface ContractStateSetters {
   setCreationError: (value: string) => void;
   setIsUploading: (value: boolean) => void;
   setTicketRowsToAdd: (value: TicketRow[]) => void;
-  setPendingSign?: (value: boolean) => void;
 }
 
 // Helper to gather form data from contract section ref
@@ -185,21 +184,25 @@ export const handleSaveContract = async (
   }
 };
 
-// Main function to handle signing contract
+// Main function to handle signing an already-created contract
 export const handleSignContract = async (
   isConnected: boolean,
   chainId: number | undefined,
-  contractSectionRef: React.RefObject<any>,
+  savedContractAddress: string | null,
   party1: string,
-  party2: string,
   stateSetters: ContractStateSetters,
-  createEventContract: (params: CreateEventContractParams) => void,
-  existingImageUri?: string | null
+  signContractAsync: (contractAddress: `0x${string}`, username: string) => Promise<any>,
+  contractSectionRef: React.RefObject<any>
 ): Promise<void> => {
-  const { setIsContractCreating, setCreationError, setIsUploading, setTicketRowsToAdd, setPendingSign } = stateSetters;
+  const { setIsContractCreating, setCreationError } = stateSetters;
 
   if (!isConnected) {
     setCreationError("Please connect your wallet");
+    return;
+  }
+
+  if (!savedContractAddress) {
+    setCreationError("Please save the contract as a draft first before signing");
     return;
   }
 
@@ -213,26 +216,15 @@ export const handleSignContract = async (
     setIsContractCreating(true);
     setCreationError("");
 
-    const formData = getFormData(contractSectionRef, party1, party2);
-    await handleImageUpload(formData, setIsUploading, existingImageUri, 'XAO');
-    setTicketRowsToAdd(getTicketRows(formData));
+    await signContractAsync(savedContractAddress as `0x${string}`, party1);
 
-    const { params, error: validationError } = buildAndValidateParams(formData, party1, party2, 'SIGNED');
-    if (validationError) {
-      setCreationError(validationError);
-      setIsContractCreating(false);
-      return;
-    }
-
-    setPendingSign?.(true);
-    createEventContract(params);
+    // Delete proposal image group from Pinata (cleanup + re-upload to XAO)
+    deleteProposalImageGroup(contractSectionRef);
   } catch (err) {
     setCreationError(
-      err instanceof Error ? err.message : "Failed to create and sign contract"
+      err instanceof Error ? err.message : "Failed to sign contract"
     );
     setIsContractCreating(false);
-    setIsUploading(false);
-    setPendingSign?.(false);
   }
 };
 
@@ -245,11 +237,13 @@ export const addTicketsToContract = async (
   if (ticketRows.length > 0) {
     for (const ticketRow of ticketRows) {
       if (ticketRow.ticketType && ticketRow.numberOfTickets) {
+        const price = dollarToWei(ticketRow.ticketPrice);
         await addTicketTypeAsync(contractAddress, {
           ticketTypeName: ticketRow.ticketType,
           onSaleDate: dateTimeToTimestamp(ticketRow.onSaleDate),
           numberOfTickets: parseFormattedNumber(ticketRow.numberOfTickets),
-          ticketPrice: dollarToWei(ticketRow.ticketPrice),
+          ticketPrice: price,
+          isFree: price === BigInt(0),
         });
       }
     }

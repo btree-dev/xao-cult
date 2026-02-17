@@ -265,10 +265,10 @@ const Dashboard: NextPage = () => {
         </div>
       </div>
 
-        {/* Blockchain Contracts Section */}
-        {contracts && contracts.length > 0 && (
+        {/* Blockchain Contracts Section — only show contracts signed by both parties */}
+        {contracts && contracts.filter(c => c.party1Signed && c.party2Signed).length > 0 && (
           <div className={styles.feedContainer}>
-            {contracts.map((contract, index) => {
+            {contracts.filter(c => c.party1Signed && c.party2Signed).map((contract, index) => {
               // Debug: Log the image URI from blockchain
               console.log('Contract:', contract.contractAddress);
               console.log('Event Name:', contract.eventName);

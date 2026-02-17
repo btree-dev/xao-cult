@@ -6,6 +6,7 @@ export interface AddTicketTypeParams {
   onSaleDate: bigint;
   numberOfTickets: bigint;
   ticketPrice: bigint;
+  isFree: boolean;
 }
 
 export const dateTimeToTimestamp = (dateTimeString: string): bigint => {
@@ -34,17 +35,35 @@ export const useAddTicketType = () => {
     hash,
   });
   const addTicketTypeAsync = async (contractAddress: `0x${string}`, params: AddTicketTypeParams) => {
-    return writeContractAsync({
-      address: contractAddress,
-      abi: EVENT_CONTRACT_ABI,
-      functionName: 'addTicketType',
-      args: [
-        params.ticketTypeName,
-        params.onSaleDate,
-        params.numberOfTickets,
-        params.ticketPrice,
-      ],
-    });
+    try {
+      console.log("=== ADDING TICKET TYPE WITH PARAMS ===");
+      console.log("Contract:", contractAddress);
+      console.log("Name:", params.ticketTypeName);
+      console.log("Sale Date:", params.onSaleDate.toString());
+      console.log("Count:", params.numberOfTickets.toString());
+      console.log("Price:", params.ticketPrice.toString());
+      console.log("Is Free:", params.isFree);
+
+      const result = await writeContractAsync({
+        address: contractAddress,
+        abi: EVENT_CONTRACT_ABI,
+        functionName: 'addTicketType',
+        args: [
+          params.ticketTypeName,
+          params.onSaleDate,
+          params.numberOfTickets,
+          params.ticketPrice,
+          params.isFree,
+        ],
+        gas: BigInt(2000000), // Set a much higher gas limit (2 million)
+      });
+
+      console.log("Transaction successful:", result);
+      return result;
+    } catch (error) {
+      console.error("Detailed error in addTicketTypeAsync:", error);
+      throw error;
+    }
   };
 
   return {

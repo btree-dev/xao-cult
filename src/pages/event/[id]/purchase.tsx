@@ -8,6 +8,9 @@ import styles from '../../../styles/Home.module.css';
 import { supabase } from '../../../lib/supabase';
 import Navbar from '../../../components/Navbar';
 import Scrollbar from '../../../components/Scrollbar';
+import { useReadContract } from 'wagmi';
+import { EVENT_CONTRACT_ABI } from '../../../lib/web3/eventcontract';
+import { formatEther } from 'viem';
 const TicketPurchase: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<any>(null);
@@ -16,8 +19,21 @@ const TicketPurchase: NextPage = () => {
   const router = useRouter();
   const { id } = router.query;
 
+  // Check if ID is a contract address
+  const isContractAddress = typeof id === 'string' && id.startsWith('0x');
+  const contractAddress = isContractAddress ? (id as `0x${string}`) : undefined;
 
- const defaultTicketTypes = [
+  // Fetch ticket types from blockchain if it's a contract
+  const { data: blockchainTickets, isLoading: ticketsLoading } = useReadContract({
+    address: contractAddress,
+    abi: EVENT_CONTRACT_ABI,
+    functionName: 'getTicketTypes',
+    query: {
+      enabled: isContractAddress && !!contractAddress,
+    },
+  });
+
+  const defaultTicketTypes = [
     { id: 'general', name: 'General Admission', price: 50, selected: false, count: 0 },
     { id: 'premium', name: 'Premium', price: 80, selected: false, count: 0 },
     { id: 'vip', name: 'VIP', price: 120, selected: false, count: 0 }
@@ -26,7 +42,23 @@ const TicketPurchase: NextPage = () => {
   useEffect(() => {
     if (!id) return;
 
+    // If it's a blockchain contract and we have ticket data, use that
+    if (isContractAddress && blockchainTickets && !ticketsLoading) {
+      const tickets = (blockchainTickets as any[]).map((ticket: any, index: number) => ({
+        id: `ticket-${index}`,
+        typeId: index, // Store the blockchain typeId
+        name: ticket.name || ticket[0] || `Ticket Type ${index + 1}`,
+        price: ticket.price ? Number(formatEther(ticket.price)) : (ticket[3] ? Number(formatEther(ticket[3])) : 0),
+        available: ticket.count ? Number(ticket.count) : (ticket[2] ? Number(ticket[2]) : 0),
+        selected: false,
+        count: 0, // User's selected quantity
+      }));
+      console.log('Blockchain tickets loaded:', tickets);
+      setTicketTypes(tickets);
+      return;
+    }
 
+    // Otherwise check for saved state or use defaults
     const savedState = sessionStorage.getItem(`purchaseState-${id}`);
     if (savedState) {
       try {
@@ -39,7 +71,7 @@ const TicketPurchase: NextPage = () => {
       }
     }
     setTicketTypes(defaultTicketTypes);
-  }, [id]);
+  }, [id, blockchainTickets, ticketsLoading, isContractAddress]);
   useEffect(() => {
     if (!id || ticketTypes.length === 0) return;
     sessionStorage.setItem(

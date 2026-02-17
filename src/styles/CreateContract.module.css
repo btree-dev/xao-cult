@@ -7,7 +7,7 @@
   margin-bottom: 30px;
   min-height: 100vh;
   position: relative;
-  z-index: 1;
+  z-index: 999;
 }
 
 @media (max-width: 480px) {
@@ -1136,4 +1136,99 @@
   .messageInputContainer {
     bottom: calc(2px + env(safe-area-inset-bottom));
   }
+}
+
+/* Direct Contract Creation Page Styles */
+.section {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.section h2 {
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  margin-top: 0;
+}
+
+.section label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.section textarea {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  color: white;
+  font-size: 14px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.buttonContainer {
+  display: flex;
+  justify-content: center;
+  margin: 30px 0;
+  width: 100%;
+}
+
+.createButton {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 30px;
+  padding: 16px 48px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 200px;
+}
+
+.createButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.createButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.success {
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 20px 0;
+  color: #4ade80;
+}
+
+.success p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.error {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 20px 0;
+  color: #f87171;
+}
+
+.error p {
+  margin: 8px 0;
+  font-size: 14px;
 }

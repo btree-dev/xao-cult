@@ -280,7 +280,7 @@ const Dashboard: NextPage = () => {
               <div
                 key={contract.contractAddress || index}
                 className={styles.feedItem}
-                onClick={() => router.push(`/contracts/${contract.contractAddress}`)}
+                onClick={() => router.push(`/event/${contract.contractAddress}`)}
               >
                 <div className={styles.feedHeader}>
                   <div className={styles.feedAuthor}>

@@ -7,7 +7,10 @@ import Navbar from "../../../components/Navbar";
 
 const TicketConfirmation: NextPage = () => {
   const router = useRouter();
-  const { id:eventId, event, date, image, time, location, tickets } = router.query;
+  const { id:eventId, event, date, image, time, location, tickets, contractAddress } = router.query;
+  
+  // Check if this was a blockchain purchase
+  const isBlockchainPurchase = !!contractAddress;
 
   if (!router.isReady) {
     return (
@@ -175,6 +178,71 @@ const TicketConfirmation: NextPage = () => {
                 Event: {date} at {time}
               </span>
             </div>
+
+            {/* ✅ Blockchain Contract Info */}
+            {isBlockchainPurchase && contractAddress && (
+              <div className={styles.confirmDetailRow}>
+                <div className={styles.detailIcon}>
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      <linearGradient
+                        id="blockchainGradient"
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="1"
+                      >
+                        <stop offset="0%" stopColor="#FF8A00" />
+                        <stop offset="50%" stopColor="#FF5F6D" />
+                        <stop offset="100%" stopColor="#A557FF" />
+                      </linearGradient>
+                    </defs>
+                    <rect
+                      x="3"
+                      y="3"
+                      width="7"
+                      height="7"
+                      stroke="url(#blockchainGradient)"
+                      strokeWidth="2"
+                    />
+                    <rect
+                      x="14"
+                      y="3"
+                      width="7"
+                      height="7"
+                      stroke="url(#blockchainGradient)"
+                      strokeWidth="2"
+                    />
+                    <rect
+                      x="3"
+                      y="14"
+                      width="7"
+                      height="7"
+                      stroke="url(#blockchainGradient)"
+                      strokeWidth="2"
+                    />
+                    <rect
+                      x="14"
+                      y="14"
+                      width="7"
+                      height="7"
+                      stroke="url(#blockchainGradient)"
+                      strokeWidth="2"
+                    />
+                  </svg>
+                </div>
+
+                <span className={styles.detailValue} style={{ fontSize: '12px', wordBreak: 'break-all' }}>
+                  Contract: {contractAddress}
+                </span>
+              </div>
+            )}
 
             {/* ✅ CTA */}
             <div className={styles.confirmButtonContainer}>

@@ -7,6 +7,9 @@ import styles from '../../styles/Home.module.css';
 import Navbar from '../../components/Navbar';
 import Scrollbar from '../../components/Scrollbar';
 import ShareModal from '../../components/ShareModal';
+import { useReadContract, useReadContracts } from 'wagmi';
+import { EVENT_CONTRACT_ABI } from '../../lib/web3/eventcontract';
+import { formatContractDate, CONTRACT_STATUS_LABELS } from '../../hooks/useGetContracts';
 
 import { IEvent, IVenue } from '../../backend/services/types/api';
 
@@ -19,12 +22,74 @@ const EventDetails: NextPage = () => {
   const router = useRouter();
   const { id } = router.query;
 
+  // Check if ID is a contract address (starts with 0x)
+  const isContractAddress = typeof id === 'string' && id.startsWith('0x');
+  const contractAddress = isContractAddress ? (id as `0x${string}`) : undefined;
+
+  // Fetch contract data if it's a contract address
+  const contracts = contractAddress ? [
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'party1' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'party2' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'name' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'location' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'dates' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'imageUri' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'status' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'legal' as const },
+  ] : [];
+
+  const { data: contractData, isLoading: contractLoading } = useReadContracts({
+    contracts,
+    query: {
+      enabled: isContractAddress && contracts.length > 0,
+    },
+  });
+
   useEffect(() => {
     const fetchEvent = async () => {
       if (!id) return;
       
       setLoading(true);
       try {
+        // If it's a contract address and we have data, use blockchain data
+        if (isContractAddress && contractData && !contractLoading) {
+          const party1 = contractData[0]?.status === 'success' ? (contractData[0].result as any) : null;
+          const party2 = contractData[1]?.status === 'success' ? (contractData[1].result as any) : null;
+          const name = contractData[2]?.status === 'success' ? (contractData[2].result as string) : 'Untitled Event';
+          const location = contractData[3]?.status === 'success' ? (contractData[3].result as any) : null;
+          const dates = contractData[4]?.status === 'success' ? (contractData[4].result as any) : null;
+          const imageUri = contractData[5]?.status === 'success' ? (contractData[5].result as string) : '';
+          const status = contractData[6]?.status === 'success' ? Number(contractData[6].result) : 0;
+          const legal = contractData[7]?.status === 'success' ? (contractData[7].result as string) : '';
+
+          const contractEvent = {
+            id,
+            title: name,
+            artist: party1?.name || party1?.[1] || 'Unknown Artist',
+            tag: CONTRACT_STATUS_LABELS[status] || 'Draft',
+            date: dates ? formatContractDate(dates.show || dates[1]) : 'TBD',
+            time: dates ? new Date(Number(dates.start || dates[4]) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'TBD',
+            location: location ? (location.venue || location[0]) : 'No venue specified',
+            description: legal || 'No description available for this event.',
+            image: imageUri || 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
+            profilePic: '/profileIcon.svg',
+            likes: '0',
+            views: '0',
+            lineup: [],
+            organizer: {
+              name: party1?.name || party1?.[1] || 'Unknown',
+              image: '/profileIcon.svg'
+            },
+            ticketPrice: 0,
+            isBlockchainContract: true,
+            contractAddress: id,
+          };
+          setEvent(contractEvent);
+          setLoading(false);
+          return;
+        }
+
+        // Otherwise, use mock data for specific event IDs
          let mockEvent;
         
         if (id === 'rivo-event-1') {
@@ -144,7 +209,7 @@ const EventDetails: NextPage = () => {
     };
     
      fetchEvent();
-  }, [id]);
+  }, [id, contractData, contractLoading, isContractAddress]);
 
   const handleBuyTicket = () => {
     router.push(`/event/${id}/purchase`);

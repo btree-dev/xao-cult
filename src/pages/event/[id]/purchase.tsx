@@ -43,6 +43,7 @@ const TicketPurchase: NextPage = () => {
         name: ticket.name || ticket[0] || `Ticket Type ${index + 1}`,
         price: ticket.price ? weiToDollar(ticket.price) : (ticket[3] ? weiToDollar(ticket[3]) : 0),
         available: ticket.count ? Number(ticket.count) : (ticket[2] ? Number(ticket[2]) : 0),
+        saleDate: Number(ticket.saleDate || ticket[1] || 0),
         selected: false,
         count: 0, // User's selected quantity
       }));
@@ -104,6 +105,7 @@ const TicketPurchase: NextPage = () => {
       typeId: t.typeId ?? 0,
       count: t.count,
       price: t.price,
+      saleDate: t.saleDate ?? 0,
     }));
 
     router.push({

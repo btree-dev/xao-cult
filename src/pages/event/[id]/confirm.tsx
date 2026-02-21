@@ -78,6 +78,17 @@ const PurchaseConfirmation: NextPage = () => {
       setIsPurchasing(true);
       setPurchaseError("");
 
+      // Check if any selected ticket's sale date hasn't started yet
+      const now = Math.floor(Date.now() / 1000);
+      for (const ticket of selectedTickets) {
+        if (ticket.saleDate && ticket.saleDate > now) {
+          const saleStart = new Date(ticket.saleDate * 1000);
+          setPurchaseError(`Sale for "${ticket.type}" hasn't started yet. It starts on ${saleStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at ${saleStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
+          setIsPurchasing(false);
+          return;
+        }
+      }
+
       try {
         // Read all ticket types from on-chain contract (prices in wei)
         const ticketTypes = await readContract(config, {

@@ -17,27 +17,12 @@ const CurrentContract: React.FC = () => {
 
   // Fetch blockchain contracts
   const { address, chain } = useWeb3();
-  console.log("=== WEB3 DEBUG ===");
-  console.log("Connected address:", address);
-  console.log("Chain ID:", chain?.id);
-
   const { contracts, isLoading } = useUserContractsWithSummaries(chain?.id, address as `0x${string}`);
-  console.log("=== ALL CONTRACTS ===", contracts);
-  console.log(
-    "Contract statuses:",
-    contracts.map((c) => ({
-      address: c.contractAddress,
-      status: c.status,
-      party1Signed: c.party1Signed,
-      party2Signed: c.party2Signed,
-    })),
-  );
 
   // Filter for current contracts (status: Signed = 2)
   const currentContracts = contracts.filter(
     (contract) => contract.status === 2,
   );
-  console.log("=== CURRENT CONTRACTS (status=2) ===", currentContracts);
 
   const toggleMute = (contractId: string, e: React.MouseEvent) => {
     e.stopPropagation();

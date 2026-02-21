@@ -1,6 +1,6 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/router';
 
 import styles from '../styles/Home.module.css';
@@ -35,7 +35,18 @@ const Dashboard: NextPage = () => {
 
   // Web3 hooks for blockchain contracts
   const { address, isConnected, chain } = useWeb3();
-  const { contracts, isLoading: contractsLoading, refetch: refetchContracts } = useAllContractsWithSummaries(chain?.id || DEFAULT_CHAIN);
+  const { contracts: rawContracts, isLoading: contractsLoading, refetch: refetchContracts } = useAllContractsWithSummaries(chain?.id || DEFAULT_CHAIN);
+
+  // Stabilize contracts reference to prevent useEffect re-runs on every wagmi refetch
+  const contractsRef = useRef<string>('');
+  const contracts = useMemo(() => {
+    const key = JSON.stringify(rawContracts.map(c => c.contractAddress));
+    if (key !== contractsRef.current) {
+      contractsRef.current = key;
+      return rawContracts;
+    }
+    return rawContracts;
+  }, [rawContracts]);
 
   // Load filters from sessionStorage on mount
   useEffect(() => {
@@ -124,13 +135,20 @@ const Dashboard: NextPage = () => {
   };
 
   // Combined filter effect - applies both date and location filters to blockchain contracts
+  // Uses a debounce to avoid rapid re-runs from cascading state changes
   useEffect(() => {
-    if (!contracts) return;
-    const runFilters = async () => {
+    if (!contracts || contracts.length === 0) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
       const filtered = await applyContractFilters(contracts, dateFilters, filterLocation, profile);
-      setFilteredContracts(filtered);
+      if (!cancelled) {
+        setFilteredContracts(filtered);
+      }
+    }, 100);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
     };
-    runFilters();
   }, [filterLocation, dateFilters, contracts, profile]);
 
   useEffect(() => {

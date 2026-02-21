@@ -30,6 +30,7 @@ export const useGetAllContracts = (chainId?: number) => {
     functionName: 'getContracts',
     query: {
       enabled: !!factoryAddress && factoryAddress !== '0x',
+      refetchOnWindowFocus: false,
     },
   });
 
@@ -54,6 +55,7 @@ export const useGetUserContracts = (chainId?: number, userAddress?: `0x${string}
     args: userAddress ? [userAddress] : undefined,
     query: {
       enabled: !!factoryAddress && factoryAddress !== '0x' && !!userAddress,
+      refetchOnWindowFocus: false,
     },
   });
 
@@ -94,6 +96,7 @@ export const useGetContractSummaries = (contractAddresses?: `0x${string}`[]) => 
     contracts,
     query: {
       enabled: contracts.length > 0,
+      refetchOnWindowFocus: false,
     },
   });
 

@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import styles from "../../styles/ticketAuthenticate.module.css";
+import { readContract, writeContract, waitForTransactionReceipt } from "@wagmi/core";
+import { config } from "../../wagmi";
+import { EVENT_CONTRACT_ABI } from "../../lib/web3/eventcontract";
+import { useWeb3 } from "../../hooks/useWeb3";
 
 interface TicketScanProps {
   onScanSuccess?: (decodedText: string) => void;
@@ -8,6 +12,7 @@ interface TicketScanProps {
 
 export default function TicketScan({ onScanSuccess }: TicketScanProps) {
   const router = useRouter();
+  const { address, isConnected } = useWeb3();
   const [scannedData, setScannedData] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [scanStatus, setScanStatus] = useState<'idle' | 'detected' | 'error'>('idle');
@@ -28,7 +33,7 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
         // Calculate qrbox based on 430px for desktop (when viewport > 530) or actual viewport for mobile
         const viewportWidth = window.innerWidth > 530 ? 430 : window.innerWidth;
         const qrboxSize = Math.floor(viewportWidth * 0.8); // 80% of viewport width, no max limit
-      
+
         await html5QrCode.start(
           { facingMode: "environment" },
           {
@@ -40,7 +45,7 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
             console.log("QR Code detected:", decodedText);
             console.log("QR Code length:", decodedText.length);
             console.log("QR Code is empty:", decodedText.trim().length === 0);
-          
+
             lastDetectionTime = Date.now();
             setScanStatus('detected');
             // Store the data even if it's empty - we'll validate on redeem
@@ -62,7 +67,7 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
 
     startScanner();
 
-    
+
     return () => {
       isMounted = false;
       if (html5QrCode) {
@@ -71,69 +76,159 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
         });
       }
     };
-  }, []); 
+  }, []);
 
   const handleAuthenticate = async () => {
     if (!scannedData) return;
 
     setIsAuthenticating(true);
 
-
-    await new Promise(resolve => setTimeout(resolve, 800));
-
     try {
       console.log("Validating scanned data:", scannedData);
 
-     
-      let url: URL;
+      // Parse QR code format: contractAddress:txHash or contractAddress:contractAddress
+      const parts = scannedData.split(':');
+
+      // Validate format — must have two parts, first must be a 0x address
+      if (parts.length < 2 || !parts[0].startsWith('0x')) {
+        console.log("Invalid QR format — not a blockchain ticket");
+        setScanStatus('error');
+        router.push("/TicketAuthenticate/Access?status=error&reason=invalid_format");
+        setIsAuthenticating(false);
+        return;
+      }
+
+      const contractAddress = parts[0] as `0x${string}`;
+
+      // Check wallet connection
+      if (!isConnected || !address) {
+        console.log("Wallet not connected");
+        setScanStatus('error');
+        router.push("/TicketAuthenticate/Access?status=error&reason=wallet_not_connected");
+        setIsAuthenticating(false);
+        return;
+      }
+
+      // Step 1: Get all ticket IDs for the scanned ticket's owner
+      // We read totalIssued to know how many tickets exist
+      let totalIssued: bigint;
       try {
-     
-        if (/^https?:\/\//i.test(scannedData)) {
-          url = new URL(scannedData);
-        } else if (/^www\./i.test(scannedData)) {
-          url = new URL('https://' + scannedData);
-        } else {
-       
-          console.log("Not a valid URL - showing error");
-          setScanStatus('error');
-          router.push("/TicketAuthenticate/Access?status=error");
-          setIsAuthenticating(false);
-          return;
+        totalIssued = await readContract(config, {
+          address: contractAddress,
+          abi: EVENT_CONTRACT_ABI,
+          functionName: 'totalIssued',
+        }) as bigint;
+      } catch (err) {
+        console.error("Failed to read contract:", err);
+        setScanStatus('error');
+        router.push("/TicketAuthenticate/Access?status=error&reason=invalid_contract");
+        setIsAuthenticating(false);
+        return;
+      }
+
+      if (totalIssued === BigInt(0)) {
+        console.log("No tickets issued on this contract");
+        setScanStatus('error');
+        router.push("/TicketAuthenticate/Access?status=error&reason=no_tickets");
+        setIsAuthenticating(false);
+        return;
+      }
+
+      // Step 2: Find an unchecked ticket by scanning through registry
+      // Look for a ticket that hasn't been checked in yet
+      let foundTicketId: bigint | null = null;
+      let ticketOwner: string = '';
+      let ticketName: string = '';
+
+      for (let i = BigInt(0); i < totalIssued; i++) {
+        try {
+          const info = await readContract(config, {
+            address: contractAddress,
+            abi: EVENT_CONTRACT_ABI,
+            functionName: 'getTicketInfo',
+            args: [i],
+          }) as [bigint, string, string, boolean, bigint, bigint];
+
+          const [, owner, name, checkedIn] = info;
+
+          // Find first unchecked ticket (any owner — organizer is scanning)
+          if (!checkedIn && owner !== '0x0000000000000000000000000000000000000000') {
+            foundTicketId = i;
+            ticketOwner = owner;
+            ticketName = name;
+            break;
+          }
+        } catch (err) {
+          console.error(`Error reading ticket ${i}:`, err);
+          continue;
         }
-      } catch (urlError) {
-        console.log("Invalid URL format - showing error");
+      }
+
+      if (foundTicketId === null) {
+        console.log("No valid unchecked tickets found");
         setScanStatus('error');
-        router.push("/TicketAuthenticate/Access?status=error");
+        router.push("/TicketAuthenticate/Access?status=error&reason=already_redeemed");
         setIsAuthenticating(false);
         return;
       }
 
-     
-      const pathname = url.pathname.toLowerCase();
-      console.log("URL pathname:", pathname);
-      const fileExtensions = /\.(pdf|jpg|jpeg|png|gif|bmp|svg|webp|ico)$/i;
-      const isFileUrl = fileExtensions.test(pathname);
-      console.log("Is PDF/Image file?", isFileUrl);
+      console.log(`Found valid ticket #${foundTicketId} owned by ${ticketOwner}, type: ${ticketName}`);
 
-      if (isFileUrl) {
-        console.log("URL points to PDF or image file - showing error");
+      // Step 3: Call checkInTicket on-chain (requires organizer wallet)
+      try {
+        const txHash = await writeContract(config, {
+          address: contractAddress,
+          abi: EVENT_CONTRACT_ABI,
+          functionName: 'checkInTicket',
+          args: [foundTicketId],
+        });
+
+        // Wait for transaction confirmation
+        await waitForTransactionReceipt(config, { hash: txHash });
+
+        console.log("Check-in successful! Tx:", txHash);
+
+        // Mark ticket as redeemed in localStorage
+        try {
+          const stored = localStorage.getItem('purchasedTickets');
+          if (stored) {
+            const purchasedTickets = JSON.parse(stored);
+            const updated = purchasedTickets.map((t: any) => {
+              if (t.contractAddress?.toLowerCase() === contractAddress.toLowerCase()) {
+                return { ...t, redeemed: true };
+              }
+              return t;
+            });
+            localStorage.setItem('purchasedTickets', JSON.stringify(updated));
+          }
+        } catch (e) {
+          console.error('Error updating redeemed status in localStorage:', e);
+        }
+
+        if (onScanSuccess) {
+          onScanSuccess(scannedData);
+        }
+
+        router.push(`/TicketAuthenticate/Access?status=success&ticketId=${foundTicketId.toString()}&ticketType=${encodeURIComponent(ticketName)}&owner=${ticketOwner}`);
+      } catch (checkInErr: any) {
+        console.error("Check-in transaction failed:", checkInErr);
+
+        // Determine the reason for failure
+        const errMsg = checkInErr?.message || '';
+        if (errMsg.includes('onlyOrg') || errMsg.includes('execution reverted')) {
+          router.push("/TicketAuthenticate/Access?status=error&reason=not_organizer");
+        } else {
+          router.push("/TicketAuthenticate/Access?status=error&reason=checkin_failed");
+        }
         setScanStatus('error');
-        router.push("/TicketAuthenticate/Access?status=error");
         setIsAuthenticating(false);
         return;
       }
-
-      console.log("Valid website URL - showing success");
-      if (onScanSuccess) {
-        onScanSuccess(scannedData);
-      }
-      router.push("/TicketAuthenticate/Access?status=success");
 
     } catch (error) {
-
       console.error("Validation failed:", error);
       setScanStatus('error');
-      router.push("/TicketAuthenticate/Access?status=error");
+      router.push("/TicketAuthenticate/Access?status=error&reason=unknown");
     }
 
     setIsAuthenticating(false);

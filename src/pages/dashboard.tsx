@@ -10,23 +10,20 @@ import Layout from '../components/Layout';
 import Scrollbar from '../components/Scrollbar';
 import ShareModal from '../components/ShareModal';
 import CalendarFilter, { FilterOptions, LocationFilterData } from '../components/CalendarFilter';
-import { EventDocs } from '../backend/eventsdata';
 import { useWeb3 } from '../hooks/useWeb3';
-import { useAllContractsWithSummaries, CONTRACT_STATUS_LABELS, formatContractDate } from '../hooks/useGetContracts';
+import { useAllContractsWithSummaries, ContractSummary, CONTRACT_STATUS_LABELS, formatContractDate } from '../hooks/useGetContracts';
 import { DEFAULT_CHAIN } from '../lib/web3/chains';
 import {
   getStoredLocationFilter,
   getStoredDateFilters,
-  formatCount,
-  applyAllFilters
+  applyContractFilters
 } from '../backend/services/dashboardHelpers';
 
 const Dashboard: NextPage = () => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [events, setEvents] = useState<any[]>(EventDocs);
-  const [filteredEvents, setFilteredEvents] = useState<any[]>(EventDocs);
+  const [filteredContracts, setFilteredContracts] = useState<ContractSummary[]>([]);
   const [mutedEvents, setMutedEvents] = useState<Set<string>>(new Set());
   const [likedEvents, setLikedEvents] = useState<Set<string>>(new Set());
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -126,14 +123,15 @@ const Dashboard: NextPage = () => {
     }
   };
 
-  // Combined filter effect - applies both date and location filters together
+  // Combined filter effect - applies both date and location filters to blockchain contracts
   useEffect(() => {
+    if (!contracts) return;
     const runFilters = async () => {
-      const filtered = await applyAllFilters(events, dateFilters, filterLocation, profile);
-      setFilteredEvents(filtered);
+      const filtered = await applyContractFilters(contracts, dateFilters, filterLocation, profile);
+      setFilteredContracts(filtered);
     };
     runFilters();
-  }, [filterLocation, dateFilters, events, profile]);
+  }, [filterLocation, dateFilters, contracts, profile]);
 
   useEffect(() => {
     const getUser = async () => {
@@ -182,10 +180,6 @@ const Dashboard: NextPage = () => {
     getUser();
   }, [router]);
 
-
-  const handleEventClick = (eventId: string) => {
-    router.push(`/event/${eventId}`);
-  };
 
   if (loading) {
     return (
@@ -265,162 +259,79 @@ const Dashboard: NextPage = () => {
         </div>
       </div>
 
-        {/* Blockchain Contracts Section — only show contracts signed by both parties */}
-        {contracts && contracts.filter(c => c.party1Signed && c.party2Signed).length > 0 && (
-          <div className={styles.feedContainer}>
-            {contracts.filter(c => c.party1Signed && c.party2Signed).map((contract, index) => {
-              // Debug: Log the image URI from blockchain
-              console.log('Contract:', contract.contractAddress);
-              console.log('Event Name:', contract.eventName);
-              console.log('Image URI from chain:', contract.eventImageUri);
-              console.log('Image URI type:', typeof contract.eventImageUri);
-              console.log('---');
-
-              return (
-              <div
-                key={contract.contractAddress || index}
-                className={styles.feedItem}
-                onClick={() => router.push(`/event/${contract.contractAddress}`)}
-              >
-                <div className={styles.feedHeader}>
-                  <div className={styles.feedAuthor}>
-                    <div className={styles.authorAvatar}>
-                      <img
-                        src="/profileIcon.svg"
-                        alt="Contract"
-                      />
-                    </div>
-                    <div className={styles.authorName}>Contract</div>
-                    <div className={styles.headerTag}>
-                      {CONTRACT_STATUS_LABELS[contract.status] || 'Unknown'}
-                    </div>
-                  </div>
-                </div>
-                <div className={styles.feedContent}>
-                  {contract.eventImageUri && (
-                    <img
-                      src={contract.eventImageUri}
-                      alt={contract.eventName || 'Contract'}
-                      className={styles.feedImage}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  )}
-                  <div className={styles.feedContentOverlayTop}>
-                    <h2 className={styles.feedEventTitle}>{contract.eventName || 'Untitled Contract'}</h2>
-                    <div className={styles.feedEventLocation}>
-                      <img src="/Map_Pin.svg" alt="Location" className={styles.locationIcon} />
-                      <span>{contract.venueName || 'No venue specified'}</span>
-                    </div>
-                    <div className={styles.feedEventDate}>
-                      <img src="/Calendar_Days.svg" alt="Date" className={styles.dateIcon} />
-                      <span>{formatContractDate(contract.showDate)}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className={styles.feedActionsBottom}>
-                  <div className={styles.actionButton} onClick={(e) => {
-                    e.stopPropagation();
-                    // Share contract functionality
-                  }}>
-                    <img src="/Paper_Plane.svg" alt="Share" className={styles.contractIconSvg} />
-                    <span className={styles.actionCounter}>0</span>
-                  </div>
-                  <div className={styles.actionButton} onClick={(e) => {
-                    e.stopPropagation();
-                    // Like contract functionality
-                  }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path
-                        d="M12 7.69431C10 2.99988 3 3.49988 3 9.49991C3 15.4999 12 20.5001 12 20.5001C12 20.5001 21 15.4999 21 9.49991C21 3.49988 14 2.99988 12 7.69431Z"
-                        fill="none"
-                        stroke="white"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    <span className={styles.actionCounter}>0</span>
-                  </div>
-                  <div className={styles.actionButton} onClick={(e) => {
-                    e.stopPropagation();
-                    // Volume/mute functionality
-                  }}>
-                    <img src="/Volume.svg" alt="Volume" className={styles.contractIconSvg} />
-                  </div>
-                </div>
-              </div>
-              );
-            })}
-          </div>
-        )}
-
+        {/* Blockchain Contracts — filtered and sorted */}
         <div className={styles.feedContainer}>
-          {filteredEvents.map((event, index) => (
-              <div
-                key={event.id || index}
-                className={styles.feedItem}
-                onClick={() => handleEventClick(event.id)}
-              >
-                <div className={styles.feedHeader}>
-                  <div className={styles.feedAuthor}>
-                    <div className={styles.authorAvatar}>
-                      <img
-                        src={event.profilePic}
-                        alt={event.artist}
-                      />
-                    </div>
-                    <div className={styles.authorName}>@{event.artist}</div>
-                    <div className={styles.headerTag}>{event.tag}</div>
+          {filteredContracts.map((contract, index) => (
+            <div
+              key={contract.contractAddress || index}
+              className={styles.feedItem}
+              onClick={() => router.push(`/event/${contract.contractAddress}`)}
+            >
+              <div className={styles.feedHeader}>
+                <div className={styles.feedAuthor}>
+                  <div className={styles.authorAvatar}>
+                    <img
+                      src="/profileIcon.svg"
+                      alt={contract.eventName || 'Contract'}
+                    />
                   </div>
-                </div>
-                <div className={styles.feedContent}>
-                  <img
-                    src={event.image}
-                    alt={`${event.artist} Content`}
-                    className={styles.feedImage}
-                  />
-                  <div className={styles.feedContentOverlayTop}>
-                    <h2 className={styles.feedEventTitle}>{event.title}</h2>
-                    <div className={styles.feedEventLocation}>
-                      <img src="/Map_Pin.svg" alt="Location" className={styles.locationIcon} />
-                      <span>{event.location}</span>
-                    </div>
-                    <div className={styles.feedEventDate}>
-                      <img src="/Calendar_Days.svg" alt="Date" className={styles.dateIcon} />
-                      <span>{event.date}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className={styles.feedActionsBottom}>
-                  <div className={styles.actionButton} onClick={(e) => handleShare(event, e)}>
-                    <img src="/Paper_Plane.svg" alt="Share" className={styles.contractIconSvg} />
-                    <span className={styles.actionCounter}>{formatCount(event.Shares)}</span>
-                  </div>
-                  <div className={styles.actionButton} onClick={(e) => toggleLike(event.id, e)}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path
-                        d="M12 7.69431C10 2.99988 3 3.49988 3 9.49991C3 15.4999 12 20.5001 12 20.5001C12 20.5001 21 15.4999 21 9.49991C21 3.49988 14 2.99988 12 7.69431Z"
-                        fill={likedEvents.has(event.id) ? "#DC143C" : "none"}
-                        stroke={likedEvents.has(event.id) ? "#DC143C" : "white"}
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    <span className={styles.actionCounter}>{formatCount(event.likes + (likedEvents.has(event.id) ? 1 : 0))}</span>
-                  </div>
-                  <div className={styles.actionButton} onClick={(e) => toggleMute(event.id, e)}>
-                    {mutedEvents.has(event.id) ? (
-                      <img src="/Volume_Off_02.png" alt="Muted" className={styles.contractIconSvg} />
-                    ) : (
-                      <img src="/Volume.svg" alt="Volume" className={styles.contractIconSvg} />
-                    )}
+                  <div className={styles.authorName}>@{contract.eventName || 'Contract'}</div>
+                  <div className={styles.headerTag}>
+                    {CONTRACT_STATUS_LABELS[contract.status] || 'Unknown'}
                   </div>
                 </div>
               </div>
-              ))}
+              <div className={styles.feedContent}>
+                {contract.eventImageUri && (
+                  <img
+                    src={contract.eventImageUri}
+                    alt={contract.eventName || 'Contract'}
+                    className={styles.feedImage}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                )}
+                <div className={styles.feedContentOverlayTop}>
+                  <h2 className={styles.feedEventTitle}>{contract.eventName || 'Untitled Contract'}</h2>
+                  <div className={styles.feedEventLocation}>
+                    <img src="/Map_Pin.svg" alt="Location" className={styles.locationIcon} />
+                    <span>{contract.venueName || 'No venue specified'}</span>
+                  </div>
+                  <div className={styles.feedEventDate}>
+                    <img src="/Calendar_Days.svg" alt="Date" className={styles.dateIcon} />
+                    <span>{formatContractDate(contract.showDate)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className={styles.feedActionsBottom}>
+                <div className={styles.actionButton} onClick={(e) => handleShare({ id: contract.contractAddress, title: contract.eventName || 'Contract' }, e)}>
+                  <img src="/Paper_Plane.svg" alt="Share" className={styles.contractIconSvg} />
+                  <span className={styles.actionCounter}>0</span>
+                </div>
+                <div className={styles.actionButton} onClick={(e) => toggleLike(contract.contractAddress, e)}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M12 7.69431C10 2.99988 3 3.49988 3 9.49991C3 15.4999 12 20.5001 12 20.5001C12 20.5001 21 15.4999 21 9.49991C21 3.49988 14 2.99988 12 7.69431Z"
+                      fill={likedEvents.has(contract.contractAddress) ? "#DC143C" : "none"}
+                      stroke={likedEvents.has(contract.contractAddress) ? "#DC143C" : "white"}
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <span className={styles.actionCounter}>{likedEvents.has(contract.contractAddress) ? 1 : 0}</span>
+                </div>
+                <div className={styles.actionButton} onClick={(e) => toggleMute(contract.contractAddress, e)}>
+                  {mutedEvents.has(contract.contractAddress) ? (
+                    <img src="/Volume_Off_02.png" alt="Muted" className={styles.contractIconSvg} />
+                  ) : (
+                    <img src="/Volume.svg" alt="Volume" className={styles.contractIconSvg} />
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
         <ShareModal

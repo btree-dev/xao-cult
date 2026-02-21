@@ -127,9 +127,10 @@ export const buildAndValidateParams = (
   formData: any,
   party1: string,
   party2: string,
+  otherPartyAddress: string,
   action: string = 'SAVED'
 ): { params: CreateEventContractParams; error: string | null } => {
-  const params = buildContractParams(formData, party1);
+  const params = buildContractParams(formData, party1, otherPartyAddress);
   logContractData(formData, party1, party2, params, action);
   const error = validateContractParams(params);
   return { params, error };
@@ -142,6 +143,7 @@ export const handleSaveContract = async (
   contractSectionRef: React.RefObject<any>,
   party1: string,
   party2: string,
+  otherPartyAddress: string,
   stateSetters: ContractStateSetters,
   createEventContract: (params: CreateEventContractParams) => void,
   existingImageUri?: string | null
@@ -167,7 +169,7 @@ export const handleSaveContract = async (
     await handleImageUpload(formData, setIsUploading, existingImageUri, 'XAO');
     setTicketRowsToAdd(getTicketRows(formData));
 
-    const { params, error: validationError } = buildAndValidateParams(formData, party1, party2, 'SAVED');
+    const { params, error: validationError } = buildAndValidateParams(formData, party1, party2, otherPartyAddress, 'SAVED');
     if (validationError) {
       setCreationError(validationError);
       setIsContractCreating(false);
@@ -218,8 +220,10 @@ export const handleSignContract = async (
 
     await signContractAsync(savedContractAddress as `0x${string}`, party1);
 
-    // Delete proposal image group from Pinata (cleanup + re-upload to XAO)
-    deleteProposalImageGroup(contractSectionRef);
+    // Delete proposal image group from Pinata in background (non-blocking)
+    deleteProposalImageGroup(contractSectionRef).catch((err) => {
+      console.warn('Background cleanup of proposal image group failed:', err);
+    });
   } catch (err) {
     setCreationError(
       err instanceof Error ? err.message : "Failed to sign contract"

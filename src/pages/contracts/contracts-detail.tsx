@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Head from "next/head";
 import Layout from "../../components/Layout";
 import ContractsNav from "../../components/ContractsNav";
@@ -15,7 +15,10 @@ import BlankNavbar from "../../components/BackNav";
 import { useWeb3 } from "../../hooks/useWeb3";
 import { useAllContractsWithSummaries } from "../../hooks/useGetContracts";
 import { useSignEventContract } from "../../hooks/useSignEventContract";
-import { useAddTicketType, dollarToWei } from "../../hooks/useAddTicketType";
+import { useAddTicketType, dollarToWei, weiToDollar, ETH_PRICE_USD } from "../../hooks/useAddTicketType";
+import { useReadContracts } from "wagmi";
+import { EVENT_CONTRACT_ABI } from "../../lib/web3/eventcontract";
+import { IContract } from "../../backend/services/types/api";
 
 const Contractsdetail: React.FC = () => {
   const [signing, setSigning] = useState(false);
@@ -26,9 +29,176 @@ const Contractsdetail: React.FC = () => {
   const router = useRouter();
   const { address, chain } = useWeb3();
   const { contracts } = useAllContractsWithSummaries(chain?.id);
-  const { id, ticketsold, totalrevenue, source, party1, party2 } = router.query;
+  const { id, ticketsold, totalrevenue, source } = router.query;
+  const party1 = router.query.party1 as string | undefined;
+  const party2 = router.query.party2 as string | undefined;
   const { signContractAsync, isLoading } = useSignEventContract();
   const { addTicketTypeAsync, isLoading: isAddingTicket } = useAddTicketType();
+
+  // Fetch all contract fields from on-chain for blockchain contracts
+  const isBlockchain = id && typeof id === "string" && id.startsWith("0x");
+  const contractAddr = isBlockchain ? (id as `0x${string}`) : undefined;
+
+  const chainCalls = contractAddr ? [
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'party1' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'party2' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'dates' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'location' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'config' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'resale' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'payIn' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'name' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'imageUri' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'rider' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'legal' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'ticketLegal' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'getTicketTypes' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'totalIssued' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'revenue' as const },
+  ] : [];
+
+  const { data: chainData, isLoading: chainLoading } = useReadContracts({
+    contracts: chainCalls,
+    query: { enabled: !!contractAddr },
+  });
+
+  // Helper to convert timestamp (seconds) to datetime-local string
+  const timestampToDatetime = (ts: any): string => {
+    const n = Number(ts);
+    if (!n || n === 0) return '';
+    const d = new Date(n * 1000);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  };
+
+  // Helper to extract HH:MM from a full Unix timestamp or seconds-of-day
+  const secondsToTime = (s: any): string => {
+    const n = Number(s);
+    if (!n || n === 0) return '';
+    // If value is large (> 86400), it's a full Unix timestamp — extract time portion
+    if (n > 86400) {
+      const date = new Date(n * 1000);
+      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
+    // Otherwise it's seconds-of-day (legacy contracts)
+    const h = Math.floor(n / 3600);
+    const m = Math.floor((n % 3600) / 60);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
+  // Helper to convert basis points to percentage string
+  const basisToPercent = (bp: any): string => {
+    const n = Number(bp);
+    if (!n) return '';
+    return (n / 100).toFixed(2);
+  };
+
+  // Helper to convert wei to dollar string
+  const weiToDollarStr = (wei: any): string => {
+    const n = Number(wei);
+    if (!n) return '';
+    return (n / 1e18 * ETH_PRICE_USD).toFixed(2);
+  };
+
+  // Convert chain data to initialData for CreateContractsection
+  const chainInitialData: Partial<IContract> | undefined = useMemo(() => {
+    if (!isBlockchain || !chainData || chainLoading) return undefined;
+
+    const get = (i: number) => chainData[i]?.status === 'success' ? chainData[i].result : null;
+
+    const dates = get(2) as any;
+    const loc = get(3) as any;
+    const cfg = get(4) as any;
+    const resaleData = get(5) as any;
+    const payInData = get(6) as any;
+    const eventName = get(7) as string || '';
+    const imageUri = get(8) as string || '';
+    const riderStr = get(9) as string || '';
+    const legalStr = get(10) as string || '';
+    const ticketLegalStr = get(11) as string || '';
+    const ticketTypes = get(12) as any[] || [];
+
+    return {
+      datesAndTimes: dates ? {
+        startTime: secondsToTime(dates.start ?? dates[4]),
+        endTime: secondsToTime(dates.end ?? dates[5]),
+        loadIn: secondsToTime(dates.loadIn ?? dates[2]),
+        doors: secondsToTime(dates.doors ?? dates[3]),
+        setTime: secondsToTime(dates.setTime ?? dates[6]),
+        setLength: Number(dates.setLength ?? dates[7]) ? String(Number(dates.setLength ?? dates[7])) : '',
+        ticketsSale: '',
+        eventStartDate: timestampToDatetime(dates.show ?? dates[1]),
+        eventAnnouncementDate: timestampToDatetime(dates.announce ?? dates[0]),
+        eventEndDate: timestampToDatetime(dates.end ?? dates[5]),
+      } : undefined,
+      location: loc ? {
+        venueName: loc.venue ?? loc[0] ?? '',
+        address: loc.addr ?? loc[1] ?? '',
+        radiusDistance: Number(loc.radius ?? loc[2]) ? String(Number(loc.radius ?? loc[2])) : '',
+        days: Number(loc.days1 ?? loc[3]) ? String(Number(loc.days1 ?? loc[3])) : '',
+      } : undefined,
+      tickets: cfg ? {
+        ticketRows: ticketTypes.length > 0 ? ticketTypes.map((t: any) => ({
+          ticketType: t.name ?? t[0] ?? '',
+          onSaleDate: timestampToDatetime(t.saleDate ?? t[1]),
+          numberOfTickets: Number(t.count ?? t[2]) ? String(Number(t.count ?? t[2])) : '',
+          ticketPrice: weiToDollarStr(t.price ?? t[3]),
+        })) : [{ ticketType: '', onSaleDate: '', numberOfTickets: '', ticketPrice: '' }],
+        totalCapacity: Number(cfg.capacity ?? cfg[1]) ? String(Number(cfg.capacity ?? cfg[1])) : '',
+        comps: basisToPercent(cfg.taxPct ?? cfg[2]),
+        salesTax: basisToPercent(cfg.taxPct ?? cfg[2]),
+        resale: resaleData ? {
+          party1: basisToPercent(resaleData.p1Pct ?? resaleData[0]),
+          party2: basisToPercent(resaleData.p2Pct ?? resaleData[1]),
+          reseller: basisToPercent(resaleData.rPct ?? resaleData[2]),
+        } : undefined,
+      } : undefined,
+      money: payInData ? {
+        // guaPct > 0 means percentage was used; otherwise dollar amount was used
+        guaranteeInput: basisToPercent(payInData.guaPct ?? payInData[1]),
+        depositbandInput: weiToDollarStr(payInData.guarantee ?? payInData[0]),
+        backendInput: basisToPercent(payInData.backPct ?? payInData[2]),
+        barsplitInput: basisToPercent(payInData.barPct ?? payInData[3]),
+        merchSplitInput: basisToPercent(payInData.merchPct ?? payInData[4]),
+        securityDepositRows: [{ dateTime: '', percentage: '', dollarAmount: '' }],
+        cancelParty1Rows: [{ dateTime: '', percentage: '', dollarAmount: '' }],
+        bandCanceledBy: '',
+        cancelParty2DateTime: '',
+        securitydepositAdd: '',
+        securityDeposit2Rows: [{ dateTime: '', percentage: '', dollarAmount: '' }],
+        cancelParty2Rows: [{ dateTime: '', percentage: '', dollarAmount: '' }],
+      } : undefined,
+      promotion: {
+        value: eventName,
+        genres: [],
+      },
+      eventImageUri: imageUri || undefined,
+      rider: riderStr ? {
+        rows: riderStr.split(', ').filter(Boolean).map((v: string) => ({ value: v })),
+      } : undefined,
+      legalAgreement: legalStr || undefined,
+      ticketLegalLanguage: ticketLegalStr || undefined,
+    };
+  }, [isBlockchain, chainData, chainLoading]);
+
+  // Compute on-chain tickets sold and total revenue
+  const onChainTicketsSold = useMemo(() => {
+    if (!isBlockchain || !chainData) return '0';
+    const val = chainData[13]?.status === 'success' ? chainData[13].result : null;
+    return val ? String(Number(val)) : '0';
+  }, [isBlockchain, chainData]);
+
+  const onChainTotalRevenue = useMemo(() => {
+    if (!isBlockchain || !chainData) return '$0.00';
+    const val = chainData[14]?.status === 'success' ? chainData[14].result : null;
+    if (!val) return '$0.00';
+    const dollars = Number(val) / 1e18 * ETH_PRICE_USD;
+    return `$${dollars.toFixed(2)}`;
+  }, [isBlockchain, chainData]);
 
   // Find contract from appropriate data source based on source parameter
   let eventDetail;
@@ -111,7 +281,7 @@ const Contractsdetail: React.FC = () => {
       alert("Failed to add ticket type. Please try again.");
       setAddingTicket(false);
     }
-  };
+  }; 
 
   const handleSignContract = async () => {
     if (!address) {
@@ -218,6 +388,24 @@ const Contractsdetail: React.FC = () => {
     return null;
   };
 
+  // Show loading while fetching blockchain data
+  if (isBlockchain && (chainLoading || !chainData)) {
+    return (
+      <Layout>
+        <div className={styles.container}>
+          <div className={styles.background} />
+          <Head>
+            <title>Contract Details - XAO Cult</title>
+          </Head>
+          <BlankNavbar pageTitle="Contract Details" />
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh', color: 'white' }}>
+            <p>Loading...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className={styles.container}>
@@ -283,11 +471,11 @@ const Contractsdetail: React.FC = () => {
                 </span>
 
                 <span className={styles.promotionRevenue}>
-                  Tickets Sold: {ticketsold}
+                  Tickets Sold: {isBlockchain ? onChainTicketsSold : ticketsold}
                 </span>
 
                 <span className={styles.promotionRevenue}>
-                  Total Revenue: {totalrevenue}
+                  Total Revenue: {isBlockchain ? onChainTotalRevenue : totalrevenue}
                 </span>
               </div>
             </div>
@@ -297,31 +485,22 @@ const Contractsdetail: React.FC = () => {
           <div className={styles.inputRow}>
             <input
               type="text"
-              onChange={(e) => setParty1(e.target.value)}
               placeholder="Party1"
               className={styles.input}
               required
               value={
                 id && typeof id === "string" && id.startsWith("0x")
-                  ? party1
-                  : address
+                  ? party1 || ''
+                  : address || ''
               }
-              readOnly={
-                id && typeof id === "string" && id.startsWith("0x") && Boolean(party1)
-              }
+              readOnly={!!(id && typeof id === "string" && id.startsWith("0x") && party1)}
               style={{
                 backgroundColor:
-                  id &&
-                  typeof id === "string" &&
-                  id.startsWith("0x") &&
-                  Boolean(party1)
+                  id && typeof id === "string" && id.startsWith("0x") && party1
                     ? "#000"
                     : "white",
                 cursor:
-                  id &&
-                  typeof id === "string" &&
-                  id.startsWith("0x") &&
-                  Boolean(party1)
+                  id && typeof id === "string" && id.startsWith("0x") && party1
                     ? "not-allowed"
                     : "text",
               }}
@@ -330,31 +509,22 @@ const Contractsdetail: React.FC = () => {
           <div className={styles.inputRow}>
             <input
               type="text"
-              onChange={(e) => setParty2(e.target.value)}
               placeholder="Party2"
               className={styles.input}
               required
               value={
                 id && typeof id === "string" && id.startsWith("0x")
-                  ? party2
-                  : address
+                  ? party2 || ''
+                  : address || ''
               }
-              readOnly={
-                id && typeof id === "string" && id.startsWith("0x") && Boolean(party2)
-              }
+              readOnly={!!(id && typeof id === "string" && id.startsWith("0x") && party2)}
               style={{
                 backgroundColor:
-                  id &&
-                  typeof id === "string" &&
-                  id.startsWith("0x") &&
-                  Boolean(party2)
-                    ? "#0000"
+                  id && typeof id === "string" && id.startsWith("0x") && party2
+                    ? "#000"
                     : "white",
                 cursor:
-                  id &&
-                  typeof id === "string" &&
-                  id.startsWith("0x") &&
-                  Boolean(party2)
+                  id && typeof id === "string" && id.startsWith("0x") && party2
                     ? "not-allowed"
                     : "text",
               }}
@@ -418,7 +588,7 @@ const Contractsdetail: React.FC = () => {
             </div>
           )}
 
-          <CreateContractsection party1={party1} party2={party2} />
+          <CreateContractsection party1={party1 || ''} party2={party2 || ''} initialData={chainInitialData} />
           {renderButtons()}
         </main>
       </div>

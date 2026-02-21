@@ -17,12 +17,20 @@ const Negotiation: React.FC = () => {
   console.log("Chain ID:", chain?.id);
   console.log("All contracts:", contracts);
 
+  // Only show contracts where the connected user is party1 or party2
+  const myAddr = address?.toLowerCase();
+  const myContracts = contracts.filter(
+    (contract) => myAddr && (
+      contract.party1Address.toLowerCase() === myAddr ||
+      contract.party2Address.toLowerCase() === myAddr
+    )
+  );
+
   // Filter for contracts under negotiation
-  // Since contracts have status 1, show them as "Requires Attention"
-  const attentionContracts = contracts.filter(
+  const attentionContracts = myContracts.filter(
     (contract) => contract.status === 1
   );
-  const waitingContracts = contracts.filter(
+  const waitingContracts = myContracts.filter(
     (contract) => contract.status === 0
   );
   

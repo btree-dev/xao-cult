@@ -5,7 +5,7 @@ import ContractsNav from "../../components/ContractsNav";
 import ShareModal from "../../components/ShareModal";
 import styles from "../../styles/CreateContract.module.css";
 import { useRouter } from "next/router";
-import { useAllContractsWithSummaries } from "../../hooks/useGetContracts";
+import { useUserContractsWithSummaries } from "../../hooks/useGetContracts";
 import { useWeb3 } from "../../hooks/useWeb3";
 
 const CurrentContract: React.FC = () => {
@@ -21,7 +21,7 @@ const CurrentContract: React.FC = () => {
   console.log("Connected address:", address);
   console.log("Chain ID:", chain?.id);
 
-  const { contracts, isLoading } = useAllContractsWithSummaries(chain?.id);
+  const { contracts, isLoading } = useUserContractsWithSummaries(chain?.id, address as `0x${string}`);
   console.log("=== ALL CONTRACTS ===", contracts);
   console.log(
     "Contract statuses:",

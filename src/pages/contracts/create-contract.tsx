@@ -24,7 +24,7 @@ const CreateContract = () => {
   const { peer: peerParam } = router.query;
 
   const [selected, setSelected] = useState<"chat" | "contract">("contract");
-  const [party1, setParty1] = useState("Pizza dao"); // Username for Party 1
+  const [party1, setParty1] = useState(""); // Username for Party 1
   const [party2, setParty2] = useState(""); // Wallet address for Party 2 (peer)
   const [isContractCreating, setIsContractCreating] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
@@ -38,6 +38,8 @@ const CreateContract = () => {
   const [isSendingProposal, setIsSendingProposal] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [savedContractAddress, setSavedContractAddress] = useState<string | null>(null);
+  // Track the address of whoever last sent us a proposal (for reply-to logic)
+  const [lastProposalSender, setLastProposalSender] = useState<string | null>(null);
 
   const { address, isConnected, chain } = useWeb3();
 
@@ -93,15 +95,20 @@ const CreateContract = () => {
   };
 
   // Derive XMTP peer address — must always be the OTHER party, never yourself
+  // After the first proposal exchange, reply to whoever last sent us a proposal
   const peerAddress = useMemo(() => {
     const myAddr = address?.toLowerCase();
-    // Try party2 first (most common: party2 is the other party's wallet)
+    // If we received a proposal, reply to that sender (not ourselves)
+    if (lastProposalSender && lastProposalSender.startsWith('0x') && lastProposalSender.toLowerCase() !== myAddr) {
+      return lastProposalSender;
+    }
+    // For the first message, use party2 (the other party's wallet)
     if (party2 && party2.startsWith('0x') && party2.toLowerCase() !== myAddr) return party2;
     // If party2 is yourself, the other party might be in party1 (if it's a wallet address)
     if (party1 && party1.startsWith('0x') && party1.toLowerCase() !== myAddr) return party1;
     // Fallback to URL param
     return peerParam ? String(peerParam) : null;
-  }, [address, party1, party2, peerParam]);
+  }, [address, party1, party2, peerParam, lastProposalSender]);
 
   // Load proposal from sessionStorage if navigating from Chat page
   useEffect(() => {
@@ -121,6 +128,7 @@ const CreateContract = () => {
         if (proposal.data.party1) setParty1(proposal.data.party1);
         if (proposal.data.party2) setParty2(proposal.data.party2);
         if (proposal.data.contractAddress) setSavedContractAddress(proposal.data.contractAddress);
+        if (proposal.proposedBy) setLastProposalSender(proposal.proposedBy);
         // Clear the stored proposal after loading
         sessionStorage.removeItem("selectedContractProposal");
       } catch (err) {
@@ -149,6 +157,8 @@ const CreateContract = () => {
     if (proposal.data.party1) setParty1(proposal.data.party1);
     if (proposal.data.party2) setParty2(proposal.data.party2);
     if (proposal.data.contractAddress) setSavedContractAddress(proposal.data.contractAddress);
+    // Track who sent this proposal so we can reply to them
+    if (proposal.proposedBy) setLastProposalSender(proposal.proposedBy);
     // Switch to contract view to show the form
     setSelected("contract");
   }, []);
@@ -217,21 +227,29 @@ const CreateContract = () => {
     contractSectionRef,
     party1,
     party2,
+    peerAddress || '',
     stateSetters,
     createEventContract,
     imageUri
   );
 
   // Handle sign contract (signs an already-created contract)
-  const handleSign = () => handleSignContract(
-    isConnected,
-    chain?.id,
-    savedContractAddress,
-    party1,
-    stateSetters,
-    signContractAsync,
-    contractSectionRef
-  );
+  const handleSign = async () => {
+    setIsSigning(true);
+    try {
+      await handleSignContract(
+        isConnected,
+        chain?.id,
+        savedContractAddress,
+        party1,
+        stateSetters,
+        signContractAsync,
+        contractSectionRef
+      );
+    } finally {
+      setIsSigning(false);
+    }
+  };
 
   // Handle successful contract creation (Save/Draft only)
   useEffect(() => {
@@ -289,36 +307,43 @@ const CreateContract = () => {
         setIsSigning(false);
         setIsContractCreating(false);
 
-        // Delete proposal image group from Pinata (cleanup + re-upload to XAO)
-        deleteProposalImageGroup(contractSectionRef);
-
-        // Send proposal with contract address to party2 via XMTP
-        // Use sendProposalRef.current to avoid stale closure
         const contractAddrToShare = savedContractAddress || newContractAddress;
+
+        // Show success and redirect immediately — don't wait for XMTP
+        alert(`Contract signed successfully on blockchain!\nContract: ${contractAddrToShare}`);
+        router.push("/dashboard");
+
+        // Send XMTP proposal and cleanup in background (non-blocking)
+        try {
+          deleteProposalImageGroup(contractSectionRef);
+        } catch (err) {
+          console.warn("Failed to delete proposal image group:", err);
+        }
+
         if (isClientReady && contractAddrToShare && sendProposalRef.current) {
           try {
             const termsObject = contractSectionRef.current?.getContractData
               ? contractSectionRef.current.getContractData()
               : { party1, party2 };
 
-            // Remove base64 imageData before sending over XMTP
             if (termsObject.promotion) {
               delete termsObject.promotion.imageData;
             }
 
-            // Include the contract address so party2 can sign the same contract
             termsObject.contractAddress = contractAddrToShare;
 
-            await sendProposalRef.current(termsObject, revisionNumber);
-            setRevisionNumber((prev) => prev + 1);
-            console.log("[CreateContract] Sent signed contract proposal to party2");
+            sendProposalRef.current(termsObject, revisionNumber)
+              .then(() => {
+                setRevisionNumber((prev) => prev + 1);
+                console.log("[CreateContract] Sent signed contract proposal to party2");
+              })
+              .catch((err: any) => {
+                console.warn("Failed to send signed proposal to party2:", err);
+              });
           } catch (err) {
-            console.warn("Failed to send signed proposal to party2:", err);
+            console.warn("Failed to prepare signed proposal for party2:", err);
           }
         }
-
-        alert(`Contract signed successfully on blockchain!\nContract: ${contractAddrToShare}`);
-        router.push("/dashboard");
       }
     };
 
@@ -417,7 +442,12 @@ const CreateContract = () => {
                       <input
                         type="text"
                         value={party2}
-                        onChange={(e) => setParty2(e.target.value)}
+                        onChange={(e) => {
+                          setParty2(e.target.value);
+                          // User manually entered a new party2 address — reset reply-to tracking
+                          // so the first proposal goes to this new address
+                          setLastProposalSender(null);
+                        }}
                         placeholder="Party2"
                         className={styles.input}
                         required
@@ -475,7 +505,7 @@ const CreateContract = () => {
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={isContractCreating || isLoading || isSigning || isSignLoading || isUploading || !isConnected || !!savedContractAddress}
+                  disabled={isContractCreating || isLoading || isSigning || isUploading || !isConnected || !!savedContractAddress}
                   className={styles.confirmButton}
                 >
                   {isUploading ? "Uploading Image..." : isContractCreating || isLoading ? "Saving Draft..." : savedContractAddress ? "Already Saved" : "Save"}
@@ -485,13 +515,13 @@ const CreateContract = () => {
                 <button
                   type="button"
                   onClick={handleSign}
-                  disabled={isSigning || isSignLoading || isContractCreating || isLoading || isUploading || !isConnected || !savedContractAddress || hasAlreadySigned}
+                  disabled={isSigning || isContractCreating || isLoading || isUploading || !isConnected || !savedContractAddress || hasAlreadySigned}
                   className={styles.documentButton}
                   style={{
                     opacity: (!savedContractAddress || hasAlreadySigned || !isConnected) ? 0.4 : 1,
                   }}
                 >
-                  {isSigning || isSignLoading ? "Signing..." : hasAlreadySigned ? "Already Signed" : "Sign"}
+                  {isSigning ? "Signing..." : hasAlreadySigned ? "Already Signed" : "Sign"}
                 </button>
 
               </>

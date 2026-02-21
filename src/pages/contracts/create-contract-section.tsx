@@ -19,17 +19,17 @@ interface CreateContractsectionProps {
 const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props, ref) => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [dateTime, setDateTime] = useState("");
-  const [startTime, setStartTime] = useState("19:00");
-  const [endTime, setEndTime] = useState("23:00");
-  const [loadIn, setLoadIn] = useState("14:00");
-  const [doors, setDoors] = useState("18:00");
-  const [setTime, setSetTime] = useState("20:00");
-  const [setLength, setSetLength] = useState("90");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [loadIn, setLoadIn] = useState("");
+  const [doors, setDoors] = useState("");
+  const [setTime, setSetTime] = useState("");
+  const [setLength, setSetLength] = useState("");
   const [ticketsSale, setTicketsSale] = useState("");
-  const [eventStartDate, setEventStartDate] = useState("2026-06-15T19:00");
-  const [eventAnnouncementDate, setEventAnnouncementDate] = useState("2026-03-01T10:00");
+  const [eventStartDate, setEventStartDate] = useState("");
+  const [eventAnnouncementDate, setEventAnnouncementDate] = useState("");
   const [eventEndDate, setEventEndDate] = useState("");
-  const [LegalAgreementValue, setLegalAgreementValue] = useState("Standard event contract terms and conditions apply. All parties agree to fulfill obligations as outlined.");
+  const [LegalAgreementValue, setLegalAgreementValue] = useState("");
   const [isDatesTimeOpen, setIsDatesTimeOpen] = useState(false);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [isTicketsOpen, setIsTicketsOpen] = useState(false);
@@ -39,16 +39,16 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
   const [isRiderOpen, setIsRiderOpen] = useState(false);
   const [isLegalAgreementOpen, setIsLegalAgreementOpen] = useState(false);
   const [isTicketLegalLanguageOpen, setIsTicketLegalLanguageOpen] = useState(false);
-  const [ticketLegalLanguageValue, setTicketLegalLanguageValue] = useState("Tickets are non-refundable. Valid ID required for entry. No re-entry policy.");
-  const [venueName, setVenueName] = useState("The Grand Arena");
-  const [address, setAddress] = useState("123 Music Boulevard, Downtown District, NY 10001");
-  const [radiusDistance, setRadiusDistance] = useState("50");
-  const [days, setDays] = useState("30");
-  const [totalCapacity, setTotalCapacity] = useState("5000");
-  const [comps, setComps] = useState("8.5");
-  const [resaleParty1, setResaleParty1] = useState("33.33");
-  const [resaleParty2, setResaleParty2] = useState("33.33");
-  const [resaleReseller, setResaleReseller] = useState("33.34");
+  const [ticketLegalLanguageValue, setTicketLegalLanguageValue] = useState("");
+  const [venueName, setVenueName] = useState("");
+  const [address, setAddress] = useState("");
+  const [radiusDistance, setRadiusDistance] = useState("");
+  const [days, setDays] = useState("");
+  const [totalCapacity, setTotalCapacity] = useState("");
+  const [comps, setComps] = useState("");
+  const [resaleParty1, setResaleParty1] = useState("");
+  const [resaleParty2, setResaleParty2] = useState("");
+  const [resaleReseller, setResaleReseller] = useState("");
   const [general, setGeneral] = useState("");
   const [presale, setPresale] = useState("");
   const [add, setAdd] = useState("");
@@ -59,26 +59,22 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
   const [canceledbyAdd, setcanceledbyAdd] = useState("");
   const [depositbandInput, setdepositbandInput] = useState("");
   const [bandCanceledBy, setbandCanceledBy] = useState("");
-  const [guaranteeInput, setguaranteeInput] = useState("25000");
-  const [backendInput, setBackendInput] = useState("15");
-  const [barsplitInput, setBarsplitInput] = useState("20");
-  const [merchSplitInput, setMerchSplitInput] = useState("25");
+  const [guaranteeInput, setguaranteeInput] = useState("");
+  const [backendInput, setBackendInput] = useState("");
+  const [barsplitInput, setBarsplitInput] = useState("");
+  const [merchSplitInput, setMerchSplitInput] = useState("");
   const [cancelParty1DateTime, setCancelParty1DateTime] = useState("");
   const [cancelParty2DateTime, setCancelParty2DateTime] = useState("");
   const [RiderAdd, setRiderAdd] = useState("");
   const [RiderValue, setRiderValue] = useState("");
-  const [promotionValue, setPromotionValue] = useState("Summer Music Festival 2026");
+  const [promotionValue, setPromotionValue] = useState("");
 
   // Rider rows state
   interface RiderRow {
     value: string;
   }
   const [riderRows, setRiderRows] = useState<RiderRow[]>([
-    { value: "Bottled water (24 bottles)" },
-    { value: "Fresh fruit platter" },
-    { value: "Vegetarian meal options for 10 people" },
-    { value: "Green room with comfortable seating" },
-    { value: "Sound check 2 hours before doors" }
+    { value: "" }
   ]);
   const [promotionImage, setPromotionImage] = useState<string | null>(null); // base64 preview
   const [promotionImageUri, setPromotionImageUri] = useState<string | null>(null); // IPFS URI
@@ -92,19 +88,16 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
 
   // Add ticket rows state
   const [ticketRows, setTicketRows] = useState<TicketRow[]>([
-    { ticketType: "General Admission", onSaleDate: "2026-03-15T10:00", numberOfTickets: "3000", ticketPrice: "50.00" },
-    { ticketType: "VIP", onSaleDate: "2026-03-15T10:00", numberOfTickets: "500", ticketPrice: "150.00" },
-    { ticketType: "Early Bird", onSaleDate: "2026-03-01T10:00", numberOfTickets: "1000", ticketPrice: "35.00" }
+    { ticketType: "", onSaleDate: "", numberOfTickets: "", ticketPrice: "" }
   ]);
 
   // Add security deposit rows state
   const [securityDepositRows, setSecurityDepositRows] = useState<SecurityDepositRow[]>([
-    { dateTime: "2026-05-01T12:00", percentage: "50", dollarAmount: "5000.00" },
-    { dateTime: "2026-06-01T12:00", percentage: "50", dollarAmount: "5000.00" }
+    { dateTime: "", percentage: "", dollarAmount: "" }
   ]);
 
   const [cancelParty1Rows, setCancelParty1Rows] = useState<CancelPartyRow[]>([
-    { dateTime: "2026-04-15T12:00", percentage: "100", dollarAmount: "10000.00" }
+    { dateTime: "", percentage: "", dollarAmount: "" }
   ]);
   const addCancelParty1Row = () => setCancelParty1Rows([...cancelParty1Rows, { dateTime: "", percentage: "", dollarAmount: "" }]);
   const updateCancelParty1Row = (index: number, field: keyof CancelPartyRow, value: string) => {
@@ -113,7 +106,7 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     setCancelParty1Rows(updated);
   };
   const [securityDeposit2Rows, setSecurityDeposit2Rows] = useState<SecurityDepositRow[]>([
-    { dateTime: "2026-05-15T12:00", percentage: "100", dollarAmount: "3000.00" }
+    { dateTime: "", percentage: "", dollarAmount: "" }
   ]);
   const addSecurityDeposit2Row = () => setSecurityDeposit2Rows([...securityDeposit2Rows, { dateTime: "", percentage: "", dollarAmount: "" }]);
   const updateSecurityDeposit2Row = (index: number, field: keyof SecurityDepositRow, value: string) => {
@@ -123,7 +116,7 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
   };
 
   const [cancelParty2Rows, setCancelParty2Rows] = useState<CancelPartyRow[]>([
-    { dateTime: "2026-05-01T12:00", percentage: "50", dollarAmount: "5000.00" }
+    { dateTime: "", percentage: "", dollarAmount: "" }
   ]);
   const addCancelParty2Row = () => setCancelParty2Rows([...cancelParty2Rows, { dateTime: "", percentage: "", dollarAmount: "" }]);
   const updateCancelParty2Row = (index: number, field: keyof CancelPartyRow, value: string) => {
@@ -134,8 +127,7 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
 
   // Payment rows state for Party 1
   const [payoutRows, setPayoutRows] = useState<PaymentRow[]>([
-    { dateTime: "2026-06-16T12:00", percentage: "60", dollarAmount: "15000.00" },
-    { dateTime: "2026-06-30T12:00", percentage: "40", dollarAmount: "10000.00" }
+    { dateTime: "", percentage: "", dollarAmount: "" }
   ]);
   const addPayoutRow = () => setPayoutRows([...payoutRows, { dateTime: "", percentage: "", dollarAmount: "" }]);
   const updatePayoutRow = (index: number, field: keyof PaymentRow, value: string) => {
@@ -146,7 +138,7 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
 
   // Payment rows state for Party 2
   const [payout2Rows, setPayout2Rows] = useState<PaymentRow[]>([
-    { dateTime: "2026-06-16T12:00", percentage: "100", dollarAmount: "8000.00" }
+    { dateTime: "", percentage: "", dollarAmount: "" }
   ]);
   const addPayout2Row = () => setPayout2Rows([...payout2Rows, { dateTime: "", percentage: "", dollarAmount: "" }]);
   const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string) => {
@@ -350,7 +342,7 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     }
   }, [props.initialData]);
 
-  const [promotionGenres, setPromotionGenres] = useState<string[]>(["Rock", "Electronic", "Pop"]);
+  const [promotionGenres, setPromotionGenres] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const togglePromotionGenre = (genre: string) => {

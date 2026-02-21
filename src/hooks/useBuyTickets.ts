@@ -1,6 +1,5 @@
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { EVENT_CONTRACT_ABI } from '../lib/web3/eventcontract';
-import { parseEther } from 'viem';
 
 export const useBuyTickets = () => {
   const { writeContract, writeContractAsync, isPending, error, data: hash } = useWriteContract();
@@ -13,20 +12,20 @@ export const useBuyTickets = () => {
     contractAddress: `0x${string}`,
     typeId: number,
     quantity: number,
-    totalPrice: string // in ETH/USDC
+    totalWei: bigint // exact wei amount from on-chain price
   ) => {
     console.log('=== BUY TICKETS DEBUG ===');
     console.log('Contract Address:', contractAddress);
     console.log('Type ID:', typeId);
     console.log('Quantity:', quantity);
-    console.log('Total Price (ETH):', totalPrice);
+    console.log('Total Price (wei):', totalWei.toString());
 
     return writeContractAsync({
       address: contractAddress,
       abi: EVENT_CONTRACT_ABI,
       functionName: 'buyTickets',
       args: [BigInt(typeId), BigInt(quantity)],
-      value: parseEther(totalPrice), // Send ETH/USDC with the transaction
+      value: totalWei,
     });
   };
 

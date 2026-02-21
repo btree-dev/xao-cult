@@ -48,11 +48,14 @@ const EventDetails: NextPage = () => {
   useEffect(() => {
     const fetchEvent = async () => {
       if (!id) return;
-      
+
       setLoading(true);
       try {
-        // If it's a contract address and we have data, use blockchain data
-        if (isContractAddress && contractData && !contractLoading) {
+        // If it's a contract address, only use blockchain data (no mock/dummy data)
+        if (isContractAddress) {
+          // Wait for chain data to load
+          if (contractLoading || !contractData) return;
+
           const party1 = contractData[0]?.status === 'success' ? (contractData[0].result as any) : null;
           const party2 = contractData[1]?.status === 'success' ? (contractData[1].result as any) : null;
           const name = contractData[2]?.status === 'success' ? (contractData[2].result as string) : 'Untitled Event';
@@ -71,7 +74,7 @@ const EventDetails: NextPage = () => {
             time: dates ? new Date(Number(dates.start || dates[4]) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'TBD',
             location: location ? (location.venue || location[0]) : 'No venue specified',
             description: legal || 'No description available for this event.',
-            image: imageUri || 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80',
+            image: imageUri || '',
             profilePic: '/profileIcon.svg',
             likes: '0',
             views: '0',
@@ -212,8 +215,20 @@ const EventDetails: NextPage = () => {
   }, [id, contractData, contractLoading, isContractAddress]);
 
   const handleBuyTicket = () => {
-    router.push(`/event/${id}/purchase`);
     sessionStorage.removeItem(`purchaseState-${id}`);
+    router.push({
+      pathname: `/event/${id}/purchase`,
+      query: {
+        eventTitle: event.title,
+        eventImage: event.image,
+        eventLocation: event.location,
+        eventDate: event.date,
+        eventTime: event.time,
+        eventArtist: event.artist,
+        eventTag: event.tag,
+        eventProfilePic: event.profilePic,
+      },
+    });
   };
 
   const formatCount = (count: string): string => {
@@ -272,13 +287,15 @@ const EventDetails: NextPage = () => {
           </div>
         </div>
         <div className={styles.feedContent}>
-          <Image
-            src={event.image}
-            alt={`${event.artist} Content`}
-            width={430}
-            height={764}
-            className={styles.feedImage}
-          />
+          {event.image && (
+            <Image
+              src={event.image}
+              alt={`${event.artist} Content`}
+              width={430}
+              height={764}
+              className={styles.feedImage}
+            />
+          )}
           <div className={styles.feedContentOverlayTop}>
             <h1 className={styles.feedEventTitle}>{event.title}</h1>
             <div className={styles.feedEventLocation}>

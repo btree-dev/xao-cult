@@ -7,7 +7,7 @@ import Navbar from "../../../components/Navbar";
 
 const TicketConfirmation: NextPage = () => {
   const router = useRouter();
-  const { id:eventId, event, date, image, time, location, tickets, contractAddress } = router.query;
+  const { id:eventId, event, date, image, time, location, tickets, contractAddress, txHash } = router.query;
   
   // Check if this was a blockchain purchase
   const isBlockchainPurchase = !!contractAddress;
@@ -29,6 +29,32 @@ const TicketConfirmation: NextPage = () => {
 
     const handleSeeInAsset = () => {
     sessionStorage.removeItem(`purchaseState-${eventId}`);
+
+    // Store purchased ticket data in localStorage for the tickets page
+    if (isBlockchainPurchase && contractAddress) {
+      const purchasedTicket = {
+        id: `blockchain-${contractAddress}-${Date.now()}`,
+        eventId: eventId as string,
+        title: event as string || 'Blockchain Event',
+        date: date as string || 'TBD',
+        time: time as string || 'TBD',
+        location: location as string || '',
+        image: image as string || '',
+        contractAddress: contractAddress as string,
+        txHash: txHash as string || '',
+        ticketCode: `${contractAddress}:${txHash || contractAddress}`,
+        tickets: parsedTickets,
+        redeemed: false,
+        purchasedAt: new Date().toISOString(),
+      };
+
+      // Get existing purchased tickets from localStorage
+      const existing = localStorage.getItem('purchasedTickets');
+      const purchasedTickets = existing ? JSON.parse(existing) : [];
+      purchasedTickets.push(purchasedTicket);
+      localStorage.setItem('purchasedTickets', JSON.stringify(purchasedTickets));
+    }
+
     router.push('/stats/tickets?tab=unredeemed');
   };
 
@@ -51,9 +77,9 @@ const TicketConfirmation: NextPage = () => {
           }}
         >
           <div className={styles.confirmOverlay}>
-            {/* ✅ Success Heading */}
-            <div className={styles.confirmationHeaderTitle}>
-              <h1>Ticket Confirmed</h1>
+            {/* Success Heading */}
+            <div className={styles.confirmationHeaderTitle} style={{ textAlign: 'center', width: '100%' }}>
+              <h1>{event || 'Ticket Confirmed'}</h1>
             </div>
 
             {/* ✅ Success Icon + Text */}
@@ -175,9 +201,47 @@ const TicketConfirmation: NextPage = () => {
               </div>
 
               <span className={styles.detailValue}>
-                Event: {date} at {time}
+                {date} at {time}
               </span>
             </div>
+
+            {location && (
+              <div className={styles.confirmDetailRow}>
+                <div className={styles.detailIcon}>
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      <linearGradient
+                        id="locationGradient"
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="1"
+                      >
+                        <stop offset="0%" stopColor="#FF8A00" />
+                        <stop offset="50%" stopColor="#FF5F6D" />
+                        <stop offset="100%" stopColor="#A557FF" />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"
+                      stroke="url(#locationGradient)"
+                      strokeWidth="2"
+                      fill="none"
+                    />
+                    <circle cx="12" cy="10" r="3" stroke="url(#locationGradient)" strokeWidth="2" fill="none" />
+                  </svg>
+                </div>
+                <span className={styles.detailValue}>
+                  {location}
+                </span>
+              </div>
+            )}
 
             {/* ✅ Blockchain Contract Info */}
             {isBlockchainPurchase && contractAddress && (

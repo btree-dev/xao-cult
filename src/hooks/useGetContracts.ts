@@ -9,7 +9,8 @@ export interface ContractSummary {
   eventName: string;
   venueName: string;
   showDate: bigint;
-  status: number; 
+  endDate: bigint;
+  status: number;
   party1Signed: boolean;
   party2Signed: boolean;
   eventImageUri?: string;
@@ -121,6 +122,7 @@ export const useGetContractSummaries = (contractAddresses?: `0x${string}`[]) => 
         eventName: nameResult?.status === 'success' ? (nameResult.result as string) : 'Untitled',
         venueName: location ? (location.venue || location[0]) : 'No venue',
         showDate: dates ? (dates.show || dates[1]) : BigInt(0),
+        endDate: dates ? (dates.end || dates[5]) : BigInt(0),
         status: statusResult?.status === 'success' ? Number(statusResult.result) : 0,
         party1Signed: p1SignedResult?.status === 'success' ? (p1SignedResult.result as boolean) : false,
         party2Signed: p2SignedResult?.status === 'success' ? (p2SignedResult.result as boolean) : false,

@@ -5,19 +5,18 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import styles from '../../../styles/Home.module.css';
-import { supabase } from '../../../lib/supabase';
 import Navbar from '../../../components/Navbar';
 import Scrollbar from '../../../components/Scrollbar';
 import { useReadContract } from 'wagmi';
 import { EVENT_CONTRACT_ABI } from '../../../lib/web3/eventcontract';
-import { formatEther } from 'viem';
+import { weiToDollar } from '../../../hooks/useAddTicketType';
 const TicketPurchase: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<any>(null);
   const [paymentMethod, setPaymentMethod] = useState('wallet');
   const [ticketTypes, setTicketTypes] = useState<any[]>([]);
   const router = useRouter();
-  const { id } = router.query;
+  const { id, eventTitle, eventImage, eventLocation, eventDate, eventTime, eventArtist, eventTag, eventProfilePic } = router.query;
 
   // Check if ID is a contract address
   const isContractAddress = typeof id === 'string' && id.startsWith('0x');
@@ -33,12 +32,6 @@ const TicketPurchase: NextPage = () => {
     },
   });
 
-  const defaultTicketTypes = [
-    { id: 'general', name: 'General Admission', price: 50, selected: false, count: 0 },
-    { id: 'premium', name: 'Premium', price: 80, selected: false, count: 0 },
-    { id: 'vip', name: 'VIP', price: 120, selected: false, count: 0 }
-  ];
-
   useEffect(() => {
     if (!id) return;
 
@@ -48,7 +41,7 @@ const TicketPurchase: NextPage = () => {
         id: `ticket-${index}`,
         typeId: index, // Store the blockchain typeId
         name: ticket.name || ticket[0] || `Ticket Type ${index + 1}`,
-        price: ticket.price ? Number(formatEther(ticket.price)) : (ticket[3] ? Number(formatEther(ticket[3])) : 0),
+        price: ticket.price ? weiToDollar(ticket.price) : (ticket[3] ? weiToDollar(ticket[3]) : 0),
         available: ticket.count ? Number(ticket.count) : (ticket[2] ? Number(ticket[2]) : 0),
         selected: false,
         count: 0, // User's selected quantity
@@ -58,19 +51,24 @@ const TicketPurchase: NextPage = () => {
       return;
     }
 
-    // Otherwise check for saved state or use defaults
+    // For blockchain contracts with no tickets, leave ticketTypes empty
+    if (isContractAddress && !ticketsLoading) {
+      setTicketTypes([]);
+      return;
+    }
+
+    // Non-blockchain: check for saved state
     const savedState = sessionStorage.getItem(`purchaseState-${id}`);
     if (savedState) {
       try {
         const parsed = JSON.parse(savedState);
-        setTicketTypes(parsed.ticketTypes || defaultTicketTypes);
+        setTicketTypes(parsed.ticketTypes || []);
         setPaymentMethod(parsed.paymentMethod || 'wallet');
         return;
       } catch (e) {
         console.error("Error parsing saved purchase state", e);
       }
     }
-    setTicketTypes(defaultTicketTypes);
   }, [id, blockchainTickets, ticketsLoading, isContractAddress]);
   useEffect(() => {
     if (!id || ticketTypes.length === 0) return;
@@ -81,81 +79,21 @@ const TicketPurchase: NextPage = () => {
   }, [ticketTypes, paymentMethod, id]);
 
   useEffect(() => {
-    const fetchEvent = async () => {
-      if (!id) return;
-      
-      setLoading(true);
-      try {
-         let mockEvent;
-
-        if (id === 'rivo-event-1') {
-          mockEvent = {
-            id,
-            title: 'Rivo Open Air',
-            date: '5th December',
-            time: '06:30PM',
-            location: 'Wembley Stadium, London',
-            image:
-              'https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop',
-            ticketPrice: 50.0,
-            artist: 'rivo',
-            tag: 'Les Déferlantes 2025',
-            profilePic: '/rivo-profile-pic.svg',
-          };
-        } else if (id === 'xao-event-1') {
-          mockEvent = {
-            id,
-            title: 'XAO Festival',
-            date: '15th December',
-            time: '08:00PM',
-            location: 'O2 Arena, London',
-            image:
-              'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 65.0,
-            artist: 'xao',
-            tag: 'Les Déferlantes 2025',
-            profilePic: '/xao-profile.svg',
-          };
-        } else if (id === 'edm-event-1') {
-          mockEvent = {
-            id,
-            title: 'Electric Dreams',
-            date: '20th January',
-            time: '09:00PM',
-            location: 'Alexandra Palace, London',
-            image:
-              'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 45.0,
-            artist: 'neonblk',
-            tag: 'Les Déferlantes 2025',
-            profilePic: '/rivo-profile-pic.svg',
-          };
-        } else {
-          mockEvent = {
-            id,
-            title: 'Rivo Open Air',
-            date: '5th December',
-            time: '06:30PM',
-            location: 'Wembley Stadium, London',
-            image:
-              'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80',
-            ticketPrice: 50.0,
-            artist: 'rivo',
-            tag: 'Les Déferlantes 2025',
-            profilePic: '/rivo-profile-pic.svg',
-          };
-        }
-        
-        setEvent(mockEvent);
-      } catch (error) {
-        console.error('Error fetching event:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-      fetchEvent();
-  }, [id]);
+    if (!id || !eventTitle) return;
+    setEvent({
+      id,
+      title: eventTitle as string,
+      date: (eventDate as string) || 'TBD',
+      time: (eventTime as string) || 'TBD',
+      location: (eventLocation as string) || 'No venue specified',
+      image: (eventImage as string) || 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80',
+      ticketPrice: 0,
+      artist: (eventArtist as string) || 'Contract',
+      tag: (eventTag as string) || 'Event',
+      profilePic: (eventProfilePic as string) || '/profileIcon.svg',
+    });
+    setLoading(false);
+  }, [id, eventTitle, eventImage, eventLocation, eventDate, eventTime, eventArtist, eventTag, eventProfilePic]);
 
   const handleConfirmPurchase = () => {
     const selectedTickets = ticketTypes.filter((t) => t.selected);
@@ -163,6 +101,7 @@ const TicketPurchase: NextPage = () => {
 
     const ticketsQuery = selectedTickets.map((t) => ({
       type: t.name,
+      typeId: t.typeId ?? 0,
       count: t.count,
       price: t.price,
     }));
@@ -171,6 +110,11 @@ const TicketPurchase: NextPage = () => {
       pathname: `/event/${id}/confirm`,
       query: {
         tickets: JSON.stringify(ticketsQuery),
+        eventTitle: event.title,
+        eventImage: event.image,
+        eventLocation: event.location,
+        eventDate: event.date,
+        eventTime: event.time,
       },
     });
   };
@@ -203,7 +147,7 @@ const TicketPurchase: NextPage = () => {
   }, 0);
 
    
-  if (loading || !event || ticketTypes.length === 0) {
+  if (loading || !event || (isContractAddress && ticketsLoading)) {
     return (
       <div className={styles.container}>
         <div className={styles.background} />
@@ -272,7 +216,11 @@ const TicketPurchase: NextPage = () => {
         <div className={styles.ticketTypeSection}>
           <h2 className={styles.sectionTitle}>Ticket Types</h2>
           <div className={styles.ticketTypeSelector}>
-            {ticketTypes.map((ticket) => (
+            {ticketTypes.length === 0 ? (
+              <p style={{ color: '#aaa', textAlign: 'center', padding: '20px 0' }}>
+                No tickets available for this event
+              </p>
+            ) : ticketTypes.map((ticket) => (
               <div key={ticket.id} className={styles.ticketTypeOption}>
                 <input
                   type="checkbox"
@@ -354,7 +302,7 @@ const TicketPurchase: NextPage = () => {
         <button
           className={styles.buyTicketButton}
           onClick={handleConfirmPurchase}
-          disabled={totalPrice === 0}
+          disabled={ticketTypes.length === 0 || ticketTypes.filter(t => t.selected).length === 0}
         >
           Buy Ticket ${totalPrice.toFixed(2)}
         </button>

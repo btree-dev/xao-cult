@@ -15,11 +15,20 @@ export const dateTimeToTimestamp = (dateTimeString: string): bigint => {
   return BigInt(Math.floor(date.getTime() / 1000));
 };
 
+// ETH price in USD for dollar-to-ETH conversion
+export const ETH_PRICE_USD = 2000;
+
 export const dollarToWei = (dollarString: string): bigint => {
   if (!dollarString) return BigInt(0);
   const cleaned = dollarString.replace(/,/g, '');
-  const value = parseFloat(cleaned) || 0;
-  return BigInt(Math.floor(value * 1e18));
+  const dollars = parseFloat(cleaned) || 0;
+  const eth = dollars / ETH_PRICE_USD;
+  return BigInt(Math.floor(eth * 1e18));
+};
+
+export const weiToDollar = (wei: bigint): number => {
+  const eth = Number(wei) / 1e18;
+  return eth * ETH_PRICE_USD;
 };
 
 export const parseFormattedNumber = (value: string): bigint => {

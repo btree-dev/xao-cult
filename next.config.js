@@ -23,7 +23,8 @@ const nextConfig = {
       'images.unsplash.com',
       'unsplash.com',
       'api.qrserver.com',
-      'rpudlgqqgutfumiihqhb.supabase.co'
+      'rpudlgqqgutfumiihqhb.supabase.co',
+      'gateway.pinata.cloud'
     ],
   },
   async headers() {

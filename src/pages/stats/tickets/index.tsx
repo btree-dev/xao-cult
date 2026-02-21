@@ -9,6 +9,11 @@ import StatsNav from '../../../components/StatsNav';
 import Layout from '../../../components/Layout';
 import ShareModal from '../../../components/ShareModal';
 import { TicketsQR } from '../../../backend/ticket-services/ticketdata';
+import { readContract } from '@wagmi/core';
+import { config } from '../../../wagmi';
+import { EVENT_CONTRACT_ABI, EVENT_CONTRACT_FACTORY_ABI } from '../../../lib/web3/eventcontract';
+import { CONTRACT_ADDRESSES } from '../../../lib/web3/chains';
+import { useWeb3 } from '../../../hooks/useWeb3';
 const TicketsPage: NextPage = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -16,7 +21,9 @@ const TicketsPage: NextPage = () => {
   const [likedTickets, setLikedTickets] = useState<Set<string>>(new Set());
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
   const router = useRouter();
+  const { address, chain } = useWeb3();
 
   // Determine tab from pathname
   const activeTab =
@@ -25,7 +32,7 @@ const TicketsPage: NextPage = () => {
   (router.pathname.includes('redeemed-tickets') && 'redeemed') ||
   'unredeemed';
 
-  // Mock ticket data
+  // Mock ticket data + blockchain purchased tickets
   const [tickets, setTickets] = useState<any[]>(TicketsQR);
 
   useEffect(() => {
@@ -47,6 +54,111 @@ const TicketsPage: NextPage = () => {
     };
     getUser();
   }, [router]);
+
+  // Load user's purchased tickets directly from blockchain
+  useEffect(() => {
+    const loadBlockchainTickets = async () => {
+      if (!address || !chain?.id) { setTicketsLoading(false); return; }
+
+      setTicketsLoading(true);
+      try {
+        // Get factory address for current chain
+        const factoryAddress = chain.id in CONTRACT_ADDRESSES
+          ? (CONTRACT_ADDRESSES[chain.id as keyof typeof CONTRACT_ADDRESSES]?.EventContractFactory as `0x${string}`)
+          : undefined;
+
+        if (!factoryAddress || factoryAddress === '0x') { setTicketsLoading(false); return; }
+
+        // Get all contract addresses from factory
+        const allContracts = await readContract(config, {
+          address: factoryAddress,
+          abi: EVENT_CONTRACT_FACTORY_ABI,
+          functionName: 'getContracts',
+        }) as `0x${string}`[];
+
+        if (!allContracts || allContracts.length === 0) { setTicketsLoading(false); return; }
+
+        const blockchainTickets: any[] = [];
+
+        // For each contract, check if user has tickets
+        for (const contractAddr of allContracts) {
+          try {
+            const userTicketIds = await readContract(config, {
+              address: contractAddr,
+              abi: EVENT_CONTRACT_ABI,
+              functionName: 'getTickets',
+              args: [address],
+            }) as bigint[];
+
+            if (!userTicketIds || userTicketIds.length === 0) continue;
+
+            // User has tickets in this contract — fetch event details
+            const [eventName, imageUri, locationData, datesData] = await Promise.all([
+              readContract(config, { address: contractAddr, abi: EVENT_CONTRACT_ABI, functionName: 'name' }),
+              readContract(config, { address: contractAddr, abi: EVENT_CONTRACT_ABI, functionName: 'imageUri' }),
+              readContract(config, { address: contractAddr, abi: EVENT_CONTRACT_ABI, functionName: 'location' }),
+              readContract(config, { address: contractAddr, abi: EVENT_CONTRACT_ABI, functionName: 'dates' }),
+            ]);
+
+            const loc = locationData as any;
+            const dates = datesData as any;
+            const venueName = loc?.venue ?? loc?.[0] ?? '';
+            const showTimestamp = dates?.show ?? dates?.[1];
+            const eventDate = showTimestamp && Number(showTimestamp) > 0
+              ? new Date(Number(showTimestamp) * 1000).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
+              : 'TBD';
+
+            // Fetch info for each ticket the user owns
+            for (const ticketId of userTicketIds) {
+              try {
+                const info = await readContract(config, {
+                  address: contractAddr,
+                  abi: EVENT_CONTRACT_ABI,
+                  functionName: 'getTicketInfo',
+                  args: [ticketId],
+                }) as [bigint, string, string, boolean, bigint, bigint];
+
+                const [, , typeName, checkedIn] = info;
+
+                blockchainTickets.push({
+                  id: `chain-${contractAddr}-${ticketId.toString()}`,
+                  eventId: contractAddr,
+                  title: (eventName as string) || 'Blockchain Event',
+                  artist: typeName || 'Contract',
+                  tag: 'Blockchain',
+                  date: eventDate,
+                  location: venueName,
+                  image: (imageUri as string) || '',
+                  profilePic: '/profileIcon.svg',
+                  likes: '0',
+                  views: '0',
+                  redeemed: checkedIn,
+                  contractAddress: contractAddr,
+                  ticketId: ticketId.toString(),
+                  isBlockchain: true,
+                });
+              } catch {
+                continue;
+              }
+            }
+          } catch {
+            continue;
+          }
+        }
+
+        setTickets(prev => {
+          const filtered = prev.filter((t: any) => !t.isBlockchain);
+          return [...blockchainTickets, ...filtered];
+        });
+      } catch (e) {
+        console.error('Error loading blockchain tickets:', e);
+      } finally {
+        setTicketsLoading(false);
+      }
+    };
+
+    loadBlockchainTickets();
+  }, [address, chain?.id]);
 
   const handleTicketClick = (ticketId: string) => {
     router.push(`/stats/tickets/${ticketId}`);
@@ -101,7 +213,7 @@ const TicketsPage: NextPage = () => {
   }
 
   const filteredTickets = tickets.filter(ticket =>
-    activeTab === 'unredeemed' ? !ticket.redeemed : ticket.redeemed
+    activeTab === 'unredeemed' ? (!ticket.redeemed && ticket.isBlockchain) : (ticket.redeemed && ticket.isBlockchain)
   );
 
   return (
@@ -120,7 +232,11 @@ const TicketsPage: NextPage = () => {
       </h2>
 
       <div className={styles.ticketsGrid}>
-        {filteredTickets.length > 0 ? (
+        {ticketsLoading ? (
+          <div className={styles.loadingContainer}>
+            <p>Loading...</p>
+          </div>
+        ) : filteredTickets.length > 0 ? (
           filteredTickets.map((ticket, index) => (
             <div
               key={index}
@@ -139,7 +255,7 @@ const TicketsPage: NextPage = () => {
                 <div className={styles.feedContent}>
                   <div className={ticket.redeemed ? styles.redeemedImageWrapper : styles.unredeemedImageWrapper}>
                     <Image
-                      src={ticket.image}
+                      src={ticket.image || '/profileIcon.svg'}
                       alt={`${ticket.title} Content`}
                       width={430}
                       height={500}

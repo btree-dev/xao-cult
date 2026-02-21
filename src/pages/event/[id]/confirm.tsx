@@ -6,7 +6,9 @@ import { useRouter } from "next/router";
 import styles from "../../../styles/Home.module.css";
 import { useBuyTickets } from "../../../hooks/useBuyTickets";
 import { useWeb3 } from "../../../hooks/useWeb3";
-import { parseEther, formatEther } from "viem";
+import { waitForTransactionReceipt, readContract } from "@wagmi/core";
+import { config } from "../../../wagmi";
+import { EVENT_CONTRACT_ABI } from "../../../lib/web3/eventcontract";
 
 import Navbar from "../../../components/Navbar";
 
@@ -17,7 +19,7 @@ const PurchaseConfirmation: NextPage = () => {
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string>("");
   const router = useRouter();
-  const { id, tickets } = router.query;
+  const { id, tickets, eventTitle, eventImage, eventLocation, eventDate, eventTime } = router.query;
   
   // Web3 hooks
   const { address, isConnected } = useWeb3();
@@ -39,62 +41,18 @@ const PurchaseConfirmation: NextPage = () => {
   }, [tickets]);
 
   useEffect(() => {
-     if (!id) return;
-    setLoading(true);
-    try {
-      let mockEvent;
-      if (id === "rivo-event-1") {
-        mockEvent = {
-          id,
-          title: "Rivo Open Air",
-          date: "5th December",
-          time: "06:30PM",
-          location: "Wembley Stadium, London",
-          image:
-            "https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop",
-          ticketPrice: 50.0,
-        };
-      } else if (id === "xao-event-1") {
-        mockEvent = {
-          id,
-          title: "XAO Festival",
-          date: "15th December",
-          time: "08:00PM",
-          location: "O2 Arena, London",
-          image:
-            "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80",
-          ticketPrice: 65.0,
-        };
-      } else if (id === "edm-event-1") {
-        mockEvent = {
-          id,
-          title: "Electric Dreams",
-          date: "20th January",
-          time: "09:00PM",
-          location: "Alexandra Palace, London",
-          image:
-            "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1740&q=80",
-          ticketPrice: 45.0,
-        };
-      } else {
-        mockEvent = {
-          id,
-          title: "Rivo Open Air",
-          date: "5th December",
-          time: "06:30PM",
-          location: "Wembley Stadium, London",
-          image:
-            "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80",
-          ticketPrice: 50.0,
-        };
-            }
-    setEvent(mockEvent);
-    } catch (error) {
-      console.error("Error fetching event:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+    if (!id || !eventTitle) return;
+    setEvent({
+      id,
+      title: eventTitle as string,
+      date: (eventDate as string) || 'TBD',
+      time: (eventTime as string) || 'TBD',
+      location: (eventLocation as string) || 'No venue specified',
+      image: (eventImage as string) || 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80',
+      ticketPrice: 0,
+    });
+    setLoading(false);
+  }, [id, eventTitle, eventImage, eventLocation, eventDate, eventTime]);
   const formatDate = (date: Date) => {
     const d = new Date(date);
     const day = d.getDate();
@@ -121,39 +79,56 @@ const PurchaseConfirmation: NextPage = () => {
       setPurchaseError("");
 
       try {
-        // For now, assume typeId 0 and calculate total price
-        // In a real implementation, you'd get typeId from ticket selection
-        const typeId = 0; // First ticket type
-        const quantity = selectedTickets.reduce((sum, t) => sum + t.count, 0);
-        const totalAmount = selectedTickets.reduce((sum, t) => sum + t.count * t.price, 0);
-        const totalPriceEth = (totalAmount / 1000).toString(); // Convert to ETH (assuming price is in dollars, adjust as needed)
+        // Read all ticket types from on-chain contract (prices in wei)
+        const ticketTypes = await readContract(config, {
+          address: contractAddress,
+          abi: EVENT_CONTRACT_ABI,
+          functionName: 'getTicketTypes',
+        }) as any[];
 
-        console.log('Purchasing tickets:', { typeId, quantity, totalPriceEth });
+        const txHashes: string[] = [];
 
-        await buyTickets(contractAddress, typeId, quantity, totalPriceEth);
-        
-        // Wait a moment for transaction to be confirmed
-        setTimeout(() => {
-          router.push({
-            pathname: `/event/${id}/ticket-confirmation`,
-            query: {
-              event: event.title,
-              date: event.date,
-              time: event.time,
-              image: event.image,
-              location: event.location,
-              tickets: JSON.stringify(selectedTickets),
-              contractAddress: contractAddress,
-            },
+        // Buy each selected ticket type separately with its correct on-chain price
+        for (const ticket of selectedTickets) {
+          const typeId = ticket.typeId ?? 0;
+          const quantity = ticket.count;
+          const onChainPrice = ticketTypes[typeId]?.price || ticketTypes[typeId]?.[3] || BigInt(0);
+          const totalWei = BigInt(onChainPrice) * BigInt(quantity);
+
+          console.log(`Purchasing ticket type ${typeId} (${ticket.type}):`, {
+            typeId,
+            quantity,
+            onChainPrice: onChainPrice.toString(),
+            totalWei: totalWei.toString(),
           });
-        }, 2000);
+
+          const txHash = await buyTickets(contractAddress, typeId, quantity, totalWei);
+
+          if (txHash) {
+            await waitForTransactionReceipt(config, { hash: txHash });
+            txHashes.push(txHash);
+          }
+        }
+
+        router.push({
+          pathname: `/event/${id}/ticket-confirmation`,
+          query: {
+            event: event.title,
+            date: event.date,
+            time: event.time,
+            image: event.image,
+            location: event.location,
+            tickets: JSON.stringify(selectedTickets),
+            contractAddress: contractAddress,
+            txHash: txHashes[txHashes.length - 1] || '',
+          },
+        });
       } catch (err) {
         console.error('Purchase failed:', err);
         setPurchaseError(err instanceof Error ? err.message : "Failed to purchase tickets");
         setIsPurchasing(false);
       }
     } else {
-      // Mock event - just navigate
       router.push({
         pathname: `/event/${id}/ticket-confirmation`,
         query: {
@@ -205,7 +180,7 @@ const PurchaseConfirmation: NextPage = () => {
         >
           <div className={styles.confirmOverlay}>
     
-            <div className={styles.confirmationHeaderTitle}>
+            <div className={styles.confirmationHeaderTitle} style={{ textAlign: 'center', width: '100%' }}>
               <h1>{event.title}</h1>
             </div>
 

@@ -659,6 +659,9 @@
   top:80px;
   margin-bottom: 56px;
   overflow-y: auto;
+  scrollbar-width: none;
+-ms-overflow-style: none;
+
   /*padding-left: 52px;
   padding-right: 52px;*/
   padding-bottom: 10px;

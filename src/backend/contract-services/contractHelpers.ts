@@ -8,7 +8,19 @@ import {
 } from '../../hooks/useCreateContract';
 export const dateToTimestamp = (dateString: string): bigint => {
   if (!dateString) return BigInt(0);
-  const date = new Date(dateString);
+  // new Date("YYYY-MM-DD") parses as UTC midnight, causing timezone offset.
+  // Parse components manually to use local time.
+  const [datePart, timePart] = dateString.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  if (!year || !month || !day) return BigInt(0);
+  if (timePart) {
+    // datetime-local format: "YYYY-MM-DDTHH:MM"
+    const [hours, minutes] = timePart.split(':').map(Number);
+    const date = new Date(year, month - 1, day, hours || 0, minutes || 0);
+    return BigInt(Math.floor(date.getTime() / 1000));
+  }
+  // Date-only: use midnight local time
+  const date = new Date(year, month - 1, day, 0, 0, 0);
   return BigInt(Math.floor(date.getTime() / 1000));
 };
 export const timeToSeconds = (timeString: string): bigint => {
@@ -16,6 +28,16 @@ export const timeToSeconds = (timeString: string): bigint => {
   const [hours, minutes] = timeString.split(':').map(Number);
   if (isNaN(hours) || isNaN(minutes)) return BigInt(0);
   return BigInt((hours * 3600) + (minutes * 60));
+};
+
+// Combine a date string and time string into a full Unix timestamp
+// e.g. dateString="2026-03-15" + timeString="20:00" → full timestamp for Mar 15 2026 8pm
+export const dateTimeToTimestamp = (dateString: string, timeString: string): bigint => {
+  if (!dateString || !timeString) return BigInt(0);
+  const dateTs = dateToTimestamp(dateString);
+  const timeSecs = timeToSeconds(timeString);
+  if (dateTs === BigInt(0) || timeSecs === BigInt(0)) return BigInt(0);
+  return dateTs + timeSecs;
 };
 
 
@@ -27,29 +49,40 @@ export const percentageToBasisPoints = (percentage: string): bigint => {
 };
 
 
+// ETH price in USD for dollar-to-ETH conversion
+const ETH_PRICE_USD = 2000;
+
 export const dollarToWei = (dollar: string): bigint => {
   if (!dollar) return BigInt(0);
   const parsed = parseFloat(dollar);
   if (isNaN(parsed)) return BigInt(0);
-  return BigInt(Math.floor(parsed * 1e18));
+  const eth = parsed / ETH_PRICE_USD;
+  return BigInt(Math.floor(eth * 1e18));
 };
 
 
-export const buildContractParams = (formData: any, party1Username: string): CreateEventContractParams => {
+export const buildContractParams = (formData: any, party1Username: string, otherPartyAddress: string): CreateEventContractParams => {
   console.log('=== BUILD CONTRACT PARAMS DEBUG ===');
   console.log('formData:', formData);
+  console.log('otherPartyAddress (_p2Addr):', otherPartyAddress);
   console.log('datesAndTimes:', formData.datesAndTimes);
   console.log('location:', formData.location);
   console.log('tickets:', formData.tickets);
   console.log('money:', formData.money);
 
+  // datetime-local inputs give "YYYY-MM-DDTHH:MM" — use full value for announce/show
+  const eventStartFull = formData.datesAndTimes?.eventStartDate || '';
+  const eventEndFull = formData.datesAndTimes?.eventEndDate || '';
+  // Extract date-only (YYYY-MM-DD) for combining with separate time-only fields
+  const eventStartDateOnly = eventStartFull.split('T')[0];
+  const eventEndDateOnly = eventEndFull ? eventEndFull.split('T')[0] : eventStartDateOnly;
   const dates: DatesAndTimes = {
     announce: dateToTimestamp(formData.datesAndTimes?.eventAnnouncementDate || ''),
-    show: dateToTimestamp(formData.datesAndTimes?.eventStartDate || ''),
-    loadIn: timeToSeconds(formData.datesAndTimes?.loadIn || ''),
-    doors: timeToSeconds(formData.datesAndTimes?.doors || ''),
-    start: timeToSeconds(formData.datesAndTimes?.startTime || ''),
-    end: timeToSeconds(formData.datesAndTimes?.endTime || ''),
+    show: dateToTimestamp(eventStartFull),
+    loadIn: dateTimeToTimestamp(eventStartDateOnly, formData.datesAndTimes?.loadIn || ''),
+    doors: dateTimeToTimestamp(eventStartDateOnly, formData.datesAndTimes?.doors || ''),
+    start: dateTimeToTimestamp(eventStartDateOnly, formData.datesAndTimes?.startTime || ''),
+    end: dateTimeToTimestamp(eventEndDateOnly, formData.datesAndTimes?.endTime || ''),
     setTime: timeToSeconds(formData.datesAndTimes?.setTime || ''),
     setLength: BigInt(parseInt(formData.datesAndTimes?.setLength || '0', 10) || 0),
   };
@@ -103,15 +136,29 @@ export const buildContractParams = (formData: any, party1Username: string): Crea
   console.log('resaleRules built:', resaleRules);
 
  
-  console.log('guaranteeInput:', formData.money?.guaranteeInput);
-  console.log('backendInput:', formData.money?.backendInput);
+  // Guarantee: user fills either % (guaranteeInput) or $ (depositbandInput), they are mutually exclusive
+  const guaranteePct = formData.money?.guaranteeInput || '0';
+  const guaranteeDollar = (formData.money?.depositbandInput || '0').replace(/,/g, '');
+  // Backend: user fills either % (backendInput) or $ (securitydepositAdd), they are mutually exclusive
+  const backendPct = formData.money?.backendInput || '0';
+  const backendDollar = (formData.money?.securitydepositAdd || '0').replace(/,/g, '');
+
+  console.log('guaranteePct:', guaranteePct, 'guaranteeDollar:', guaranteeDollar);
+  console.log('backendPct:', backendPct, 'backendDollar:', backendDollar);
   console.log('barsplitInput:', formData.money?.barsplitInput);
   console.log('merchSplitInput:', formData.money?.merchSplitInput);
-  
+
   const payIn: PayInConfig = {
-    guarantee: dollarToWei(formData.money?.guaranteeInput || '0'),
-    guaPct: BigInt(0), // Set to 0 as guarantee is a fixed amount, not percentage
-    backPct: percentageToBasisPoints(formData.money?.backendInput || '0'),
+    // If dollar amount is provided, use it; otherwise fall back to percentage converted to wei
+    guarantee: parseFloat(guaranteeDollar) > 0
+      ? dollarToWei(guaranteeDollar)
+      : dollarToWei(guaranteePct),
+    guaPct: parseFloat(guaranteePct) > 0
+      ? percentageToBasisPoints(guaranteePct)
+      : BigInt(0),
+    backPct: parseFloat(backendPct) > 0
+      ? percentageToBasisPoints(backendPct)
+      : BigInt(0),
     barPct: percentageToBasisPoints(formData.money?.barsplitInput || '0'),
     merchPct: percentageToBasisPoints(formData.money?.merchSplitInput || '0'),
   };
@@ -125,7 +172,9 @@ export const buildContractParams = (formData: any, party1Username: string): Crea
 
   return {
     party1Username,
-    party2Address: (formData.party2 || '0x0000000000000000000000000000000000000000') as `0x${string}`,
+    // msg.sender becomes party1.addr on-chain, so _p2Addr must be the OTHER party's wallet.
+    // otherPartyAddress is the peerAddress (always the other party, never yourself).
+    party2Address: (otherPartyAddress || '0x0000000000000000000000000000000000000000') as `0x${string}`,
     dates,
     location,
     ticketConfig,

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import styles from "../../styles/CreateContract.module.css";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { DynamicConnectButton } from "@dynamic-labs/sdk-react-core";
 import { useXMTPConversation, MessageWithMetadata } from "../../hooks/useXMTPConversation";
 import { isContactCard } from "../../types/contactMessage";
 import { isContractProposal, ContractProposalMessage } from "../../types/contractMessage";
@@ -279,7 +279,22 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
             }}
           >
             <div className={styles.RecievedMessage}>Connect your wallet to use chat</div>
-            <ConnectButton />
+            <DynamicConnectButton>
+              <button
+                style={{
+                  padding: "10px 20px",
+                  background: "linear-gradient(to right, #ff9900, #e100ff)",
+                  border: "none",
+                  borderRadius: "20px",
+                  color: "white",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: "bold",
+                }}
+              >
+                Connect Wallet
+              </button>
+            </DynamicConnectButton>
           </div>
         )}
 

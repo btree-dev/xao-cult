@@ -29,7 +29,8 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: "/(.*)",
+        // Only apply cross-origin isolation to chat pages that need XMTP WASM/SharedArrayBuffer
+        source: "/chat-Section/:path*",
         headers: [
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
           { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },

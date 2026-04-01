@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-XAO Cult is a Web3 DAO-governed dApp built with Next.js, RainbowKit, and Wagmi for managing smart contract agreements as NFTs on the Base blockchain. It combines traditional contract management with blockchain technology, featuring event management, ticket authentication via QR codes, and financial statistics.
+XAO Cult is a Web3 DAO-governed dApp built with Next.js, Dynamic.xyz, and Wagmi for managing smart contract agreements as NFTs on the Base blockchain. It combines traditional contract management with blockchain technology, featuring event management, ticket authentication via QR codes, and financial statistics.
 
 ### App Purpose
 
@@ -15,7 +15,7 @@ The app helps create contracts for events. These contracts facilitate negotiatio
 The chat/messaging feature (powered by XMTP) allows these parties to negotiate event details, terms, and conditions before finalizing a contract. Once agreed upon, contracts are minted as NFTs on the blockchain, providing an immutable record of the agreement.
 
 **Key Workflows:**
-1. User connects wallet via RainbowKit
+1. User connects wallet via Dynamic.xyz
 2. User browses existing conversations and events on the Search page
 3. User initiates chat with counterparty to negotiate event terms
 4. Once terms are agreed, a contract NFT is minted
@@ -59,9 +59,9 @@ npx eslint .          # Run ESLint (extends next/core-web-vitals)
 
 ### Tech Stack
 - **Frontend**: Next.js 15 (Pages Router), React 19, TypeScript, TailwindCSS
-- **Web3**: Wagmi + RainbowKit for wallet connection, Viem for Ethereum interactions
+- **Web3**: Wagmi + Dynamic.xyz for wallet connection, Viem for Ethereum interactions
 - **Smart Contracts**: Solidity 0.8.20, Hardhat, deployed to Base blockchain (ERC721 NFTs)
-- **Backend**: Supabase (PostgreSQL + Auth), MongoDB/Mongoose as alternative
+- **Backend**: Supabase (PostgreSQL), MongoDB/Mongoose as alternative
 - **State**: Redux Toolkit (minimal), React Query for server state
 
 ### Key Directories
@@ -84,7 +84,7 @@ scripts/                # Hardhat deployment scripts
 ```
 
 ### Web3 Integration Flow
-1. Wallet connection via RainbowKit (`src/wagmi.ts` configures supported chains)
+1. Wallet connection via Dynamic.xyz (`src/wagmi.ts` configures supported chains)
 2. Custom hooks in `src/hooks/` handle contract interactions
 3. Contract NFT minting stores agreement terms on-chain (Base blockchain)
 4. Supported chains: Ethereum, Polygon, Optimism, Arbitrum, Base, Base Sepolia
@@ -103,8 +103,10 @@ Required in `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 
+# Dynamic.xyz
+NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID=     # from app.dynamic.xyz/dashboard
+
 # Web3
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=  # from cloud.walletconnect.com
 NEXT_PUBLIC_CONTRACT_NFT_TESTNET=       # Base Sepolia contract address
 NEXT_PUBLIC_CONTRACT_NFT_MAINNET=       # Base mainnet contract address
 

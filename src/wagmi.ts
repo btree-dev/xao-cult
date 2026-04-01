@@ -1,11 +1,11 @@
-import { getDefaultConfig } from '@rainbow-me/rainbowkit';
+import { createConfig, http } from 'wagmi';
 import {
   arbitrum,
   base,
   mainnet,
   optimism,
   polygon,
-  sepolia, 
+  sepolia,
 } from "@wagmi/chains";
 
 import { type Chain } from 'viem';
@@ -29,9 +29,7 @@ const baseSepolia: Chain = {
   testnet: true,
 };
 
-export const config = getDefaultConfig({
-  appName: 'XAO Cult',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
+export const config = createConfig({
   chains: [
     mainnet,
     polygon,
@@ -40,5 +38,14 @@ export const config = getDefaultConfig({
     base,
     baseSepolia,
   ],
+  multiInjectedProviderDiscovery: false,
+  transports: {
+    [mainnet.id]: http(),
+    [polygon.id]: http(),
+    [optimism.id]: http(),
+    [arbitrum.id]: http(),
+    [base.id]: http(),
+    [baseSepolia.id]: http('https://sepolia.base.org'),
+  },
   ssr: true,
 });

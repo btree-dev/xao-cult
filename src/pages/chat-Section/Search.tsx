@@ -9,7 +9,7 @@ import Scrollbar from "../../components/Scrollbar";
 import Image from "next/image";
 import { useState, useEffect, useMemo } from "react";
 import { useAccount, useChainId, useDisconnect } from "wagmi";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { DynamicConnectButton } from "@dynamic-labs/sdk-react-core";
 import { useGetUserNFTs } from "../../hooks/useContractNFT";
 import { useXMTPClient } from "../../contexts/XMTPContext";
 import { useProfileCache, CachedProfile } from "../../contexts/ProfileCacheContext";
@@ -451,7 +451,22 @@ export default function Search() {
           {!isConnected && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", marginTop: "20px" }}>
               <p style={{ color: "white", textAlign: "center" }}>Connect your wallet to view conversations and events</p>
-              <ConnectButton />
+              <DynamicConnectButton>
+                <button
+                  style={{
+                    padding: "10px 20px",
+                    background: "linear-gradient(to right, #ff9900, #e100ff)",
+                    border: "none",
+                    borderRadius: "20px",
+                    color: "white",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Connect Wallet
+                </button>
+              </DynamicConnectButton>
             </div>
           )}
 

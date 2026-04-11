@@ -10,6 +10,9 @@ import { EventDocs } from "../../backend/eventsdata";
 import { Genres } from "../../backend/public-information-services/publicinfodata";
 import { IContract } from "../../backend/services/types/api";
 const dropdownOptions = ["Option 1", "Option 2", "Option 3"];
+
+// ── Toggle this to enable/disable the "Fill Dummy Data" button ──
+const ENABLE_DUMMY_DATA = true;
 interface CreateContractsectionProps {
   party1: string;
   party2: string;
@@ -435,13 +438,116 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     updatedAt: new Date(),
   });
 
-  // Expose getContractData to parent
+  // Fill all form fields with dummy/test data for fast contract creation
+  const fillDummyData = () => {
+    // Dates & Times
+    setEventStartDate("2026-05-15T19:00");
+    setEventEndDate("2026-05-15T23:00");
+    setEventAnnouncementDate("2026-04-20T10:00");
+    setStartTime("19:00");
+    setEndTime("23:00");
+    setLoadIn("14:00");
+    setDoors("18:00");
+    setSetTime("20:00");
+    setSetLength("90");
+    setIsDatesTimeOpen(true);
+
+    // Location
+    setVenueName("The Roxy Theatre");
+    setAddress("9009 Sunset Blvd, West Hollywood, CA 90069");
+    setRadiusDistance("50 miles");
+    setDays("30 days");
+    setIsLocationOpen(true);
+
+    // Tickets
+    setTotalCapacity("500");
+    setComps("8");
+    setResaleParty1("33.33");
+    setResaleParty2("33.33");
+    setResaleReseller("33.34");
+    setticketsEnabled(true);
+    setTicketRows([
+      { ticketType: "General Admission", onSaleDate: "2026-04-01T00:00", numberOfTickets: "400", ticketPrice: "45" },
+      { ticketType: "VIP", onSaleDate: "2026-04-01T00:00", numberOfTickets: "100", ticketPrice: "120" },
+    ]);
+    setIsTicketsOpen(true);
+
+    // Money
+    setguaranteeInput("");
+    setBackendInput("20");
+    setBarsplitInput("15");
+    setMerchSplitInput("10");
+    setdepositbandInput("1,000");
+    setbandCanceledBy("2026-05-01T12:00");
+    setsecuritydepositAdd("");
+    setSecurityDepositRows([
+      { dateTime: "2026-04-30T12:00", percentage: "50", dollarAmount: "2,500" },
+    ]);
+    setCancelParty1Rows([
+      { dateTime: "2026-05-10T12:00", percentage: "25", dollarAmount: "1,250" },
+    ]);
+    setCancelParty2Rows([
+      { dateTime: "2026-05-10T12:00", percentage: "25", dollarAmount: "1,250" },
+    ]);
+    setIsMoneyOpen(true);
+
+    // Payments
+    setPayoutRows([
+      { dateTime: "2026-05-16T12:00", percentage: "100", dollarAmount: "5,000" },
+    ]);
+    setPayout2Rows([
+      { dateTime: "2026-05-16T12:00", percentage: "100", dollarAmount: "5,000" },
+    ]);
+    setIsPaymentsOpen(true);
+
+    // Promotion
+    setPromotionValue("Summer Sunset Sessions");
+    setPromotionGenres(["Rock", "Indie"]);
+    setIsPromotionOpen(true);
+
+    // Rider
+    setRiderRows([
+      { value: "12x bottles of water" },
+      { value: "Vegetarian meal for 4" },
+      { value: "2x cases of beer" },
+    ]);
+    setIsRiderOpen(true);
+
+    // Legal
+    setLegalAgreementValue("Standard performance agreement. All terms subject to mutual consent.");
+    setIsLegalAgreementOpen(true);
+    setTicketLegalLanguageValue("All sales final. No refunds except in case of event cancellation.");
+    setIsTicketLegalLanguageOpen(true);
+  };
+
+  // Expose getContractData and fillDummyData to parent
   useImperativeHandle(ref, () => ({
     getContractData,
+    fillDummyData,
   }));
 
   return (
     <div className={styles.sectioncontainer}>
+      {ENABLE_DUMMY_DATA && (
+        <button
+          type="button"
+          onClick={fillDummyData}
+          style={{
+            width: "100%",
+            padding: "10px",
+            marginBottom: "12px",
+            background: "linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%)",
+            color: "#fff",
+            border: "none",
+            borderRadius: "30px",
+            cursor: "pointer",
+            fontWeight: "bold",
+            fontSize: "14px",
+          }}
+        >
+          Fill Dummy Data
+        </button>
+      )}
       <DatesAndTimesSection
         isOpen={isDatesTimeOpen}
         onToggle={() => setIsDatesTimeOpen(!isDatesTimeOpen)}

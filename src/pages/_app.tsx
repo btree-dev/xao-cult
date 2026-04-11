@@ -9,6 +9,7 @@ import { WagmiProvider } from 'wagmi';
 import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 
 import { config } from '../wagmi';
+import { baseSepolia } from 'viem/chains';
 import { supabase } from '../lib/supabase';
 import store from '../store/store'
 import { Provider } from 'react-redux'
@@ -91,7 +92,7 @@ function MyApp({ Component, pageProps }: AppProps) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={client}>
-        <RainbowKitProvider theme={darkTheme()}>
+        <RainbowKitProvider theme={darkTheme()} initialChain={baseSepolia}>
           <XMTPProvider>
             <ProfileCacheProvider>
               <Head>

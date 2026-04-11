@@ -7,9 +7,9 @@ import Image from 'next/image';
 import styles from '../../../styles/Home.module.css';
 import Navbar from '../../../components/Navbar';
 import Scrollbar from '../../../components/Scrollbar';
-import { useReadContract } from 'wagmi';
-import { EVENT_CONTRACT_ABI } from '../../../lib/web3/eventcontract';
-import { weiToDollar } from '../../../hooks/useAddTicketType';
+import { useReadContract, useReadContracts } from 'wagmi';
+import { SHOW_CONTRACT_ABI, XAO_TICKET_ABI } from '../../../lib/web3/eventcontract';
+
 const TicketPurchase: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<any>(null);
@@ -22,38 +22,77 @@ const TicketPurchase: NextPage = () => {
   const isContractAddress = typeof id === 'string' && id.startsWith('0x');
   const contractAddress = isContractAddress ? (id as `0x${string}`) : undefined;
 
-  // Fetch ticket types from blockchain if it's a contract
-  const { data: blockchainTickets, isLoading: ticketsLoading } = useReadContract({
+  // Step 1: Read ticketCollection address from ShowContract
+  const { data: ticketCollectionAddr } = useReadContract({
     address: contractAddress,
-    abi: EVENT_CONTRACT_ABI,
-    functionName: 'getTicketTypes',
-    query: {
-      enabled: isContractAddress && !!contractAddress,
-    },
+    abi: SHOW_CONTRACT_ABI,
+    functionName: 'ticketCollection',
+    query: { enabled: !!contractAddress },
+  });
+
+  const ticketAddr = ticketCollectionAddr as `0x${string}` | undefined;
+  const hasTicketContract = !!ticketAddr && ticketAddr !== '0x0000000000000000000000000000000000000000';
+
+  // Step 2: Read tierCount from XAOTicket
+  const { data: tierCountData } = useReadContract({
+    address: ticketAddr,
+    abi: XAO_TICKET_ABI,
+    functionName: 'tierCount',
+    query: { enabled: hasTicketContract },
+  });
+
+  const tierCount = tierCountData ? Number(tierCountData) : 0;
+
+  // Step 3: Read all tiers in parallel
+  const tierCalls = hasTicketContract && tierCount > 0
+    ? Array.from({ length: tierCount }, (_, i) => ({
+        address: ticketAddr!,
+        abi: XAO_TICKET_ABI as any,
+        functionName: 'tiers' as const,
+        args: [BigInt(i)] as const,
+      }))
+    : [];
+
+  const { data: tiersData, isLoading: ticketsLoading } = useReadContracts({
+    contracts: tierCalls,
+    query: { enabled: tierCalls.length > 0 },
   });
 
   useEffect(() => {
     if (!id) return;
 
-    // If it's a blockchain contract and we have ticket data, use that
-    if (isContractAddress && blockchainTickets && !ticketsLoading) {
-      const tickets = (blockchainTickets as any[]).map((ticket: any, index: number) => ({
-        id: `ticket-${index}`,
-        typeId: index, // Store the blockchain typeId
-        name: ticket.name || ticket[0] || `Ticket Type ${index + 1}`,
-        price: ticket.price ? weiToDollar(ticket.price) : (ticket[3] ? weiToDollar(ticket[3]) : 0),
-        available: ticket.count ? Number(ticket.count) : (ticket[2] ? Number(ticket[2]) : 0),
-        saleDate: Number(ticket.saleDate || ticket[1] || 0),
-        selected: false,
-        count: 0, // User's selected quantity
-      }));
-      console.log('Blockchain tickets loaded:', tickets);
+    if (isContractAddress && tiersData && !ticketsLoading) {
+      const tickets = tiersData
+        .filter((r: any) => r.status === 'success')
+        .map((r: any, index: number) => {
+          const tier = r.result as any;
+          // tiers mapping returns: ticketType, customName, priceUSDC, quantity, sold, onSaleTimestamp, ...resale BPS
+          const priceUSDC = Number(tier.priceUSDC ?? tier[2] ?? 0) / 1e6;
+          const quantity = Number(tier.quantity ?? tier[3] ?? 0);
+          const sold = Number(tier.sold ?? tier[4] ?? 0);
+          const ticketTypeEnum = Number(tier.ticketType ?? tier[0] ?? 0);
+          const customName = tier.customName ?? tier[1] ?? '';
+          const typeNames = ['Comp', 'Presale', 'General Admission', 'VIP', 'Custom'];
+          const name = ticketTypeEnum === 4 ? customName : (typeNames[ticketTypeEnum] || `Tier ${index}`);
+
+          return {
+            id: `ticket-${index}`,
+            typeId: index,
+            name,
+            price: priceUSDC,
+            priceRaw: BigInt(tier.priceUSDC ?? tier[2] ?? 0), // raw USDC for buying
+            available: quantity - sold,
+            saleDate: Number(tier.onSaleTimestamp ?? tier[5] ?? 0),
+            selected: false,
+            count: 0,
+          };
+        });
+      console.log('XAOTicket tiers loaded:', tickets);
       setTicketTypes(tickets);
       return;
     }
 
-    // For blockchain contracts with no tickets, leave ticketTypes empty
-    if (isContractAddress && !ticketsLoading) {
+    if (isContractAddress && !ticketsLoading && (!hasTicketContract || tierCount === 0)) {
       setTicketTypes([]);
       return;
     }
@@ -70,12 +109,12 @@ const TicketPurchase: NextPage = () => {
         console.error("Error parsing saved purchase state", e);
       }
     }
-  }, [id, blockchainTickets, ticketsLoading, isContractAddress]);
+  }, [id, tiersData, ticketsLoading, isContractAddress, hasTicketContract, tierCount]);
   useEffect(() => {
     if (!id || ticketTypes.length === 0) return;
     sessionStorage.setItem(
       `purchaseState-${id}`,
-      JSON.stringify({ ticketTypes, paymentMethod })
+      JSON.stringify({ ticketTypes, paymentMethod }, (_, v) => typeof v === 'bigint' ? v.toString() : v)
     );
   }, [ticketTypes, paymentMethod, id]);
 

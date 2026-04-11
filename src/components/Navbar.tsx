@@ -3,6 +3,20 @@ import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import styles from './Navbar.module.css';
+import { useWeb3 } from '../hooks/useWeb3';
+import { useReadContract } from 'wagmi';
+import { USDC_ADDRESS_TESTNET, USDC_ADDRESS_MAINNET } from '../lib/web3/chains';
+import { useXMTPClient } from '../contexts/XMTPContext';
+
+const ERC20_BALANCE_ABI = [
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const;
 
 interface NavbarProps {
   userProfile?: {
@@ -18,6 +32,21 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pageTitle = '', showNotificationIcon = false, showSearchIcon = true, onCalendarClick, selectedStartDate }) => {
+  const { address, isConnected, chain } = useWeb3();
+  const networkName = chain?.id === 84532 ? "Base Sepolia" : chain?.id === 8453 ? "Base" : chain?.id === 1 ? "Ethereum" : `Chain ${chain?.id}`;
+  const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : "";
+  const usdcAddress = chain?.id === 8453 ? USDC_ADDRESS_MAINNET : USDC_ADDRESS_TESTNET;
+
+  const { data: usdcBalance } = useReadContract({
+    address: usdcAddress as `0x${string}`,
+    abi: ERC20_BALANCE_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  });
+
+  const formattedUSDC = usdcBalance != null ? (Number(usdcBalance) / 1e6).toFixed(2) : '0.00';
+  const { unreadCount } = useXMTPClient();
 
   // Format date for short display (e.g., "27 Jan...")
   const formatDateShort = (dateString: string): string => {
@@ -67,6 +96,13 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
 
   return (
     <>
+      {isConnected && (
+        <div className={styles.walletInfo}>
+          <span className={styles.walletNetwork}>{networkName}</span>
+          <span className={styles.walletAddress}>{shortAddress}</span>
+          <span className={styles.walletBalance}>${formattedUSDC}</span>
+        </div>
+      )}
       {showBackButton ? (
         <nav className={styles.navbar}>
           <div className={styles.navContainer}>
@@ -212,6 +248,7 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
                   title="Notifications"
                   aria-label="Notifications"
                   onClick={handleNotificationClick}
+                  style={{ position: 'relative' }}
                 >
                   <Image
                     src="/Chat-Section-Icons/Bell.svg"
@@ -219,6 +256,11 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
                     width={24}
                     height={24}
                   />
+                  {unreadCount > 0 && (
+                    <span className={styles.notificationBadge}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </button>
               )}
             </div>

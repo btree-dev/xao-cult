@@ -1,9 +1,8 @@
 import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { EVENT_CONTRACT_ABI } from "../lib/web3/eventcontract";
+import { SHOW_CONTRACT_ABI } from "../lib/web3/eventcontract";
 
 export const useSignEventContract = () => {
   const {
-    writeContract,
     writeContractAsync,
     isPending,
     error,
@@ -13,19 +12,22 @@ export const useSignEventContract = () => {
   const { isLoading: isWaiting, isSuccess } = useWaitForTransactionReceipt({
     hash,
   });
+
+  // ShowContract.sign() takes no arguments — msg.sender is used on-chain
   const signContractAsync = async (
     contractAddress: `0x${string}`,
-    username: string,
+    _username: string, // kept for backward compat with callers, not sent to chain
   ) => {
-    console.log("~ contractAddress sign ~", contractAddress, "username", username);
+    console.log("~ signing ShowContract ~", contractAddress);
 
     return writeContractAsync({
       address: contractAddress,
-      abi: EVENT_CONTRACT_ABI,
-      functionName: "signContract",
-      args: [username],
+      abi: SHOW_CONTRACT_ABI,
+      functionName: "sign",
+      args: [],
     });
   };
+
   return {
     signContractAsync,
     isLoading: isPending || isWaiting,

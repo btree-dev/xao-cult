@@ -21,16 +21,22 @@ export const CHAINS = {
 export const CONTRACT_ADDRESSES = {
   [base.id]: {
     ContractNFT: process.env.NEXT_PUBLIC_CONTRACT_NFT_MAINNET || '0x',
-    EventContractFactory: process.env.NEXT_PUBLIC_EVENT_CONTRACT_FACTORY_MAINNET || '0xce1960114318676834252fe78447c27501161149',
+    ShowContractFactory: process.env.NEXT_PUBLIC_SHOW_CONTRACT_FACTORY_MAINNET || '0x',
   },
   [baseSepolia.id]: {
     ContractNFT: process.env.NEXT_PUBLIC_CONTRACT_NFT_TESTNET || '0x',
-    EventContractFactory: process.env.NEXT_PUBLIC_EVENT_CONTRACT_FACTORY_TESTNET || '0xce1960114318676834252fe78447c27501161149',
+    ShowContractFactory: process.env.NEXT_PUBLIC_SHOW_CONTRACT_FACTORY_TESTNET || '0x56b1AbF4A672c2f3D8A9bA380E07C32b5AaeeaB2',
   },
   [sepolia.id]: {
     ContractNFT: process.env.NEXT_PUBLIC_CONTRACT_NFT_TESTNET || '0x',
-    EventContractFactory: process.env.NEXT_PUBLIC_EVENT_CONTRACT_FACTORY_TESTNET || '0xce1960114318676834252fe78447c27501161149',
+    ShowContractFactory: process.env.NEXT_PUBLIC_SHOW_CONTRACT_FACTORY_TESTNET || '0x56b1AbF4A672c2f3D8A9bA380E07C32b5AaeeaB2',
   },
 };
+
+// Protocol addresses
+export const TREASURY_ADDRESS = process.env.NEXT_PUBLIC_TREASURY_ADDRESS || '0x8DAFaBcEb8B05629cf1591A32f5fd8A1c0a75e95';
+// USDC on Base Sepolia (circle faucet token)
+export const USDC_ADDRESS_TESTNET = '0x06B18F78b695d2C2e7dbCcAe94819a785234Eeae';
+export const USDC_ADDRESS_MAINNET = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 
 export const DEFAULT_CHAIN = baseSepolia.id; // Default to testnet for development

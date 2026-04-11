@@ -26,10 +26,12 @@ const Negotiation: React.FC = () => {
     )
   );
 
-  // Filter for contracts under negotiation
+  // ShowContract statuses: 0=Draft, 1=Proposed, 2=Counter-Proposed, 3=Approved
+  // "Requires Attention" = Proposed or Counter-Proposed (needs action from a party)
   const attentionContracts = myContracts.filter(
-    (contract) => contract.status === 1
+    (contract) => contract.status === 1 || contract.status === 2
   );
+  // "Waiting" = Draft (not yet proposed)
   const waitingContracts = myContracts.filter(
     (contract) => contract.status === 0
   );

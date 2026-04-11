@@ -1,13 +1,12 @@
-import { useAccount, useChainId } from 'wagmi';
+import { useAccount } from 'wagmi';
 
 export const useWeb3 = () => {
-  const { address, isConnected } = useAccount();
-  const chainId = useChainId();
+  const { address, isConnected, chain } = useAccount();
 
   return {
     address,
     isConnected,
-    chain: { id: chainId },
-    isBaseNetwork: chainId === 8453 || chainId === 84532, // Base mainnet or Base Sepolia
+    chain: chain ?? { id: 0 },
+    isBaseNetwork: chain?.id === 8453 || chain?.id === 84532, // Base mainnet or Base Sepolia
   };
 };

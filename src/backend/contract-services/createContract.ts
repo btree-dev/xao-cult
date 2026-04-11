@@ -1,5 +1,5 @@
 import React from 'react';
-import { CreateEventContractParams } from '../../hooks/useCreateContract';
+import { CreateEventContractParams, CreateShowContractParams } from '../../hooks/useCreateContract';
 import { buildContractParams, validateContractParams } from './contractHelpers';
 import { validateBaseChain } from '../contracts';
 import { TicketRow } from '../../pages/contracts/TicketsSection';
@@ -128,9 +128,10 @@ export const buildAndValidateParams = (
   party1: string,
   party2: string,
   otherPartyAddress: string,
-  action: string = 'SAVED'
-): { params: CreateEventContractParams; error: string | null } => {
-  const params = buildContractParams(formData, party1, otherPartyAddress);
+  action: string = 'SAVED',
+  callerAddress?: `0x${string}`
+): { params: CreateShowContractParams; error: string | null } => {
+  const params = buildContractParams(formData, party1, otherPartyAddress, callerAddress);
   logContractData(formData, party1, party2, params, action);
   const error = validateContractParams(params);
   return { params, error };
@@ -145,8 +146,9 @@ export const handleSaveContract = async (
   party2: string,
   otherPartyAddress: string,
   stateSetters: ContractStateSetters,
-  createEventContract: (params: CreateEventContractParams) => void,
-  existingImageUri?: string | null
+  createEventContract: (params: CreateShowContractParams) => void,
+  existingImageUri?: string | null,
+  callerAddress?: `0x${string}`
 ): Promise<void> => {
   const { setIsContractCreating, setCreationError, setIsUploading, setTicketRowsToAdd } = stateSetters;
 
@@ -169,7 +171,7 @@ export const handleSaveContract = async (
     await handleImageUpload(formData, setIsUploading, existingImageUri, 'XAO');
     setTicketRowsToAdd(getTicketRows(formData));
 
-    const { params, error: validationError } = buildAndValidateParams(formData, party1, party2, otherPartyAddress, 'SAVED');
+    const { params, error: validationError } = buildAndValidateParams(formData, party1, party2, otherPartyAddress, 'SAVED', callerAddress);
     if (validationError) {
       setCreationError(validationError);
       setIsContractCreating(false);

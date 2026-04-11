@@ -8,7 +8,8 @@ import { useBuyTickets } from "../../../hooks/useBuyTickets";
 import { useWeb3 } from "../../../hooks/useWeb3";
 import { waitForTransactionReceipt, readContract } from "@wagmi/core";
 import { config } from "../../../wagmi";
-import { EVENT_CONTRACT_ABI } from "../../../lib/web3/eventcontract";
+import { SHOW_CONTRACT_ABI, XAO_TICKET_ABI } from "../../../lib/web3/eventcontract";
+import { USDC_ADDRESS_TESTNET, USDC_ADDRESS_MAINNET } from "../../../lib/web3/chains";
 
 import Navbar from "../../../components/Navbar";
 
@@ -22,12 +23,13 @@ const PurchaseConfirmation: NextPage = () => {
   const { id, tickets, eventTitle, eventImage, eventLocation, eventDate, eventTime } = router.query;
   
   // Web3 hooks
-  const { address, isConnected } = useWeb3();
+  const { address, isConnected, chain } = useWeb3();
   const { buyTickets, isPending, isWaiting, isSuccess, error: txError } = useBuyTickets();
-  
+
   // Check if ID is a contract address
   const isContractAddress = typeof id === 'string' && id.startsWith('0x');
   const contractAddress = isContractAddress ? (id as `0x${string}`) : undefined;
+  const usdcAddress = chain?.id === 8453 ? USDC_ADDRESS_MAINNET : USDC_ADDRESS_TESTNET;
 
   useEffect(() => {
     if (tickets) {
@@ -90,34 +92,47 @@ const PurchaseConfirmation: NextPage = () => {
       }
 
       try {
-        // Read all ticket types from on-chain contract (prices in wei)
-        const ticketTypes = await readContract(config, {
+        // Read ticketCollection address from ShowContract
+        const ticketCollectionAddr = await readContract(config, {
           address: contractAddress,
-          abi: EVENT_CONTRACT_ABI,
-          functionName: 'getTicketTypes',
-        }) as any[];
+          abi: SHOW_CONTRACT_ABI as any,
+          functionName: 'ticketCollection',
+        }) as `0x${string}`;
+
+        if (!ticketCollectionAddr || ticketCollectionAddr === '0x0000000000000000000000000000000000000000') {
+          setPurchaseError("Ticket collection not deployed yet. Both parties must sign the contract first.");
+          setIsPurchasing(false);
+          return;
+        }
 
         const txHashes: string[] = [];
 
-        // Buy each selected ticket type separately with its correct on-chain price
+        // Buy each selected ticket — XAOTicket.buyTicket buys 1 at a time
         for (const ticket of selectedTickets) {
-          const typeId = ticket.typeId ?? 0;
+          const tierId = ticket.typeId ?? 0;
           const quantity = ticket.count;
-          const onChainPrice = ticketTypes[typeId]?.price || ticketTypes[typeId]?.[3] || BigInt(0);
-          const totalWei = BigInt(onChainPrice) * BigInt(quantity);
+          const priceUSDC = BigInt(ticket.priceRaw ?? Math.floor(ticket.price * 1e6));
 
-          console.log(`Purchasing ticket type ${typeId} (${ticket.type}):`, {
-            typeId,
+          console.log(`Purchasing tier ${tierId} (${ticket.type}):`, {
+            tierId,
             quantity,
-            onChainPrice: onChainPrice.toString(),
-            totalWei: totalWei.toString(),
+            priceUSDC: priceUSDC.toString(),
           });
 
-          const txHash = await buyTickets(contractAddress, typeId, quantity, totalWei);
+          // Buy one ticket at a time (XAOTicket.buyTicket buys 1)
+          for (let i = 0; i < quantity; i++) {
+            const txHash = await buyTickets(
+              contractAddress,
+              ticketCollectionAddr,
+              usdcAddress as `0x${string}`,
+              tierId,
+              priceUSDC,
+            );
 
-          if (txHash) {
-            await waitForTransactionReceipt(config, { hash: txHash });
-            txHashes.push(txHash);
+            if (txHash) {
+              await waitForTransactionReceipt(config, { hash: txHash });
+              txHashes.push(txHash as string);
+            }
           }
         }
 

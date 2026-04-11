@@ -15,9 +15,11 @@ import BlankNavbar from "../../components/BackNav";
 import { useWeb3 } from "../../hooks/useWeb3";
 import { useAllContractsWithSummaries } from "../../hooks/useGetContracts";
 import { useSignEventContract } from "../../hooks/useSignEventContract";
-import { useAddTicketType, dollarToWei, weiToDollar, ETH_PRICE_USD } from "../../hooks/useAddTicketType";
-import { useReadContracts } from "wagmi";
-import { EVENT_CONTRACT_ABI } from "../../lib/web3/eventcontract";
+import { useAddTicketType, useAddTierToXAOTicket, dollarToWei, weiToDollar, ETH_PRICE_USD } from "../../hooks/useAddTicketType";
+import { useReadContracts, useReadContract } from "wagmi";
+import { writeContract, waitForTransactionReceipt } from "@wagmi/core";
+import { config } from "../../wagmi";
+import { EVENT_CONTRACT_ABI, SHOW_CONTRACT_ABI, XAO_TICKET_ABI } from "../../lib/web3/eventcontract";
 import { IContract } from "../../backend/services/types/api";
 
 const Contractsdetail: React.FC = () => {
@@ -26,6 +28,9 @@ const Contractsdetail: React.FC = () => {
   const [ticketName, setTicketName] = useState("");
   const [ticketPrice, setTicketPrice] = useState("");
   const [ticketCount, setTicketCount] = useState("");
+  const [showGrantScanner, setShowGrantScanner] = useState(false);
+  const [scannerAddress, setScannerAddress] = useState("");
+  const [isGrantingRole, setIsGrantingRole] = useState(false);
   const router = useRouter();
   const { address, chain } = useWeb3();
   const { contracts } = useAllContractsWithSummaries(chain?.id);
@@ -34,27 +39,54 @@ const Contractsdetail: React.FC = () => {
   const party2 = router.query.party2 as string | undefined;
   const { signContractAsync, isLoading } = useSignEventContract();
   const { addTicketTypeAsync, isLoading: isAddingTicket } = useAddTicketType();
+  const { addTier, isLoading: isAddingTier } = useAddTierToXAOTicket();
 
   // Fetch all contract fields from on-chain for blockchain contracts
   const isBlockchain = id && typeof id === "string" && id.startsWith("0x");
   const contractAddr = isBlockchain ? (id as `0x${string}`) : undefined;
 
+  // Read ticketCollection address from ShowContract
+  const { data: ticketCollectionData } = useReadContract({
+    address: contractAddr,
+    abi: SHOW_CONTRACT_ABI,
+    functionName: 'ticketCollection',
+    query: { enabled: !!contractAddr },
+  });
+  const ticketCollectionAddr = ticketCollectionData as `0x${string}` | undefined;
+  const hasTicketCollection = !!ticketCollectionAddr && ticketCollectionAddr !== '0x0000000000000000000000000000000000000000';
+
+  // ShowContract exposes individual public fields instead of struct getters
   const chainCalls = contractAddr ? [
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'party1' as const },
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'party2' as const },
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'dates' as const },
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'location' as const },
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'config' as const },
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'resale' as const },
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'payIn' as const },
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'name' as const },
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'imageUri' as const },
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'rider' as const },
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'legal' as const },
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'ticketLegal' as const },
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'getTicketTypes' as const },
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'totalIssued' as const },
-    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'revenue' as const },
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'party1' },          // 0
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'party2' },          // 1
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'announcementDate' },// 2
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'eventStartDate' },  // 3
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'eventEndDate' },    // 4
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'loadInTime' },      // 5
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'doorsTime' },       // 6
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'startTime' },       // 7
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'endTime' },         // 8
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'setTime' },         // 9
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'setLengthMinutes' },// 10
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'venueName' },       // 11
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'venueAddress' },    // 12
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'radiusMiles' },     // 13
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'radiusDays' },      // 14
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'ticketsEnabled' },  // 15
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'totalCapacity' },   // 16
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'salesTaxBPS' },     // 17
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'guaranteeUSDC' },   // 18
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'guaranteePctBPS' }, // 19
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'backendBPS' },      // 20
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'barSplitBPS' },     // 21
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'merchSplitBPS' },   // 22
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'eventName' },       // 23
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'flyerDNSLink' },    // 24
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'riderIPFSCID' },    // 25
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'contractLegalLanguage' }, // 26
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'ticketLegalLanguage' },   // 27
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'status' },          // 28
+    { address: contractAddr, abi: EVENT_CONTRACT_ABI as any, functionName: 'escrowBalance' },   // 29
   ] : [];
 
   const { data: chainData, isLoading: chainLoading } = useReadContracts({
@@ -105,65 +137,86 @@ const Contractsdetail: React.FC = () => {
   };
 
   // Convert chain data to initialData for CreateContractsection
+  // USDC has 6 decimals
+  const usdcToDollarStr = (usdc: any): string => {
+    const n = Number(usdc);
+    if (!n) return '';
+    return (n / 1e6).toFixed(2);
+  };
+
   const chainInitialData: Partial<IContract> | undefined = useMemo(() => {
     if (!isBlockchain || !chainData || chainLoading) return undefined;
 
     const get = (i: number) => chainData[i]?.status === 'success' ? chainData[i].result : null;
 
-    const dates = get(2) as any;
-    const loc = get(3) as any;
-    const cfg = get(4) as any;
-    const resaleData = get(5) as any;
-    const payInData = get(6) as any;
-    const eventName = get(7) as string || '';
-    const imageUri = get(8) as string || '';
-    const riderStr = get(9) as string || '';
-    const legalStr = get(10) as string || '';
-    const ticketLegalStr = get(11) as string || '';
-    const ticketTypes = get(12) as any[] || [];
+    // Individual date fields from ShowContract
+    const announcementDate = get(2);
+    const eventStartDate = get(3);
+    const eventEndDate = get(4);
+    const loadInTime = get(5);
+    const doorsTime = get(6);
+    const startTimeVal = get(7);
+    const endTimeVal = get(8);
+    const setTimeVal = get(9);
+    const setLengthMin = get(10);
+
+    // Location fields
+    const venueNameVal = get(11) as string || '';
+    const venueAddressVal = get(12) as string || '';
+    const radiusMilesVal = get(13);
+    const radiusDaysVal = get(14);
+
+    // Ticket fields
+    const ticketsEnabledVal = get(15);
+    const totalCapacityVal = get(16);
+    const salesTaxBPSVal = get(17);
+
+    // Financial fields
+    const guaranteeUSDCVal = get(18);
+    const guaranteePctBPSVal = get(19);
+    const backendBPSVal = get(20);
+    const barSplitBPSVal = get(21);
+    const merchSplitBPSVal = get(22);
+
+    // Promo / legal
+    const eventNameVal = get(23) as string || '';
+    const flyerDNSLinkVal = get(24) as string || '';
+    const riderStr = get(25) as string || '';
+    const legalStr = get(26) as string || '';
+    const ticketLegalStr = get(27) as string || '';
 
     return {
-      datesAndTimes: dates ? {
-        startTime: secondsToTime(dates.start ?? dates[4]),
-        endTime: secondsToTime(dates.end ?? dates[5]),
-        loadIn: secondsToTime(dates.loadIn ?? dates[2]),
-        doors: secondsToTime(dates.doors ?? dates[3]),
-        setTime: secondsToTime(dates.setTime ?? dates[6]),
-        setLength: Number(dates.setLength ?? dates[7]) ? String(Number(dates.setLength ?? dates[7])) : '',
+      datesAndTimes: {
+        startTime: secondsToTime(startTimeVal),
+        endTime: secondsToTime(endTimeVal),
+        loadIn: secondsToTime(loadInTime),
+        doors: secondsToTime(doorsTime),
+        setTime: secondsToTime(setTimeVal),
+        setLength: Number(setLengthMin) ? String(Number(setLengthMin)) : '',
         ticketsSale: '',
-        eventStartDate: timestampToDatetime(dates.show ?? dates[1]),
-        eventAnnouncementDate: timestampToDatetime(dates.announce ?? dates[0]),
-        eventEndDate: timestampToDatetime(dates.end ?? dates[5]),
-      } : undefined,
-      location: loc ? {
-        venueName: loc.venue ?? loc[0] ?? '',
-        address: loc.addr ?? loc[1] ?? '',
-        radiusDistance: Number(loc.radius ?? loc[2]) ? String(Number(loc.radius ?? loc[2])) : '',
-        days: Number(loc.days1 ?? loc[3]) ? String(Number(loc.days1 ?? loc[3])) : '',
-      } : undefined,
-      tickets: cfg ? {
-        ticketRows: ticketTypes.length > 0 ? ticketTypes.map((t: any) => ({
-          ticketType: t.name ?? t[0] ?? '',
-          onSaleDate: timestampToDatetime(t.saleDate ?? t[1]),
-          numberOfTickets: Number(t.count ?? t[2]) ? String(Number(t.count ?? t[2])) : '',
-          ticketPrice: weiToDollarStr(t.price ?? t[3]),
-        })) : [{ ticketType: '', onSaleDate: '', numberOfTickets: '', ticketPrice: '' }],
-        totalCapacity: Number(cfg.capacity ?? cfg[1]) ? String(Number(cfg.capacity ?? cfg[1])) : '',
-        comps: basisToPercent(cfg.taxPct ?? cfg[2]),
-        salesTax: basisToPercent(cfg.taxPct ?? cfg[2]),
-        resale: resaleData ? {
-          party1: basisToPercent(resaleData.p1Pct ?? resaleData[0]),
-          party2: basisToPercent(resaleData.p2Pct ?? resaleData[1]),
-          reseller: basisToPercent(resaleData.rPct ?? resaleData[2]),
-        } : undefined,
-      } : undefined,
-      money: payInData ? {
-        // guaPct > 0 means percentage was used; otherwise dollar amount was used
-        guaranteeInput: basisToPercent(payInData.guaPct ?? payInData[1]),
-        depositbandInput: weiToDollarStr(payInData.guarantee ?? payInData[0]),
-        backendInput: basisToPercent(payInData.backPct ?? payInData[2]),
-        barsplitInput: basisToPercent(payInData.barPct ?? payInData[3]),
-        merchSplitInput: basisToPercent(payInData.merchPct ?? payInData[4]),
+        eventStartDate: timestampToDatetime(eventStartDate),
+        eventAnnouncementDate: timestampToDatetime(announcementDate),
+        eventEndDate: timestampToDatetime(eventEndDate),
+      },
+      location: {
+        venueName: venueNameVal,
+        address: venueAddressVal,
+        radiusDistance: Number(radiusMilesVal) ? String(Number(radiusMilesVal)) : '',
+        days: Number(radiusDaysVal) ? String(Number(radiusDaysVal)) : '',
+      },
+      tickets: {
+        ticketRows: [{ ticketType: '', onSaleDate: '', numberOfTickets: '', ticketPrice: '' }],
+        totalCapacity: Number(totalCapacityVal) ? String(Number(totalCapacityVal)) : '',
+        comps: basisToPercent(salesTaxBPSVal),
+        salesTax: basisToPercent(salesTaxBPSVal),
+        resale: undefined,
+      },
+      money: {
+        guaranteeInput: basisToPercent(guaranteePctBPSVal),
+        depositbandInput: usdcToDollarStr(guaranteeUSDCVal),
+        backendInput: basisToPercent(backendBPSVal),
+        barsplitInput: basisToPercent(barSplitBPSVal),
+        merchSplitInput: basisToPercent(merchSplitBPSVal),
         securityDepositRows: [{ dateTime: '', percentage: '', dollarAmount: '' }],
         cancelParty1Rows: [{ dateTime: '', percentage: '', dollarAmount: '' }],
         bandCanceledBy: '',
@@ -171,12 +224,12 @@ const Contractsdetail: React.FC = () => {
         securitydepositAdd: '',
         securityDeposit2Rows: [{ dateTime: '', percentage: '', dollarAmount: '' }],
         cancelParty2Rows: [{ dateTime: '', percentage: '', dollarAmount: '' }],
-      } : undefined,
+      },
       promotion: {
-        value: eventName,
+        value: eventNameVal,
         genres: [],
       },
-      eventImageUri: imageUri || undefined,
+      eventImageUri: flyerDNSLinkVal || undefined,
       rider: riderStr ? {
         rows: riderStr.split(', ').filter(Boolean).map((v: string) => ({ value: v })),
       } : undefined,
@@ -185,18 +238,14 @@ const Contractsdetail: React.FC = () => {
     };
   }, [isBlockchain, chainData, chainLoading]);
 
-  // Compute on-chain tickets sold and total revenue
-  const onChainTicketsSold = useMemo(() => {
-    if (!isBlockchain || !chainData) return '0';
-    const val = chainData[13]?.status === 'success' ? chainData[13].result : null;
-    return val ? String(Number(val)) : '0';
-  }, [isBlockchain, chainData]);
+  // Compute on-chain escrow balance (USDC, 6 decimals)
+  const onChainTicketsSold = '0'; // Ticket sales tracked via XAOTicket after finalization
 
   const onChainTotalRevenue = useMemo(() => {
     if (!isBlockchain || !chainData) return '$0.00';
-    const val = chainData[14]?.status === 'success' ? chainData[14].result : null;
+    const val = chainData[29]?.status === 'success' ? chainData[29].result : null;
     if (!val) return '$0.00';
-    const dollars = Number(val) / 1e18 * ETH_PRICE_USD;
+    const dollars = Number(val) / 1e6;
     return `$${dollars.toFixed(2)}`;
   }, [isBlockchain, chainData]);
 
@@ -238,8 +287,8 @@ const Contractsdetail: React.FC = () => {
       return;
     }
 
-    if (!id || typeof id !== "string") {
-      alert("Invalid contract ID");
+    if (!hasTicketCollection) {
+      alert("Ticket collection not deployed yet. Both parties must sign the contract first.");
       return;
     }
 
@@ -253,35 +302,102 @@ const Contractsdetail: React.FC = () => {
       return;
     }
 
+    // Map name to XAOTicket TicketType enum
+    const nameToEnum = (name: string): number => {
+      const lower = name.toLowerCase().trim();
+      if (lower === 'comp' || lower === 'complimentary') return 0;
+      if (lower === 'presale' || lower === 'pre-sale') return 1;
+      if (lower === 'general admission' || lower === 'ga') return 2;
+      if (lower === 'vip') return 3;
+      return 4; // CUSTOM
+    };
+
     try {
       setAddingTicket(true);
-      console.log("=== ADDING TICKET TYPE ===");
-      console.log("Contract Address:", id);
+      const ticketTypeEnum = nameToEnum(ticketName.trim());
+
+      console.log("=== ADDING TIER TO XAOTICKET ===");
+      console.log("XAOTicket:", ticketCollectionAddr);
       console.log("Ticket Name:", ticketName.trim());
-      console.log("Ticket Price:", ticketPrice.trim());
+      console.log("Ticket Price (USD):", ticketPrice.trim());
       console.log("Ticket Count:", ticketCount.trim());
 
-      // Use the custom hook with proper parameter formatting
-      await addTicketTypeAsync(id as `0x${string}`, {
-        ticketTypeName: ticketName.trim(),
-        onSaleDate: BigInt(Math.floor(Date.now() / 1000)), // Current timestamp
-        numberOfTickets: BigInt(parseInt(ticketCount) || 0),
-        ticketPrice: dollarToWei(ticketPrice),
-        isFree: false, // Not a free ticket
+      await addTier(ticketCollectionAddr!, {
+        ticketType: ticketTypeEnum,
+        customName: ticketTypeEnum === 4 ? ticketName.trim() : '',
+        priceUSDC: dollarToWei(ticketPrice),  // dollarToWei now converts to USDC (6 decimals)
+        quantity: BigInt(parseInt(ticketCount) || 0),
+        onSaleTimestamp: BigInt(Math.floor(Date.now() / 1000)),
+        party1ResaleBPS: BigInt(3333),
+        party2ResaleBPS: BigInt(3333),
+        resellerBPS: BigInt(3334),
       });
 
-      alert("Ticket type added successfully!");
-      // Reset form
+      alert("Ticket tier added successfully!");
       setTicketName("");
       setTicketPrice("");
       setTicketCount("");
       setAddingTicket(false);
     } catch (error) {
-      console.error("Error adding ticket type:", error);
-      alert("Failed to add ticket type. Please try again.");
+      console.error("Error adding ticket tier:", error);
+      alert("Failed to add ticket tier. Please try again.");
       setAddingTicket(false);
     }
-  }; 
+  };
+
+  // SCANNER_ROLE = keccak256("SCANNER_ROLE")
+  const SCANNER_ROLE = '0xbbde0e6e2f9a4ff83e528fa1c67c37b49tried78370cbfba54b9c24b97b48ee5b';
+
+  const handleGrantScannerRole = async () => {
+    if (!address) {
+      alert("Please connect your wallet first");
+      return;
+    }
+    if (!hasTicketCollection) {
+      alert("Ticket collection not deployed yet. Both parties must sign first.");
+      return;
+    }
+    if (!scannerAddress.trim() || !scannerAddress.startsWith('0x') || scannerAddress.length !== 42) {
+      alert("Please enter a valid wallet address (0x...)");
+      return;
+    }
+
+    try {
+      setIsGrantingRole(true);
+
+      // Read SCANNER_ROLE from XAOTicket contract
+      const scannerRoleHash = await import("@wagmi/core").then(({ readContract: rc }) =>
+        rc(config, {
+          address: ticketCollectionAddr!,
+          abi: XAO_TICKET_ABI as any,
+          functionName: 'SCANNER_ROLE',
+        })
+      ) as `0x${string}`;
+
+      console.log("=== GRANTING SCANNER ROLE ===");
+      console.log("XAOTicket:", ticketCollectionAddr);
+      console.log("Scanner:", scannerAddress);
+      console.log("Role hash:", scannerRoleHash);
+
+      const txHash = await writeContract(config, {
+        address: ticketCollectionAddr!,
+        abi: XAO_TICKET_ABI as any,
+        functionName: 'grantRole',
+        args: [scannerRoleHash, scannerAddress as `0x${string}`],
+      });
+
+      await waitForTransactionReceipt(config, { hash: txHash });
+
+      alert(`Scanner role granted to ${scannerAddress}!`);
+      setScannerAddress("");
+      setShowGrantScanner(false);
+    } catch (error) {
+      console.error("Error granting scanner role:", error);
+      alert("Failed to grant scanner role. Make sure you are the admin (party1).");
+    } finally {
+      setIsGrantingRole(false);
+    }
+  };
 
   const handleSignContract = async () => {
     if (!address) {
@@ -345,14 +461,26 @@ const Contractsdetail: React.FC = () => {
             </button>
           )}
           {isUserAuthorized() && (
-            <button
-              type="button"
-              className={styles.arbitrateButton}
-              onClick={() => setAddingTicket(!addingTicket)}
-              style={{ marginLeft: "10px" }}
-            >
-              {addingTicket ? "Cancel" : "Add Ticket Type"}
-            </button>
+            <>
+              <button
+                type="button"
+                className={styles.arbitrateButton}
+                onClick={() => setAddingTicket(!addingTicket)}
+                style={{ marginLeft: "10px" }}
+              >
+                {addingTicket ? "Cancel" : "Add Ticket Type"}
+              </button>
+              {hasTicketCollection && (
+                <button
+                  type="button"
+                  className={styles.arbitrateButton}
+                  onClick={() => setShowGrantScanner(!showGrantScanner)}
+                  style={{ marginLeft: "10px" }}
+                >
+                  {showGrantScanner ? "Cancel" : "Grant Scanner"}
+                </button>
+              )}
+            </>
           )}
         </div>
       );
@@ -548,7 +676,7 @@ const Contractsdetail: React.FC = () => {
               <div className={styles.inputRow}>
                 <input
                   type="number"
-                  placeholder="Ticket Price (ETH)"
+                  placeholder="Ticket Price (USD)"
                   value={ticketPrice}
                   onChange={(e) => setTicketPrice(e.target.value)}
                   className={styles.input}
@@ -583,6 +711,44 @@ const Contractsdetail: React.FC = () => {
                   style={{ marginLeft: "10px" }}
                 >
                   {isAddingTicket ? "Adding..." : "Add Ticket"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Grant Scanner Role Form */}
+          {showGrantScanner && isUserAuthorized() && hasTicketCollection && (
+            <div style={{ marginTop: "20px", padding: "20px", border: "1px solid rgba(255,153,0,0.4)", borderRadius: "8px", background: "rgba(0,0,0,0.3)" }}>
+              <h3 style={{ color: "white", marginBottom: "15px" }}>Grant Scanner Role</h3>
+              <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "13px", marginBottom: "12px" }}>
+                Allow a wallet to scan/redeem tickets at the door.
+              </p>
+              <div className={styles.inputRow}>
+                <input
+                  type="text"
+                  placeholder="Scanner wallet address (0x...)"
+                  value={scannerAddress}
+                  onChange={(e) => setScannerAddress(e.target.value)}
+                  className={styles.input}
+                  style={{ marginBottom: "10px" }}
+                />
+              </div>
+              <div className={styles.contractRow}>
+                <button
+                  type="button"
+                  className={styles.cancelButton}
+                  onClick={() => setShowGrantScanner(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={styles.arbitrateButton}
+                  onClick={handleGrantScannerRole}
+                  disabled={isGrantingRole}
+                  style={{ marginLeft: "10px" }}
+                >
+                  {isGrantingRole ? "Granting..." : "Grant Role"}
                 </button>
               </div>
             </div>

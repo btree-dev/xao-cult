@@ -11,7 +11,7 @@ import ShareModal from '../../../components/ShareModal';
 import { TicketsQR } from '../../../backend/ticket-services/ticketdata';
 import { readContract } from '@wagmi/core';
 import { config } from '../../../wagmi';
-import { EVENT_CONTRACT_ABI, EVENT_CONTRACT_FACTORY_ABI } from '../../../lib/web3/eventcontract';
+import { SHOW_CONTRACT_ABI, EVENT_CONTRACT_FACTORY_ABI, XAO_TICKET_ABI } from '../../../lib/web3/eventcontract';
 import { CONTRACT_ADDRESSES } from '../../../lib/web3/chains';
 import { useWeb3 } from '../../../hooks/useWeb3';
 const TicketsPage: NextPage = () => {
@@ -55,86 +55,116 @@ const TicketsPage: NextPage = () => {
     getUser();
   }, [router]);
 
-  // Load user's purchased tickets directly from blockchain
+  // Load user's purchased tickets from blockchain (ShowContract → XAOTicket)
   useEffect(() => {
     const loadBlockchainTickets = async () => {
       if (!address || !chain?.id) { setTicketsLoading(false); return; }
 
       setTicketsLoading(true);
       try {
-        // Get factory address for current chain
         const factoryAddress = chain.id in CONTRACT_ADDRESSES
-          ? (CONTRACT_ADDRESSES[chain.id as keyof typeof CONTRACT_ADDRESSES]?.EventContractFactory as `0x${string}`)
+          ? (CONTRACT_ADDRESSES[chain.id as keyof typeof CONTRACT_ADDRESSES]?.ShowContractFactory as `0x${string}`)
           : undefined;
 
         if (!factoryAddress || factoryAddress === '0x') { setTicketsLoading(false); return; }
 
-        // Get all contract addresses from factory
-        const allContracts = await readContract(config, {
+        // Get user's ShowContract addresses from factory
+        const userContracts = await readContract(config, {
           address: factoryAddress,
-          abi: EVENT_CONTRACT_FACTORY_ABI,
-          functionName: 'getContracts',
+          abi: EVENT_CONTRACT_FACTORY_ABI as any,
+          functionName: 'getUserContracts',
+          args: [address],
         }) as `0x${string}`[];
 
-        if (!allContracts || allContracts.length === 0) { setTicketsLoading(false); return; }
+        if (!userContracts || userContracts.length === 0) { setTicketsLoading(false); return; }
 
         const blockchainTickets: any[] = [];
 
-        // For each contract, check if user has tickets
-        for (const contractAddr of allContracts) {
+        for (const showAddr of userContracts) {
           try {
-            const userTicketIds = await readContract(config, {
-              address: contractAddr,
-              abi: EVENT_CONTRACT_ABI,
-              functionName: 'getTickets',
-              args: [address],
-            }) as bigint[];
+            // Read ticketCollection from ShowContract
+            const ticketCollectionAddr = await readContract(config, {
+              address: showAddr,
+              abi: SHOW_CONTRACT_ABI as any,
+              functionName: 'ticketCollection',
+            }) as `0x${string}`;
 
-            if (!userTicketIds || userTicketIds.length === 0) continue;
+            if (!ticketCollectionAddr || ticketCollectionAddr === '0x0000000000000000000000000000000000000000') continue;
 
-            // User has tickets in this contract — fetch event details
-            const [eventName, imageUri, locationData, datesData] = await Promise.all([
-              readContract(config, { address: contractAddr, abi: EVENT_CONTRACT_ABI, functionName: 'name' }),
-              readContract(config, { address: contractAddr, abi: EVENT_CONTRACT_ABI, functionName: 'imageUri' }),
-              readContract(config, { address: contractAddr, abi: EVENT_CONTRACT_ABI, functionName: 'location' }),
-              readContract(config, { address: contractAddr, abi: EVENT_CONTRACT_ABI, functionName: 'dates' }),
+            // Read event details from ShowContract
+            const [eventName, flyerDNSLink, venueName, eventStartDate] = await Promise.all([
+              readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'eventName' }),
+              readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'flyerDNSLink' }),
+              readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'venueName' }),
+              readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'eventStartDate' }),
             ]);
 
-            const loc = locationData as any;
-            const dates = datesData as any;
-            const venueName = loc?.venue ?? loc?.[0] ?? '';
-            const showTimestamp = dates?.show ?? dates?.[1];
-            const eventDate = showTimestamp && Number(showTimestamp) > 0
-              ? new Date(Number(showTimestamp) * 1000).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
+            const showTimestamp = Number(eventStartDate);
+            const eventDate = showTimestamp > 0
+              ? new Date(showTimestamp * 1000).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
               : 'TBD';
 
-            // Fetch info for each ticket the user owns
-            for (const ticketId of userTicketIds) {
-              try {
-                const info = await readContract(config, {
-                  address: contractAddr,
-                  abi: EVENT_CONTRACT_ABI,
-                  functionName: 'getTicketInfo',
-                  args: [ticketId],
-                }) as [bigint, string, string, boolean, bigint, bigint];
+            // Read XAOTicket data: totalSold, tierCount
+            const [totalSold, tierCount] = await Promise.all([
+              readContract(config, { address: ticketCollectionAddr, abi: XAO_TICKET_ABI as any, functionName: 'totalSold' }),
+              readContract(config, { address: ticketCollectionAddr, abi: XAO_TICKET_ABI as any, functionName: 'tierCount' }),
+            ]);
 
-                const [, , typeName, checkedIn] = info;
+            const numTiers = Number(tierCount);
+            if (numTiers === 0) continue;
+
+            // Check each token the user might own (ERC1155 balanceOf)
+            const nextTokenId = await readContract(config, {
+              address: ticketCollectionAddr,
+              abi: XAO_TICKET_ABI as any,
+              functionName: 'nextTokenId',
+            }) as bigint;
+
+            for (let tokenId = 0; tokenId < Number(nextTokenId); tokenId++) {
+              try {
+                const balance = await readContract(config, {
+                  address: ticketCollectionAddr,
+                  abi: XAO_TICKET_ABI as any,
+                  functionName: 'balanceOf',
+                  args: [address, BigInt(tokenId)],
+                }) as bigint;
+
+                if (Number(balance) === 0) continue;
+
+                // User owns this token — get tier and scan status
+                const [tierId, isScanned] = await Promise.all([
+                  readContract(config, { address: ticketCollectionAddr, abi: XAO_TICKET_ABI as any, functionName: 'tokenToTier', args: [BigInt(tokenId)] }),
+                  readContract(config, { address: ticketCollectionAddr, abi: XAO_TICKET_ABI as any, functionName: 'scanned', args: [BigInt(tokenId)] }),
+                ]);
+
+                const tier = await readContract(config, {
+                  address: ticketCollectionAddr,
+                  abi: XAO_TICKET_ABI as any,
+                  functionName: 'getTier',
+                  args: [tierId as bigint],
+                }) as any;
+
+                const ticketTypeEnum = Number(tier.ticketType ?? tier[0] ?? 0);
+                const customName = tier.customName ?? tier[1] ?? '';
+                const typeNames = ['Comp', 'Presale', 'General Admission', 'VIP', 'Custom'];
+                const tierName = ticketTypeEnum === 4 ? customName : (typeNames[ticketTypeEnum] || `Tier ${Number(tierId)}`);
 
                 blockchainTickets.push({
-                  id: `chain-${contractAddr}-${ticketId.toString()}`,
-                  eventId: contractAddr,
-                  title: (eventName as string) || 'Blockchain Event',
-                  artist: typeName || 'Contract',
+                  id: `chain-${ticketCollectionAddr}-${tokenId}`,
+                  eventId: showAddr,
+                  title: (eventName as string) || 'Event',
+                  artist: tierName,
                   tag: 'Blockchain',
                   date: eventDate,
-                  location: venueName,
-                  image: (imageUri as string) || '',
+                  location: (venueName as string) || '',
+                  image: (flyerDNSLink as string) || '',
                   profilePic: '/profileIcon.svg',
                   likes: '0',
                   views: '0',
-                  redeemed: checkedIn,
-                  contractAddress: contractAddr,
-                  ticketId: ticketId.toString(),
+                  redeemed: isScanned as boolean,
+                  contractAddress: showAddr,
+                  ticketCollectionAddress: ticketCollectionAddr,
+                  ticketId: tokenId.toString(),
                   isBlockchain: true,
                 });
               } catch {

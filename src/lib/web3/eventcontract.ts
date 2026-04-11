@@ -1,1468 +1,3688 @@
-export const EVENT_CONTRACT_FACTORY_ABI = [
+export const SHOW_CONTRACT_FACTORY_ABI = [
   {
-    anonymous: false,
-    inputs: [
-      { indexed: true, internalType: "address", name: "addr", type: "address" },
-      { indexed: true, internalType: "address", name: "p1", type: "address" },
-      { indexed: true, internalType: "address", name: "p2", type: "address" },
-      { indexed: false, internalType: "string", name: "name", type: "string" },
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "contractAddr",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "party1Wallet",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "party2Wallet",
+        "type": "address"
+      }
     ],
-    name: "ContractCreated",
-    type: "event",
+    "name": "ShowContractCreated",
+    "type": "event"
   },
   {
-    inputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    name: "contracts",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "string", name: "_p1Name", type: "string" },
-      { internalType: "address", name: "_p2Addr", type: "address" },
+    "inputs": [
       {
-        components: [
-          { internalType: "uint256", name: "announce", type: "uint256" },
-          { internalType: "uint256", name: "show", type: "uint256" },
-          { internalType: "uint256", name: "loadIn", type: "uint256" },
-          { internalType: "uint256", name: "doors", type: "uint256" },
-          { internalType: "uint256", name: "start", type: "uint256" },
-          { internalType: "uint256", name: "end", type: "uint256" },
-          { internalType: "uint256", name: "setTime", type: "uint256" },
-          { internalType: "uint256", name: "setLength", type: "uint256" },
-        ],
-        internalType: "struct EventContract.DatesAndTimes",
-        name: "_dates",
-        type: "tuple",
-      },
-      {
-        components: [
-          { internalType: "string", name: "venue", type: "string" },
-          { internalType: "string", name: "addr", type: "string" },
-          { internalType: "uint256", name: "radius", type: "uint256" },
-          { internalType: "uint256", name: "days1", type: "uint256" },
-        ],
-        internalType: "struct EventContract.Location",
-        name: "_location",
-        type: "tuple",
-      },
-      {
-        components: [
-          { internalType: "bool", name: "enabled", type: "bool" },
-          { internalType: "uint256", name: "capacity", type: "uint256" },
-          { internalType: "uint256", name: "taxPct", type: "uint256" },
-          { internalType: "uint256", name: "typeCount", type: "uint256" },
-        ],
-        internalType: "struct EventContract.TicketConfig",
-        name: "_config",
-        type: "tuple",
-      },
-      {
-        components: [
-          { internalType: "uint256", name: "p1Pct", type: "uint256" },
-          { internalType: "uint256", name: "p2Pct", type: "uint256" },
-          { internalType: "uint256", name: "rPct", type: "uint256" },
-        ],
-        internalType: "struct EventContract.ResaleRules",
-        name: "_resale",
-        type: "tuple",
-      },
-      {
-        components: [
-          { internalType: "uint256", name: "guarantee", type: "uint256" },
-          { internalType: "uint256", name: "guaPct", type: "uint256" },
-          { internalType: "uint256", name: "backPct", type: "uint256" },
-          { internalType: "uint256", name: "barPct", type: "uint256" },
-          { internalType: "uint256", name: "merchPct", type: "uint256" },
-        ],
-        internalType: "struct EventContract.PayInConfig",
-        name: "_payIn",
-        type: "tuple",
-      },
-      { internalType: "string", name: "_name", type: "string" },
-      { internalType: "string", name: "_imageUri", type: "string" },
-      { internalType: "string", name: "_rider", type: "string" },
-      { internalType: "string", name: "_legal", type: "string" },
-      { internalType: "string", name: "_ticketLegal", type: "string" },
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
     ],
-    name: "createEventContract",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getContractCount",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getContracts",
-    outputs: [{ internalType: "address[]", name: "", type: "address[]" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "_user", type: "address" }],
-    name: "getUserContractCount",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "_user", type: "address" }],
-    name: "getUserContracts",
-    outputs: [{ internalType: "address[]", name: "", type: "address[]" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "address", name: "", type: "address" },
-      { internalType: "uint256", name: "", type: "uint256" },
+    "name": "allContracts",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
     ],
-    name: "userContracts",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
-];
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "wallet",
+            "type": "address"
+          },
+          {
+            "internalType": "enum ShowContract.PartyRole",
+            "name": "role",
+            "type": "uint8"
+          },
+          {
+            "internalType": "string",
+            "name": "xaoUsername",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct ShowContract.PartyConfig",
+        "name": "_p1",
+        "type": "tuple"
+      },
+      {
+        "internalType": "address",
+        "name": "_p2Wallet",
+        "type": "address"
+      },
+      {
+        "internalType": "enum ShowContract.PartyRole",
+        "name": "_p2Role",
+        "type": "uint8"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "announcementDate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "eventStartDate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "eventEndDate",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "loadInTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "doorsTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "setTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "setLengthMinutes",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ShowContract.DatesConfig",
+        "name": "_dates",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "venueName",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "venueAddress",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "radiusMiles",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "radiusDays",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ShowContract.LocationConfig",
+        "name": "_loc",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "ticketsEnabled",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalCapacity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "salesTaxBPS",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ShowContract.TicketConfig",
+        "name": "_tickets",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "guaranteeUSDC",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "guaranteePctBPS",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "backendBPS",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "barSplitBPS",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "merchSplitBPS",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ShowContract.FinancialConfig",
+        "name": "_fin",
+        "type": "tuple"
+      },
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "eventName",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "flyerDNSLink",
+            "type": "string"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "flyerCIDHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "string",
+            "name": "riderIPFSCID",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "contractLegal",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "ticketLegal",
+            "type": "string"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "contractCIDHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct ShowContract.PromoConfig",
+        "name": "_promo",
+        "type": "tuple"
+      },
+      {
+        "internalType": "address",
+        "name": "_usdc",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_treasury",
+        "type": "address"
+      }
+    ],
+    "name": "create",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getContractCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "getUserContracts",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "userContracts",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+] as const;
 
-export const EVENT_CONTRACT_ABI = [
+export const SHOW_CONTRACT_ABI = [
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "_p1",
-        type: "address",
-      },
-      {
-        internalType: "string",
-        name: "_p1n",
-        type: "string",
-      },
-      {
-        internalType: "address",
-        name: "_p2",
-        type: "address",
-      },
-      {
-        components: [
+        "components": [
           {
-            internalType: "uint256",
-            name: "announce",
-            type: "uint256",
+            "internalType": "address",
+            "name": "wallet",
+            "type": "address"
           },
           {
-            internalType: "uint256",
-            name: "show",
-            type: "uint256",
+            "internalType": "enum ShowContract.PartyRole",
+            "name": "role",
+            "type": "uint8"
           },
           {
-            internalType: "uint256",
-            name: "loadIn",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "doors",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "start",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "end",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "setTime",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "setLength",
-            type: "uint256",
-          },
+            "internalType": "string",
+            "name": "xaoUsername",
+            "type": "string"
+          }
         ],
-        internalType: "struct EventContract.DatesAndTimes",
-        name: "_d",
-        type: "tuple",
+        "internalType": "struct ShowContract.PartyConfig",
+        "name": "_p1",
+        "type": "tuple"
       },
       {
-        components: [
+        "internalType": "address",
+        "name": "_p2Wallet",
+        "type": "address"
+      },
+      {
+        "internalType": "enum ShowContract.PartyRole",
+        "name": "_p2Role",
+        "type": "uint8"
+      },
+      {
+        "components": [
           {
-            internalType: "string",
-            name: "venue",
-            type: "string",
+            "internalType": "uint256",
+            "name": "announcementDate",
+            "type": "uint256"
           },
           {
-            internalType: "string",
-            name: "addr",
-            type: "string",
+            "internalType": "uint256",
+            "name": "eventStartDate",
+            "type": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "radius",
-            type: "uint256",
+            "internalType": "uint256",
+            "name": "eventEndDate",
+            "type": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "days1",
-            type: "uint256",
+            "internalType": "uint256",
+            "name": "loadInTime",
+            "type": "uint256"
           },
+          {
+            "internalType": "uint256",
+            "name": "doorsTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "setTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "setLengthMinutes",
+            "type": "uint256"
+          }
         ],
-        internalType: "struct EventContract.Location",
-        name: "_l",
-        type: "tuple",
+        "internalType": "struct ShowContract.DatesConfig",
+        "name": "_dates",
+        "type": "tuple"
       },
       {
-        components: [
+        "components": [
           {
-            internalType: "bool",
-            name: "enabled",
-            type: "bool",
+            "internalType": "string",
+            "name": "venueName",
+            "type": "string"
           },
           {
-            internalType: "uint256",
-            name: "capacity",
-            type: "uint256",
+            "internalType": "string",
+            "name": "venueAddress",
+            "type": "string"
           },
           {
-            internalType: "uint256",
-            name: "taxPct",
-            type: "uint256",
+            "internalType": "uint256",
+            "name": "radiusMiles",
+            "type": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "typeCount",
-            type: "uint256",
-          },
+            "internalType": "uint256",
+            "name": "radiusDays",
+            "type": "uint256"
+          }
         ],
-        internalType: "struct EventContract.TicketConfig",
-        name: "_c",
-        type: "tuple",
+        "internalType": "struct ShowContract.LocationConfig",
+        "name": "_loc",
+        "type": "tuple"
       },
       {
-        components: [
+        "components": [
           {
-            internalType: "uint256",
-            name: "p1Pct",
-            type: "uint256",
+            "internalType": "bool",
+            "name": "ticketsEnabled",
+            "type": "bool"
           },
           {
-            internalType: "uint256",
-            name: "p2Pct",
-            type: "uint256",
+            "internalType": "uint256",
+            "name": "totalCapacity",
+            "type": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "rPct",
-            type: "uint256",
-          },
+            "internalType": "uint256",
+            "name": "salesTaxBPS",
+            "type": "uint256"
+          }
         ],
-        internalType: "struct EventContract.ResaleRules",
-        name: "_r",
-        type: "tuple",
+        "internalType": "struct ShowContract.TicketConfig",
+        "name": "_tickets",
+        "type": "tuple"
       },
       {
-        components: [
+        "components": [
           {
-            internalType: "uint256",
-            name: "guarantee",
-            type: "uint256",
+            "internalType": "uint256",
+            "name": "guaranteeUSDC",
+            "type": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "guaPct",
-            type: "uint256",
+            "internalType": "uint256",
+            "name": "guaranteePctBPS",
+            "type": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "backPct",
-            type: "uint256",
+            "internalType": "uint256",
+            "name": "backendBPS",
+            "type": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "barPct",
-            type: "uint256",
+            "internalType": "uint256",
+            "name": "barSplitBPS",
+            "type": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "merchPct",
-            type: "uint256",
-          },
+            "internalType": "uint256",
+            "name": "merchSplitBPS",
+            "type": "uint256"
+          }
         ],
-        internalType: "struct EventContract.PayInConfig",
-        name: "_pi",
-        type: "tuple",
+        "internalType": "struct ShowContract.FinancialConfig",
+        "name": "_fin",
+        "type": "tuple"
       },
       {
-        internalType: "string",
-        name: "_n",
-        type: "string",
-      },
-      {
-        internalType: "string",
-        name: "_i",
-        type: "string",
-      },
-      {
-        internalType: "string",
-        name: "_rd",
-        type: "string",
-      },
-      {
-        internalType: "string",
-        name: "_lg",
-        type: "string",
-      },
-      {
-        internalType: "string",
-        name: "_tl",
-        type: "string",
-      },
-    ],
-    stateMutability: "nonpayable",
-    type: "constructor",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "by",
-        type: "address",
-      },
-    ],
-    name: "Cancelled",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "id",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "owner",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "time",
-        type: "uint256",
-      },
-    ],
-    name: "CheckedIn",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "signer",
-        type: "address",
-      },
-    ],
-    name: "ContractSigned",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "grantor",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "string",
-        name: "email",
-        type: "string",
-      },
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "typeId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "qty",
-        type: "uint256",
-      },
-    ],
-    name: "EmailRegistered",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "user",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amt",
-        type: "uint256",
-      },
-    ],
-    name: "RefundIssued",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "id",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "owner",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "typeId",
-        type: "uint256",
-      },
-    ],
-    name: "TicketIssued",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "buyer",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "typeId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "qty",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "total",
-        type: "uint256",
-      },
-    ],
-    name: "TicketPurchased",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "string",
-        name: "name",
-        type: "string",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "count",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "bool",
-        name: "free",
-        type: "bool",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "price",
-        type: "uint256",
-      },
-    ],
-    name: "TicketTypeAdded",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "grantor",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "count",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "typeId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "total",
-        type: "uint256",
-      },
-    ],
-    name: "TicketsGranted",
-    type: "event",
-  },
-  {
-    inputs: [
-      {
-        internalType: "string",
-        name: "_name",
-        type: "string",
-      },
-      {
-        internalType: "uint256",
-        name: "_saleDate",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "_count",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "_price",
-        type: "uint256",
-      },
-      {
-        internalType: "bool",
-        name: "_free",
-        type: "bool",
-      },
-    ],
-    name: "addTicketType",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "_typeId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "_qty",
-        type: "uint256",
-      },
-    ],
-    name: "buyTickets",
-    outputs: [],
-    stateMutability: "payable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "cancelContract",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256[]",
-        name: "_ids",
-        type: "uint256[]",
-      },
-    ],
-    name: "checkInMultiple",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "_id",
-        type: "uint256",
-      },
-    ],
-    name: "checkInTicket",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "claimRefund",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "config",
-    outputs: [
-      {
-        internalType: "bool",
-        name: "enabled",
-        type: "bool",
-      },
-      {
-        internalType: "uint256",
-        name: "capacity",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "taxPct",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "typeCount",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "dates",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "announce",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "show",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "loadIn",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "doors",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "start",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "end",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "setTime",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "setLength",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    name: "emailRegistry",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getCheckedInCount",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "_user",
-        type: "address",
-      },
-    ],
-    name: "getRefund",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "_typeId",
-        type: "uint256",
-      },
-    ],
-    name: "getSold",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "_id",
-        type: "uint256",
-      },
-    ],
-    name: "getTicketInfo",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-      {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getTicketTypeCount",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getTicketTypes",
-    outputs: [
-      {
-        components: [
+        "components": [
           {
-            internalType: "string",
-            name: "name",
-            type: "string",
+            "internalType": "string",
+            "name": "eventName",
+            "type": "string"
           },
           {
-            internalType: "uint256",
-            name: "saleDate",
-            type: "uint256",
+            "internalType": "string",
+            "name": "flyerDNSLink",
+            "type": "string"
           },
           {
-            internalType: "uint256",
-            name: "count",
-            type: "uint256",
+            "internalType": "bytes32",
+            "name": "flyerCIDHash",
+            "type": "bytes32"
           },
           {
-            internalType: "uint256",
-            name: "price",
-            type: "uint256",
+            "internalType": "string",
+            "name": "riderIPFSCID",
+            "type": "string"
           },
           {
-            internalType: "bool",
-            name: "free",
-            type: "bool",
+            "internalType": "string",
+            "name": "contractLegal",
+            "type": "string"
           },
           {
-            internalType: "uint256",
-            name: "gross",
-            type: "uint256",
+            "internalType": "string",
+            "name": "ticketLegal",
+            "type": "string"
           },
           {
-            internalType: "uint256",
-            name: "tax",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "gas_",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "fee",
-            type: "uint256",
-          },
-          {
-            internalType: "uint256",
-            name: "net",
-            type: "uint256",
-          },
+            "internalType": "bytes32",
+            "name": "contractCIDHash",
+            "type": "bytes32"
+          }
         ],
-        internalType: "struct EventContract.TicketType[]",
-        name: "",
-        type: "tuple[]",
+        "internalType": "struct ShowContract.PromoConfig",
+        "name": "_promo",
+        "type": "tuple"
       },
+      {
+        "internalType": "address",
+        "name": "_usdc",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_treasury",
+        "type": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "nonpayable",
+    "type": "constructor"
   },
   {
-    inputs: [
-      {
-        internalType: "address",
-        name: "_user",
-        type: "address",
-      },
-    ],
-    name: "getTickets",
-    outputs: [
-      {
-        internalType: "uint256[]",
-        name: "",
-        type: "uint256[]",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "inputs": [],
+    "name": "AccessControlBadConfirmation",
+    "type": "error"
   },
   {
-    inputs: [
+    "inputs": [
       {
-        internalType: "address",
-        name: "_user",
-        type: "address",
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
       },
       {
-        internalType: "uint256",
-        name: "_typeId",
-        type: "uint256",
-      },
+        "internalType": "bytes32",
+        "name": "neededRole",
+        "type": "bytes32"
+      }
     ],
-    name: "getUserTicketCount",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "name": "AccessControlUnauthorizedAccount",
+    "type": "error"
   },
   {
-    inputs: [
-      {
-        internalType: "string",
-        name: "_email",
-        type: "string",
-      },
-      {
-        internalType: "uint256",
-        name: "_typeId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "_qty",
-        type: "uint256",
-      },
-    ],
-    name: "grantFreeTicketByEmail",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "inputs": [],
+    "name": "EnforcedPause",
+    "type": "error"
   },
   {
-    inputs: [
-      {
-        internalType: "address[]",
-        name: "_recipients",
-        type: "address[]",
-      },
-      {
-        internalType: "uint256",
-        name: "_typeId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "_qty",
-        type: "uint256",
-      },
-    ],
-    name: "grantFreeTickets",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "inputs": [],
+    "name": "ExpectedPause",
+    "type": "error"
   },
   {
-    inputs: [],
-    name: "imageUri",
-    outputs: [
-      {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "inputs": [],
+    "name": "ReentrancyGuardReentrantCall",
+    "type": "error"
   },
   {
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "_id",
-        type: "uint256",
-      },
+        "indexed": true,
+        "internalType": "address",
+        "name": "by",
+        "type": "address"
+      }
     ],
-    name: "isCheckedIn",
-    outputs: [
-      {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "name": "ContractCancelled",
+    "type": "event"
   },
   {
-    inputs: [],
-    name: "legal",
-    outputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "string",
-        name: "",
-        type: "string",
+        "indexed": true,
+        "internalType": "address",
+        "name": "contractAddr",
+        "type": "address"
       },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "cidHash",
+        "type": "bytes32"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "name": "ContractFinalized",
+    "type": "event"
   },
   {
-    inputs: [],
-    name: "location",
-    outputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "string",
-        name: "venue",
-        type: "string",
+        "indexed": true,
+        "internalType": "address",
+        "name": "signer",
+        "type": "address"
       },
       {
-        internalType: "string",
-        name: "addr",
-        type: "string",
-      },
-      {
-        internalType: "uint256",
-        name: "radius",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "days1",
-        type: "uint256",
-      },
+        "indexed": false,
+        "internalType": "enum ShowContract.Status",
+        "name": "newStatus",
+        "type": "uint8"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "name": "ContractSigned",
+    "type": "event"
   },
   {
-    inputs: [],
-    name: "name",
-    outputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "string",
-        name: "",
-        type: "string",
+        "indexed": true,
+        "internalType": "address",
+        "name": "contractAddr",
+        "type": "address"
       },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "newCIDHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "updatedBy",
+        "type": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "name": "ContractUpdated",
+    "type": "event"
   },
   {
-    inputs: [],
-    name: "p1Signed",
-    outputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
+        "indexed": true,
+        "internalType": "address",
+        "name": "contractAddr",
+        "type": "address"
       },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "raisedBy",
+        "type": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "name": "DisputeOpened",
+    "type": "event"
   },
   {
-    inputs: [],
-    name: "p2Signed",
-    outputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
+        "indexed": true,
+        "internalType": "address",
+        "name": "contractAddr",
+        "type": "address"
       },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "releasedToParty2",
+        "type": "bool"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "name": "DisputeResolved",
+    "type": "event"
   },
   {
-    inputs: [],
-    name: "party1",
-    outputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "address",
-        name: "addr",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "depositor",
+        "type": "address"
       },
       {
-        internalType: "string",
-        name: "name",
-        type: "string",
-      },
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "name": "EscrowDeposited",
+    "type": "event"
   },
   {
-    inputs: [],
-    name: "party2",
-    outputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "address",
-        name: "addr",
-        type: "address",
+        "indexed": true,
+        "internalType": "address",
+        "name": "recipient",
+        "type": "address"
       },
       {
-        internalType: "string",
-        name: "name",
-        type: "string",
-      },
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "name": "EscrowWithdrawn",
+    "type": "event"
   },
   {
-    inputs: [],
-    name: "payIn",
-    outputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "guarantee",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "guaPct",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "backPct",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "barPct",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "merchPct",
-        type: "uint256",
-      },
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "name": "Paused",
+    "type": "event"
   },
   {
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
     ],
-    name: "refunds",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "name": "RevenueReceived",
+    "type": "event"
   },
   {
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
       },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "previousAdminRole",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "newAdminRole",
+        "type": "bytes32"
+      }
     ],
-    name: "registry",
-    outputs: [
-      {
-        internalType: "uint16",
-        name: "typeId",
-        type: "uint16",
-      },
-      {
-        internalType: "address",
-        name: "owner",
-        type: "address",
-      },
-      {
-        internalType: "bool",
-        name: "checkedIn",
-        type: "bool",
-      },
-      {
-        internalType: "uint256",
-        name: "purchaseDate",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "checkInDate",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "name": "RoleAdminChanged",
+    "type": "event"
   },
   {
-    inputs: [],
-    name: "resale",
-    outputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "p1Pct",
-        type: "uint256",
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
       },
       {
-        internalType: "uint256",
-        name: "p2Pct",
-        type: "uint256",
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
       },
       {
-        internalType: "uint256",
-        name: "rPct",
-        type: "uint256",
-      },
+        "indexed": true,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "name": "RoleGranted",
+    "type": "event"
   },
   {
-    inputs: [],
-    name: "revenue",
-    outputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
       },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "name": "RoleRevoked",
+    "type": "event"
   },
   {
-    inputs: [],
-    name: "rider",
-    outputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
+        "indexed": false,
+        "internalType": "enum ShowContract.Status",
+        "name": "newStatus",
+        "type": "uint8"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "name": "StatusChanged",
+    "type": "event"
   },
   {
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "string",
-        name: "_name",
-        type: "string",
-      },
+        "indexed": true,
+        "internalType": "address",
+        "name": "ticketContract",
+        "type": "address"
+      }
     ],
-    name: "setP2Name",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "name": "TicketCollectionDeployed",
+    "type": "event"
   },
   {
-    inputs: [
+    "anonymous": false,
+    "inputs": [
       {
-        internalType: "string",
-        name: "_name",
-        type: "string",
-      },
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
     ],
-    name: "signContract",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "name": "Unpaused",
+    "type": "event"
   },
   {
-    inputs: [
+    "inputs": [],
+    "name": "ADMIN_ROLE",
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
     ],
-    name: "sold",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [],
-    name: "status",
-    outputs: [
+    "inputs": [],
+    "name": "CONTRACT_EDIT_FEE",
+    "outputs": [
       {
-        internalType: "enum EventContract.ContractStatus",
-        name: "",
-        type: "uint8",
-      },
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [],
-    name: "ticketLegal",
-    outputs: [
+    "inputs": [],
+    "name": "DEFAULT_ADMIN_ROLE",
+    "outputs": [
       {
-        internalType: "string",
-        name: "",
-        type: "string",
-      },
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [],
+    "name": "GAS_ALLOTMENT",
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
     ],
-    name: "tickets",
-    outputs: [
-      {
-        internalType: "string",
-        name: "name",
-        type: "string",
-      },
-      {
-        internalType: "uint256",
-        name: "saleDate",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "count",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "price",
-        type: "uint256",
-      },
-      {
-        internalType: "bool",
-        name: "free",
-        type: "bool",
-      },
-      {
-        internalType: "uint256",
-        name: "gross",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "tax",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "gas_",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "fee",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "net",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [],
-    name: "totalIssued",
-    outputs: [
+    "inputs": [],
+    "name": "TREASURY_ROLE",
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    inputs: [
+    "inputs": [],
+    "name": "XAO_FEE_BPS",
+    "outputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
     ],
-    name: "userTickets",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view",
+    "type": "function"
   },
-];
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "cutoff",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pct",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amt",
+        "type": "uint256"
+      }
+    ],
+    "name": "addParty1CancellationRefund",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "ts",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pct",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amt",
+        "type": "uint256"
+      }
+    ],
+    "name": "addParty1Deposit",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "ts",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pct",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amt",
+        "type": "uint256"
+      }
+    ],
+    "name": "addParty1Payout",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "cutoff",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pct",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amt",
+        "type": "uint256"
+      }
+    ],
+    "name": "addParty2CancellationRefund",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "ts",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pct",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amt",
+        "type": "uint256"
+      }
+    ],
+    "name": "addParty2Deposit",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "ts",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pct",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amt",
+        "type": "uint256"
+      }
+    ],
+    "name": "addParty2Payout",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "announcementDate",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "backendBPS",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "barSplitBPS",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "cancelContract",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "contractCIDHash",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "contractLegalLanguage",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "creditRevenue",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "depositGuarantee",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "doorsTime",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "endTime",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "escrowBalance",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "eventEndDate",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "eventName",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "eventStartDate",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "flyerDNSLink",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getParty1CancellationRefunds",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "cutoffTimestamp",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "refundPctBPS",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "refundUSDC",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ShowContract.CancellationRefund[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getParty1Deposits",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "timestamp",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pctBPS",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "usdcAmount",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ShowContract.PaymentSchedule[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getParty1Payouts",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "timestamp",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pctBPS",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "usdcAmount",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ShowContract.PaymentSchedule[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getParty2CancellationRefunds",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "cutoffTimestamp",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "refundPctBPS",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "refundUSDC",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ShowContract.CancellationRefund[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getParty2Deposits",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "timestamp",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pctBPS",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "usdcAmount",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ShowContract.PaymentSchedule[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getParty2Payouts",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "timestamp",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "pctBPS",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "usdcAmount",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ShowContract.PaymentSchedule[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getRoleAdmin",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "grantRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "guaranteePctBPS",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "guaranteeUSDC",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "hasRole",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "hasSigned",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "hasVotedResolve",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "isFinalized",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "loadInTime",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "markCompleted",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "merchSplitBPS",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "originalFlyerCIDHash",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "party1",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "wallet",
+        "type": "address"
+      },
+      {
+        "internalType": "enum ShowContract.PartyRole",
+        "name": "role",
+        "type": "uint8"
+      },
+      {
+        "internalType": "string",
+        "name": "xaoUsername",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "party1CancellationRefunds",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "cutoffTimestamp",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "refundPctBPS",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "refundUSDC",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "party1Deposits",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pctBPS",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "usdcAmount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "party1Payouts",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pctBPS",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "usdcAmount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "party2",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "wallet",
+        "type": "address"
+      },
+      {
+        "internalType": "enum ShowContract.PartyRole",
+        "name": "role",
+        "type": "uint8"
+      },
+      {
+        "internalType": "string",
+        "name": "xaoUsername",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "party2CancellationRefunds",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "cutoffTimestamp",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "refundPctBPS",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "refundUSDC",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "party2Deposits",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pctBPS",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "usdcAmount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "party2Payouts",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pctBPS",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "usdcAmount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "pause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "paused",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "radiusDays",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "radiusMiles",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "raiseDispute",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "callerConfirmation",
+        "type": "address"
+      }
+    ],
+    "name": "renounceRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bool",
+        "name": "releaseToParty2",
+        "type": "bool"
+      }
+    ],
+    "name": "resolveDispute",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "resolveVote",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "revokeRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "riderIPFSCID",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "salesTaxBPS",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "link",
+        "type": "string"
+      }
+    ],
+    "name": "setFlyerDNSLink",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "setLengthMinutes",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "username",
+        "type": "string"
+      }
+    ],
+    "name": "setParty2Username",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "setTime",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "sign",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "startTime",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "status",
+    "outputs": [
+      {
+        "internalType": "enum ShowContract.Status",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes4",
+        "name": "interfaceId",
+        "type": "bytes4"
+      }
+    ],
+    "name": "supportsInterface",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ticketCollection",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ticketLegalLanguage",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ticketsEnabled",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalCapacity",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "treasury",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "unpause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "newCIDHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "updateContractCID",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "usdc",
+    "outputs": [
+      {
+        "internalType": "contract IShowUSDC",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "venueAddress",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "venueName",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "withdrawEscrow",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+] as const;
+
+// Aliases for backward compatibility
+export const EVENT_CONTRACT_FACTORY_ABI = SHOW_CONTRACT_FACTORY_ABI;
+export const EVENT_CONTRACT_ABI = SHOW_CONTRACT_ABI;
+
+export const XAO_TICKET_ABI = [
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_showContract",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_usdc",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_treasury",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "_eventName",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_totalCapacity",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "AccessControlBadConfirmation",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "neededRole",
+        "type": "bytes32"
+      }
+    ],
+    "name": "AccessControlUnauthorizedAccount",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "balance",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "needed",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "ERC1155InsufficientBalance",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "approver",
+        "type": "address"
+      }
+    ],
+    "name": "ERC1155InvalidApprover",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "idsLength",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "valuesLength",
+        "type": "uint256"
+      }
+    ],
+    "name": "ERC1155InvalidArrayLength",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      }
+    ],
+    "name": "ERC1155InvalidOperator",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "name": "ERC1155InvalidReceiver",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
+    ],
+    "name": "ERC1155InvalidSender",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "ERC1155MissingApprovalForAll",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "numerator",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "denominator",
+        "type": "uint256"
+      }
+    ],
+    "name": "ERC2981InvalidDefaultRoyalty",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "name": "ERC2981InvalidDefaultRoyaltyReceiver",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "numerator",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "denominator",
+        "type": "uint256"
+      }
+    ],
+    "name": "ERC2981InvalidTokenRoyalty",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "name": "ERC2981InvalidTokenRoyaltyReceiver",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "EnforcedPause",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ExpectedPause",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ReentrancyGuardReentrantCall",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "approved",
+        "type": "bool"
+      }
+    ],
+    "name": "ApprovalForAll",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "marketplace",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "approved",
+        "type": "bool"
+      }
+    ],
+    "name": "MarketplaceApprovalSet",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "Paused",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "previousAdminRole",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "newAdminRole",
+        "type": "bytes32"
+      }
+    ],
+    "name": "RoleAdminChanged",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
+    ],
+    "name": "RoleGranted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      }
+    ],
+    "name": "RoleRevoked",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "scanner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "TicketAuthenticated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "scanner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "TicketRedeemed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tierId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "buyer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "priceUSDC",
+        "type": "uint256"
+      }
+    ],
+    "name": "TicketSold",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tierId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum XAOTicket.TicketType",
+        "name": "ticketType",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "priceUSDC",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "quantity",
+        "type": "uint256"
+      }
+    ],
+    "name": "TierAdded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "ids",
+        "type": "uint256[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256[]",
+        "name": "values",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "TransferBatch",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "value",
+        "type": "uint256"
+      }
+    ],
+    "name": "TransferSingle",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "value",
+        "type": "string"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      }
+    ],
+    "name": "URI",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "Unpaused",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "ADMIN_ROLE",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "DEFAULT_ADMIN_ROLE",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "GAS_ALLOTMENT",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "SCANNER_ROLE",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "XAO_FEE_BPS",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "enum XAOTicket.TicketType",
+        "name": "_ticketType",
+        "type": "uint8"
+      },
+      {
+        "internalType": "string",
+        "name": "_customName",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_priceUSDC",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_quantity",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_onSaleTimestamp",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_party1ResaleBPS",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_party2ResaleBPS",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_resellerBPS",
+        "type": "uint256"
+      }
+    ],
+    "name": "addTier",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "tierId",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "approvedMarketplaces",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      }
+    ],
+    "name": "balanceOf",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address[]",
+        "name": "accounts",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "ids",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "balanceOfBatch",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tierId",
+        "type": "uint256"
+      }
+    ],
+    "name": "buyTicket",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "eventName",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getRoleAdmin",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tierId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getTier",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "enum XAOTicket.TicketType",
+            "name": "ticketType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "string",
+            "name": "customName",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "priceUSDC",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "quantity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "sold",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "onSaleTimestamp",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "party1ResaleBPS",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "party2ResaleBPS",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "resellerBPS",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct XAOTicket.TicketTier",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "grantRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "hasRole",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      }
+    ],
+    "name": "isApprovedForAll",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "metadataDNSLink",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nextTokenId",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "pause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "paused",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "callerConfirmation",
+        "type": "address"
+      }
+    ],
+    "name": "renounceRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "revokeRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "salePrice",
+        "type": "uint256"
+      }
+    ],
+    "name": "royaltyInfo",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "royaltyAmount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "ids",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "values",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "safeBatchTransferFrom",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "id",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "value",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "safeTransferFrom",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "scanTicket",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "scanned",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "approved",
+        "type": "bool"
+      }
+    ],
+    "name": "setApprovalForAll",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "marketplace",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "approved",
+        "type": "bool"
+      }
+    ],
+    "name": "setMarketplaceApproval",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "link",
+        "type": "string"
+      }
+    ],
+    "name": "setMetadataDNSLink",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "showContract",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes4",
+        "name": "interfaceId",
+        "type": "bytes4"
+      }
+    ],
+    "name": "supportsInterface",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "tierCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "tiers",
+    "outputs": [
+      {
+        "internalType": "enum XAOTicket.TicketType",
+        "name": "ticketType",
+        "type": "uint8"
+      },
+      {
+        "internalType": "string",
+        "name": "customName",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "priceUSDC",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "quantity",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "sold",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "onSaleTimestamp",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "party1ResaleBPS",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "party2ResaleBPS",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "resellerBPS",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "tokenToTier",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalCapacity",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalSold",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "treasury",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "unpause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "uri",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "usdc",
+    "outputs": [
+      {
+        "internalType": "contract ITicketUSDC",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+] as const;
+

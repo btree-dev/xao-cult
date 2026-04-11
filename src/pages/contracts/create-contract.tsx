@@ -10,22 +10,27 @@ import Scrollbar from "../../components/Scrollbar";
 import { ChatComponent } from "../../components/Chat";
 import { useCreateEventContract } from "../../hooks/useCreateContract";
 import { useSignEventContract } from "../../hooks/useSignEventContract";
-import { useAddTicketType } from "../../hooks/useAddTicketType";
+import { useAddTicketType, useAddTierToXAOTicket, dollarToWei, dateTimeToTimestamp } from "../../hooks/useAddTicketType";
 import { useWeb3 } from "../../hooks/useWeb3";
 import { useReadContract } from "wagmi";
-import { EVENT_CONTRACT_ABI } from "../../lib/web3/eventcontract";
+import { SHOW_CONTRACT_ABI } from "../../lib/web3/eventcontract";
+import { readContract } from "@wagmi/core";
+import { config } from "../../wagmi";
 import { useXMTPConversation } from "../../hooks/useXMTPConversation";
 import { ContractProposalMessage } from "../../types/contractMessage";
 import { handleSaveContract, handleSignContract, addTicketsToContract, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
 import { TicketRow } from "./TicketsSection";
+
+// ── Toggle this to enable/disable dummy party values ──
+const ENABLE_DUMMY_DATA = true;
 
 const CreateContract = () => {
   const router = useRouter();
   const { peer: peerParam } = router.query;
 
   const [selected, setSelected] = useState<"chat" | "contract">("contract");
-  const [party1, setParty1] = useState(""); // Username for Party 1
-  const [party2, setParty2] = useState(""); // Wallet address for Party 2 (peer)
+  const [party1, setParty1] = useState(ENABLE_DUMMY_DATA ? "TestArtist" : ""); // Username for Party 1
+  const [party2, setParty2] = useState(ENABLE_DUMMY_DATA ? "0xc426A5300dCd57D8E448DAEda6FA1b583f36604E" : ""); // Wallet address for Party 2 (peer)
   const [isContractCreating, setIsContractCreating] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -47,44 +52,24 @@ const CreateContract = () => {
   const { createEventContract, isLoading, isSuccess, error, transactionHash, contractAddress: newContractAddress } = useCreateEventContract(chain?.id);
   const { signContractAsync, isLoading: isSignLoading, isSuccess: isSignSuccess, error: signError, transactionHash: signTxHash } = useSignEventContract();
   const { addTicketTypeAsync } = useAddTicketType();
+  const { addTier } = useAddTierToXAOTicket();
   const [ticketRowsToAdd, setTicketRowsToAdd] = useState<TicketRow[]>([]);
 
-  // Read signing status from on-chain contract (when contract address exists)
+  // Read signing status from on-chain contract (ShowContract uses hasSigned(address) mapping)
   const contractAddr = savedContractAddress as `0x${string}` | undefined;
-  const { data: p1Signed } = useReadContract({
+  const { data: currentUserSigned } = useReadContract({
     address: contractAddr,
-    abi: EVENT_CONTRACT_ABI,
-    functionName: 'p1Signed',
-    query: { enabled: !!contractAddr },
-  });
-  const { data: p2Signed } = useReadContract({
-    address: contractAddr,
-    abi: EVENT_CONTRACT_ABI,
-    functionName: 'p2Signed',
-    query: { enabled: !!contractAddr },
-  });
-  const { data: onChainParty1 } = useReadContract({
-    address: contractAddr,
-    abi: EVENT_CONTRACT_ABI,
-    functionName: 'party1',
-    query: { enabled: !!contractAddr },
-  });
-  const { data: onChainParty2 } = useReadContract({
-    address: contractAddr,
-    abi: EVENT_CONTRACT_ABI,
-    functionName: 'party2',
-    query: { enabled: !!contractAddr },
+    abi: SHOW_CONTRACT_ABI,
+    functionName: 'hasSigned',
+    args: address ? [address] : undefined,
+    query: { enabled: !!contractAddr && !!address },
   });
 
   // Determine if the current user has already signed
   const hasAlreadySigned = useMemo(() => {
     if (!address || !savedContractAddress) return false;
-    const p1Addr = (onChainParty1 as any)?.addr || (onChainParty1 as any)?.[0];
-    const p2Addr = (onChainParty2 as any)?.addr || (onChainParty2 as any)?.[0];
-    if (address.toLowerCase() === p1Addr?.toLowerCase() && p1Signed) return true;
-    if (address.toLowerCase() === p2Addr?.toLowerCase() && p2Signed) return true;
-    return false;
-  }, [address, savedContractAddress, onChainParty1, onChainParty2, p1Signed, p2Signed]);
+    return !!currentUserSigned;
+  }, [address, savedContractAddress, currentUserSigned]);
 
   // State setters object for backend functions
   const stateSetters = {
@@ -230,7 +215,8 @@ const CreateContract = () => {
     peerAddress || '',
     stateSetters,
     createEventContract,
-    imageUri
+    imageUri,
+    address as `0x${string}`
   );
 
   // Handle sign contract (signs an already-created contract)
@@ -300,7 +286,7 @@ const CreateContract = () => {
     processContractCreation();
   }, [isSuccess, newContractAddress]);
 
-  // Handle successful signing — send proposal to party2 via XMTP so they can sign
+  // Handle successful signing — add ticket tiers if contract is now finalized, then notify party2
   useEffect(() => {
     const processSignSuccess = async () => {
       if (isSignSuccess) {
@@ -309,7 +295,64 @@ const CreateContract = () => {
 
         const contractAddrToShare = savedContractAddress || newContractAddress;
 
-        // Show success and redirect immediately — don't wait for XMTP
+        // After signing, check if XAOTicket was deployed (both parties signed → finalized)
+        // If so, add ticket tiers from the form data
+        if (contractAddrToShare) {
+          try {
+            const ticketCollectionAddr = await readContract(config, {
+              address: contractAddrToShare as `0x${string}`,
+              abi: SHOW_CONTRACT_ABI as any,
+              functionName: 'ticketCollection',
+            }) as `0x${string}`;
+
+            if (ticketCollectionAddr && ticketCollectionAddr !== '0x0000000000000000000000000000000000000000') {
+              console.log("[CreateContract] XAOTicket deployed at:", ticketCollectionAddr);
+
+              // Get ticket rows from form
+              const formData = contractSectionRef.current?.getContractData?.();
+              const rows: TicketRow[] = formData?.tickets?.ticketRows || ticketRowsToAdd || [];
+
+              // Map ticket type names to enum values
+              const nameToEnum = (name: string): number => {
+                const lower = name.toLowerCase().trim();
+                if (lower === 'comp' || lower === 'complimentary') return 0;
+                if (lower === 'presale' || lower === 'pre-sale') return 1;
+                if (lower === 'general admission' || lower === 'ga') return 2;
+                if (lower === 'vip') return 3;
+                return 4; // CUSTOM
+              };
+
+              for (const row of rows) {
+                if (!row.ticketType || !row.numberOfTickets) continue;
+                const ticketTypeEnum = nameToEnum(row.ticketType);
+                const customName = ticketTypeEnum === 4 ? row.ticketType : '';
+                const priceUSDC = dollarToWei(row.ticketPrice);
+                const quantity = BigInt(parseInt(row.numberOfTickets.replace(/,/g, '')) || 0);
+                const onSale = row.onSaleDate ? dateTimeToTimestamp(row.onSaleDate) : BigInt(0);
+
+                try {
+                  console.log(`[CreateContract] Adding tier: ${row.ticketType}, qty=${quantity}, price=${priceUSDC}`);
+                  await addTier(ticketCollectionAddr, {
+                    ticketType: ticketTypeEnum,
+                    customName,
+                    priceUSDC,
+                    quantity,
+                    onSaleTimestamp: onSale,
+                    party1ResaleBPS: BigInt(3333),
+                    party2ResaleBPS: BigInt(3333),
+                    resellerBPS: BigInt(3334),
+                  });
+                  console.log(`[CreateContract] Tier added: ${row.ticketType}`);
+                } catch (tierErr) {
+                  console.warn(`Failed to add tier ${row.ticketType}:`, tierErr);
+                }
+              }
+            }
+          } catch (err) {
+            console.warn("Failed to add ticket tiers after signing:", err);
+          }
+        }
+
         alert(`Contract signed successfully on blockchain!\nContract: ${contractAddrToShare}`);
         router.push("/dashboard");
 

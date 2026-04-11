@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import styles from "../../styles/ticketAuthenticate.module.css";
 import { readContract, writeContract, waitForTransactionReceipt } from "@wagmi/core";
 import { config } from "../../wagmi";
-import { EVENT_CONTRACT_ABI } from "../../lib/web3/eventcontract";
+import { XAO_TICKET_ABI } from "../../lib/web3/eventcontract";
 import { useWeb3 } from "../../hooks/useWeb3";
 
 interface TicketScanProps {
@@ -30,9 +30,8 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
 
         html5QrCode = new Html5Qrcode("reader");
 
-        // Calculate qrbox based on 430px for desktop (when viewport > 530) or actual viewport for mobile
         const viewportWidth = window.innerWidth > 530 ? 430 : window.innerWidth;
-        const qrboxSize = Math.floor(viewportWidth * 0.8); // 80% of viewport width, no max limit
+        const qrboxSize = Math.floor(viewportWidth * 0.8);
 
         await html5QrCode.start(
           { facingMode: "environment" },
@@ -43,18 +42,13 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
           },
           (decodedText: string) => {
             console.log("QR Code detected:", decodedText);
-            console.log("QR Code length:", decodedText.length);
-            console.log("QR Code is empty:", decodedText.trim().length === 0);
-
             lastDetectionTime = Date.now();
             setScanStatus('detected');
-            // Store the data even if it's empty - we'll validate on redeem
             setScannedData(decodedText);
           },
           (errorMessage: string) => {
-            // QR Code not detected - reset to idle after a short delay
             const timeSinceLastDetection = Date.now() - lastDetectionTime;
-            if (timeSinceLastDetection > 300) { // 300ms threshold
+            if (timeSinceLastDetection > 300) {
               setScanStatus('idle');
             }
           }
@@ -66,7 +60,6 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
     };
 
     startScanner();
-
 
     return () => {
       isMounted = false;
@@ -86,21 +79,20 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
     try {
       console.log("Validating scanned data:", scannedData);
 
-      // Parse QR code format: contractAddress:txHash or contractAddress:contractAddress
+      // QR code format: ticketCollectionAddress:tokenId
       const parts = scannedData.split(':');
 
-      // Validate format — must have two parts, first must be a 0x address
       if (parts.length < 2 || !parts[0].startsWith('0x')) {
-        console.log("Invalid QR format — not a blockchain ticket");
+        console.log("Invalid QR format");
         setScanStatus('error');
         router.push("/TicketAuthenticate/Access?status=error&reason=invalid_format");
         setIsAuthenticating(false);
         return;
       }
 
-      const contractAddress = parts[0] as `0x${string}`;
+      const ticketCollectionAddr = parts[0] as `0x${string}`;
+      const tokenId = BigInt(parts[1]);
 
-      // Check wallet connection
       if (!isConnected || !address) {
         console.log("Wallet not connected");
         setScanStatus('error');
@@ -109,114 +101,87 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
         return;
       }
 
-      // Step 1: Get all ticket IDs for the scanned ticket's owner
-      // We read totalIssued to know how many tickets exist
-      let totalIssued: bigint;
+      // Step 1: Check if ticket is already scanned
+      let isScanned: boolean;
       try {
-        totalIssued = await readContract(config, {
-          address: contractAddress,
-          abi: EVENT_CONTRACT_ABI,
-          functionName: 'totalIssued',
-        }) as bigint;
+        isScanned = await readContract(config, {
+          address: ticketCollectionAddr,
+          abi: XAO_TICKET_ABI as any,
+          functionName: 'scanned',
+          args: [tokenId],
+        }) as boolean;
       } catch (err) {
-        console.error("Failed to read contract:", err);
+        console.error("Failed to read ticket:", err);
         setScanStatus('error');
         router.push("/TicketAuthenticate/Access?status=error&reason=invalid_contract");
         setIsAuthenticating(false);
         return;
       }
 
-      if (totalIssued === BigInt(0)) {
-        console.log("No tickets issued on this contract");
-        setScanStatus('error');
-        router.push("/TicketAuthenticate/Access?status=error&reason=no_tickets");
-        setIsAuthenticating(false);
-        return;
-      }
-
-      // Step 2: Find an unchecked ticket by scanning through registry
-      // Look for a ticket that hasn't been checked in yet
-      let foundTicketId: bigint | null = null;
-      let ticketOwner: string = '';
-      let ticketName: string = '';
-
-      for (let i = BigInt(0); i < totalIssued; i++) {
-        try {
-          const info = await readContract(config, {
-            address: contractAddress,
-            abi: EVENT_CONTRACT_ABI,
-            functionName: 'getTicketInfo',
-            args: [i],
-          }) as [bigint, string, string, boolean, bigint, bigint];
-
-          const [, owner, name, checkedIn] = info;
-
-          // Find first unchecked ticket (any owner — organizer is scanning)
-          if (!checkedIn && owner !== '0x0000000000000000000000000000000000000000') {
-            foundTicketId = i;
-            ticketOwner = owner;
-            ticketName = name;
-            break;
-          }
-        } catch (err) {
-          console.error(`Error reading ticket ${i}:`, err);
-          continue;
-        }
-      }
-
-      if (foundTicketId === null) {
-        console.log("No valid unchecked tickets found");
+      if (isScanned) {
+        console.log("Ticket already redeemed");
         setScanStatus('error');
         router.push("/TicketAuthenticate/Access?status=error&reason=already_redeemed");
         setIsAuthenticating(false);
         return;
       }
 
-      console.log(`Found valid ticket #${foundTicketId} owned by ${ticketOwner}, type: ${ticketName}`);
+      // Step 2: Get tier info for display
+      let tierName = 'Ticket';
+      try {
+        const tierId = await readContract(config, {
+          address: ticketCollectionAddr,
+          abi: XAO_TICKET_ABI as any,
+          functionName: 'tokenToTier',
+          args: [tokenId],
+        }) as bigint;
 
-      // Step 3: Call checkInTicket on-chain (requires organizer wallet)
+        const tier = await readContract(config, {
+          address: ticketCollectionAddr,
+          abi: XAO_TICKET_ABI as any,
+          functionName: 'getTier',
+          args: [tierId],
+        }) as any;
+
+        const ticketTypeEnum = Number(tier.ticketType ?? tier[0] ?? 0);
+        const customName = tier.customName ?? tier[1] ?? '';
+        const typeNames = ['Comp', 'Presale', 'General Admission', 'VIP', 'Custom'];
+        tierName = ticketTypeEnum === 4 ? customName : (typeNames[ticketTypeEnum] || `Tier ${Number(tierId)}`);
+      } catch {
+        // Non-critical — continue with default name
+      }
+
+      console.log(`Scanning ticket #${tokenId}, type: ${tierName}`);
+
+      // Step 3: Call scanTicket on XAOTicket (requires SCANNER_ROLE)
+      // Before doorsTime → TicketAuthenticated event (auth only, not redeemed)
+      // After doorsTime → TicketRedeemed event (marks scanned = true)
       try {
         const txHash = await writeContract(config, {
-          address: contractAddress,
-          abi: EVENT_CONTRACT_ABI,
-          functionName: 'checkInTicket',
-          args: [foundTicketId],
+          address: ticketCollectionAddr,
+          abi: XAO_TICKET_ABI as any,
+          functionName: 'scanTicket',
+          args: [tokenId],
+          gas: BigInt(200_000),
         });
 
-        // Wait for transaction confirmation
         await waitForTransactionReceipt(config, { hash: txHash });
 
-        console.log("Check-in successful! Tx:", txHash);
-
-        // Mark ticket as redeemed in localStorage
-        try {
-          const stored = localStorage.getItem('purchasedTickets');
-          if (stored) {
-            const purchasedTickets = JSON.parse(stored);
-            const updated = purchasedTickets.map((t: any) => {
-              if (t.contractAddress?.toLowerCase() === contractAddress.toLowerCase()) {
-                return { ...t, redeemed: true };
-              }
-              return t;
-            });
-            localStorage.setItem('purchasedTickets', JSON.stringify(updated));
-          }
-        } catch (e) {
-          console.error('Error updating redeemed status in localStorage:', e);
-        }
+        console.log("Scan successful! Tx:", txHash);
 
         if (onScanSuccess) {
           onScanSuccess(scannedData);
         }
 
-        router.push(`/TicketAuthenticate/Access?status=success&ticketId=${foundTicketId.toString()}&ticketType=${encodeURIComponent(ticketName)}&owner=${ticketOwner}`);
-      } catch (checkInErr: any) {
-        console.error("Check-in transaction failed:", checkInErr);
+        router.push(`/TicketAuthenticate/Access?status=success&ticketId=${tokenId.toString()}&ticketType=${encodeURIComponent(tierName)}`);
+      } catch (scanErr: any) {
+        console.error("Scan transaction failed:", scanErr);
 
-        // Determine the reason for failure
-        const errMsg = checkInErr?.message || '';
-        if (errMsg.includes('onlyOrg') || errMsg.includes('execution reverted')) {
+        const errMsg = scanErr?.message || '';
+        if (errMsg.includes('SCANNER_ROLE') || errMsg.includes('AccessControl')) {
           router.push("/TicketAuthenticate/Access?status=error&reason=not_organizer");
+        } else if (errMsg.includes('Already redeemed')) {
+          router.push("/TicketAuthenticate/Access?status=error&reason=already_redeemed");
         } else {
           router.push("/TicketAuthenticate/Access?status=error&reason=checkin_failed");
         }
@@ -242,7 +207,6 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
         <div className={styles.scannerFrame}>
           <div id="reader" className={styles.qrReaderContainer}></div>
 
-          {/* Corner overlays */}
           <div className={`${styles.scannerOverlay} ${scanStatus === 'detected' ? styles.successCorner : scanStatus === 'error' ? styles.errorCorner : styles.neutralCorner}`}>
             <div className={`${styles.cornerTopLeft} ${scanStatus === 'detected' ? styles.successCorner : scanStatus === 'error' ? styles.errorCorner : styles.neutralCorner}`}></div>
             <div className={`${styles.cornerTopRight} ${scanStatus === 'detected' ? styles.successCorner : scanStatus === 'error' ? styles.errorCorner : styles.neutralCorner}`}></div>

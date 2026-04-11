@@ -19,9 +19,9 @@ const CurrentContract: React.FC = () => {
   const { address, chain } = useWeb3();
   const { contracts, isLoading } = useUserContractsWithSummaries(chain?.id, address as `0x${string}`);
 
-  // Filter for current contracts (status: Signed = 2)
+  // ShowContract: 3=Approved (both signed), 4=Active
   const currentContracts = contracts.filter(
-    (contract) => contract.status === 2,
+    (contract) => contract.status === 3 || contract.status === 4,
   );
 
   const toggleMute = (contractId: string, e: React.MouseEvent) => {

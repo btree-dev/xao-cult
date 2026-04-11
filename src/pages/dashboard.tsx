@@ -12,7 +12,18 @@ import ShareModal from '../components/ShareModal';
 import CalendarFilter, { FilterOptions, LocationFilterData } from '../components/CalendarFilter';
 import { useWeb3 } from '../hooks/useWeb3';
 import { useAllContractsWithSummaries, ContractSummary, CONTRACT_STATUS_LABELS, formatContractDate } from '../hooks/useGetContracts';
-import { DEFAULT_CHAIN } from '../lib/web3/chains';
+import { DEFAULT_CHAIN, USDC_ADDRESS_TESTNET, USDC_ADDRESS_MAINNET } from '../lib/web3/chains';
+import { useReadContract } from 'wagmi';
+
+const ERC20_BALANCE_ABI = [
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const;
 import {
   getStoredLocationFilter,
   getStoredDateFilters,
@@ -36,6 +47,18 @@ const Dashboard: NextPage = () => {
   // Web3 hooks for blockchain contracts
   const { address, isConnected, chain } = useWeb3();
   const { contracts: rawContracts, isLoading: contractsLoading, refetch: refetchContracts } = useAllContractsWithSummaries(chain?.id || DEFAULT_CHAIN);
+
+  // Fetch USDC balance
+  const usdcAddress = chain?.id === 8453 ? USDC_ADDRESS_MAINNET : USDC_ADDRESS_TESTNET;
+  const { data: usdcBalance } = useReadContract({
+    address: usdcAddress as `0x${string}`,
+    abi: ERC20_BALANCE_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  });
+  const usdcAmount = usdcBalance != null ? Number(usdcBalance) / 1e6 : 0;
+  const formattedUSDC = usdcAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // Stabilize contracts reference to prevent useEffect re-runs on every wagmi refetch
   const contractsRef = useRef<string>('');
@@ -258,8 +281,8 @@ const Dashboard: NextPage = () => {
               <span className={styles.walletCurrencyName}>USDC</span>
             </div>
             <div className={styles.walletCurrencyRight}>
-              <span className={styles.walletCurrencyValue}>13,246.22</span>
-              <span className={styles.walletCurrencyUsd}>(13,246.22 usd)</span>
+              <span className={styles.walletCurrencyValue}>{formattedUSDC}</span>
+              <span className={styles.walletCurrencyUsd}>({formattedUSDC} usd)</span>
             </div>
           </div>
           <div className={styles.walletCurrencyRow}>

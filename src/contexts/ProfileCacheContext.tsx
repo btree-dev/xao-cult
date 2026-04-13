@@ -84,72 +84,55 @@ export function ProfileCacheProvider({ children }: ProfileCacheProviderProps) {
     }
   }, [profiles]);
 
-  // Fetch current user's profile from Supabase when wallet connects
+  // Fetch profile from Supabase for a given auth user
+  const fetchProfile = useCallback(async (userId: string) => {
+    if (!address) return;
+
+    setIsLoadingCurrentUser(true);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("[ProfileCache] Error fetching profile:", error.message);
+      }
+
+      setCurrentUserProfile({
+        username: data?.username || `User-${address.slice(2, 8)}`,
+        profilePictureUrl: data?.profile_picture_url,
+      });
+    } catch (e) {
+      console.error("[ProfileCache] Exception in fetchProfile:", e);
+      setCurrentUserProfile({
+        username: `User-${address.slice(2, 8)}`,
+        profilePictureUrl: undefined,
+      });
+    } finally {
+      setIsLoadingCurrentUser(false);
+    }
+  }, [address]);
+
+  // Listen for Supabase auth state changes to avoid race with Dynamic→Supabase session bridge
   useEffect(() => {
-    const fetchCurrentUserProfile = async () => {
-      if (!isConnected || !address) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user && address) {
+        fetchProfile(session.user.id);
+      } else if (event === "SIGNED_OUT") {
         setCurrentUserProfile(null);
-        return;
       }
+    });
 
-      setIsLoadingCurrentUser(true);
+    return () => subscription.unsubscribe();
+  }, [address, fetchProfile]);
 
-      try {
-        const { data: authData, error: authError } = await supabase.auth.getUser();
-
-        if (authError) {
-          console.error("[ProfileCache] Auth error:", authError);
-        }
-
-        if (!authData?.user) {
-          setCurrentUserProfile({
-            username: `User-${address.slice(2, 8)}`,
-            profilePictureUrl: undefined,
-          });
-          setIsLoadingCurrentUser(false);
-          return;
-        }
-
-        const user = authData.user;
-
-        // Query profiles table by user ID
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-
-        if (error) {
-          console.error("[ProfileCache] Error fetching profile:", error.message);
-          if (error.code !== "PGRST116") {
-            // PGRST116 = no rows found, other errors are real errors
-          }
-        }
-
-        if (data) {
-          setCurrentUserProfile({
-            username: data.username || `User-${address.slice(2, 8)}`,
-            profilePictureUrl: data.profile_picture_url,
-          });
-        } else {
-          setCurrentUserProfile({
-            username: `User-${address.slice(2, 8)}`,
-            profilePictureUrl: undefined,
-          });
-        }
-      } catch (e) {
-        console.error("[ProfileCache] Exception in fetchCurrentUserProfile:", e);
-        // Set default profile on error
-        setCurrentUserProfile({
-          username: `User-${address.slice(2, 8)}`,
-          profilePictureUrl: undefined,
-        });
-      } finally {
-        setIsLoadingCurrentUser(false);
-      }
-    };
-
-    fetchCurrentUserProfile();
+  // Reset profile when wallet disconnects
+  useEffect(() => {
+    if (!isConnected || !address) {
+      setCurrentUserProfile(null);
+    }
   }, [isConnected, address]);
 
   const getProfile = useCallback(

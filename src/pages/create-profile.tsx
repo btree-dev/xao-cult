@@ -134,55 +134,58 @@ const CreateProfile: NextPage = () => {
   }, [selectedGenres]);
 
   useEffect(() => {
-    const getUser = async () => {
-      try {
-        // Check for Supabase user
-        const { data } = await supabase.auth.getUser();
-        
-        if (data.user) {
-          setUser(data.user);
-          
-          // Check if user already has a profile
-          const { data: profileData, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
-          
-          if (profileData && !error) {
-            // Set editing mode
-            setIsEditingProfile(true);
-            
-            // Pre-fill form with existing data
-            setUsername(profileData.username || '');
-            setLocation(profileData.location || '');
-            setRadius(profileData.radius ? `${profileData.radius} Miles` : '50 Miles');
-            
-            // Set profile picture URL if it exists
-            if (profileData.profile_picture_url) {
-              setProfilePictureURL(profileData.profile_picture_url);
-            }
-            
-            // Handle genres if they exist
-            if (profileData.genres && profileData.genres.length > 0) {
-              setSelectedGenres(profileData.genres);
-            }
-          }
-          
-          return;
+    let cancelled = false;
+
+    const loadUser = async (authUser: any) => {
+      if (cancelled) return;
+      setUser(authUser);
+
+      // Check if user already has a profile
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (cancelled) return;
+
+      if (profileData && !error) {
+        setIsEditingProfile(true);
+        setUsername(profileData.username || '');
+        setLocation(profileData.location || '');
+        setRadius(profileData.radius ? `${profileData.radius} Miles` : '50 Miles');
+        if (profileData.profile_picture_url) {
+          setProfilePictureURL(profileData.profile_picture_url);
         }
-        
-        // If no user is authenticated, redirect to register
-        router.push('/register');
-      } catch (error) {
-        console.error('Error getting user:', error);
-        // Redirect to register on error
-        router.push('/register');
+        if (profileData.genres && profileData.genres.length > 0) {
+          setSelectedGenres(profileData.genres);
+        }
       }
     };
-    
-    getUser();
-  }, [isConnected, address, router]);
+
+    // Check if session already exists
+    supabase.auth.getUser().then(({ data: { user: existingUser } }) => {
+      if (cancelled) return;
+      if (existingUser) {
+        loadUser(existingUser);
+      }
+    });
+
+    // Listen for session changes (covers the race with Dynamic→Supabase bridge)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
+        loadUser(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        router.push('/');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [router]);
 
   // Check if username exists with debounce
   useEffect(() => {
@@ -394,13 +397,7 @@ const CreateProfile: NextPage = () => {
         
         {!user && (
           <div className={styles.loginPrompt}>
-            <p>You must be logged in to create a profile</p>
-            <button 
-              onClick={() => router.push('/register')} 
-              className={styles.bigButton}
-            >
-              Go to Registration
-            </button>
+            <p>Waiting for authentication...</p>
           </div>
         )}
         
@@ -441,14 +438,22 @@ const CreateProfile: NextPage = () => {
             <form onSubmit={handleCreateProfile} className={styles.formContainer}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Username</label>
-                <input
-                  type="text"
-                  placeholder="Username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className={`${styles.formInput} ${usernameError ? styles.inputError : ''} ${usernameAvailable ? styles.inputSuccess : ''}`}
-                  required
-                />
+                <div className={styles.locationInputContainer}>
+                  <div className={styles.locationIconWrapper}>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10 10C11.3807 10 12.5 8.88071 12.5 7.5C12.5 6.11929 11.3807 5 10 5C8.61929 5 7.5 6.11929 7.5 7.5C7.5 8.88071 8.61929 10 10 10Z" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M16.6667 17.5C16.6667 14.2783 13.6819 11.6667 10 11.6667C6.31811 11.6667 3.33334 14.2783 3.33334 17.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className={styles.locationInput}
+                    required
+                  />
+                </div>
                 {usernameCheckLoading && <div className={styles.inputFeedback}>Checking...</div>}
                 {usernameError && <div className={styles.inputError}>{usernameError}</div>}
                 {usernameAvailable && <div className={styles.inputSuccess}>Username available</div>}

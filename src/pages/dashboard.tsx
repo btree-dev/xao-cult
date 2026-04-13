@@ -134,51 +134,52 @@ const Dashboard: NextPage = () => {
     runFilters();
   }, [filterLocation, dateFilters, events, profile]);
 
+  // Listen for Supabase auth state to avoid race with Dynamic→Supabase session bridge
   useEffect(() => {
-    const getUser = async () => {
-      setLoading(true);
+    let cancelled = false;
+
+    const fetchProfile = async (authUser: any) => {
+      setUser(authUser);
 
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
 
-        if (!user) {
-          router.push('/');
-          return;
-        }
+        if (cancelled) return;
 
-        setUser(user);
-
-        let profileData = null;
-
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-
-          if (!error) {
-            profileData = data;
-          }
-        } catch (error) {
-          console.error('Error fetching profile:', error);
-        }
-
-        if (!profileData) {
+        if (!error && data) {
+          setProfile(data);
+        } else {
           router.push('/create-profile');
           return;
-        } else {
-          setProfile(profileData);
         }
       } catch (error) {
-        console.error('Error in dashboard:', error);
-        router.push('/');
+        console.error('Error fetching profile:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    getUser();
+    // Listen for session changes — INITIAL_SESSION fires on mount with current state
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
+        fetchProfile(session.user);
+      } else if (event === 'INITIAL_SESSION' && !session) {
+        // No Supabase session exists — redirect to login
+        router.push('/');
+      } else if (event === 'SIGNED_OUT') {
+        router.push('/');
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [router]);
 
 

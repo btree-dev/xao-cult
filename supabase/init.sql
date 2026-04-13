@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     location TEXT,
     radius INTEGER,
     genres TEXT[] DEFAULT '{}',
+    profile_picture_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );

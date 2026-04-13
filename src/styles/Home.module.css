@@ -141,14 +141,20 @@
 
 .main {
   width: 100%;
-  height: 50vh;            /* Constrain main section to 40% of the viewport height */
+  min-height: 50vh;
   display: flex;
   flex-direction: column;
-  justify-content: space-evenly; 
+  justify-content: center;
   align-items: center;
+  gap: 1rem;
 }
 
-.itemContainer {    
+.walletWidgetContainer {
+    width: 100%;
+    max-width: 400px;
+}
+
+.itemContainer {
     width: 100%;
     max-width: 100vw;
 }

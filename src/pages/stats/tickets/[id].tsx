@@ -4,11 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import styles from '../../../styles/Home.module.css';
-import { supabase } from '../../../lib/supabase';
 import Navbar from '../../../components/Navbar';
 import { mockTickets } from '../../../backend/ticket-services/ticketdata';
 const TicketDetailPage: NextPage = () => {
-  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [ticket, setTicket] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(0);
@@ -19,26 +17,17 @@ const TicketDetailPage: NextPage = () => {
   useEffect(() => {
     const getTicketData = async () => {
       if (!id) return;
-      
-      setLoading(true);
-      
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          router.push('/');
-          return;
-        }
-        
-        setUser(user);
 
+      setLoading(true);
+
+      try {
         const ticketData = mockTickets.find(t => t.id === id);
-        
+
         if (!ticketData) {
           router.push('/tickets');
           return;
         }
-        
+
         setTicket(ticketData);
       } catch (error) {
         console.error('Error in ticket detail page:', error);

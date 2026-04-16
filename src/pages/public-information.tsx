@@ -3,10 +3,11 @@ import Head from "next/head";
 import Image from "next/image";
 import styles from "../styles/publicInfo.module.css";
 import { useRouter } from "next/router";
+import { useAccount } from "wagmi";
 import Navbar from "../components/Navbar";
-import { supabase } from "../lib/supabase";
 
 import { publicDocs, Genres } from "../backend/public-information-services/publicinfodata";
+import { useProfileCache } from "../contexts/ProfileCacheContext";
 
 import {
   handleWalletSelection,
@@ -35,6 +36,9 @@ export default function PublicInfoPage() {
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { address, isConnected } = useAccount();
+  const { currentUserProfile, setProfile } = useProfileCache();
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -43,39 +47,53 @@ export default function PublicInfoPage() {
   };
 
   const handleSave = () => {
+    if (address) {
+      setProfile({
+        walletAddress: address,
+        username: currentIdentity.username,
+        profilePictureUrl: profilePic || undefined,
+        location: currentIdentity.location,
+        radius: currentIdentity.radius.replace(' Miles', ''),
+        genres: currentIdentity.selectedGenres,
+        cachedAt: Date.now(),
+      });
+    }
     router.push("/dashboard");
   };
 
   const handleLogoutClick = () => setShowLogoutConfirm(true);
   const handleLogoutCancel = () => setShowLogoutConfirm(false);
 
+  // Load saved profile into the first identity slot
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          router.push("/");
-          return;
-        }
-        const { data: profileData, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-        if (error || !profileData) {
-          router.push("/");
-          return;
-        }
-      } catch (error) {
-        console.error("Error checking authentication:", error);
-        router.push("/");
-      } finally {
-        setLoading(false);
+    if (currentUserProfile && address) {
+      setIdentities((prev) => {
+        const updated = [...prev];
+        updated[0] = {
+          ...updated[0],
+          username: currentUserProfile.username || updated[0].username,
+          location: currentUserProfile.location || updated[0].location,
+          radius: currentUserProfile.radius ? `${currentUserProfile.radius} Miles` : updated[0].radius,
+          selectedGenres: currentUserProfile.genres || updated[0].selectedGenres,
+          selectedWalletAddress: address,
+          walletAddresses: [address, ...updated[0].walletAddresses.filter((a: string) => a !== address)],
+          didEth: `did:eth:${address.slice(0, 8)}...${address.slice(-4)}`,
+        };
+        return updated;
+      });
+      if (currentUserProfile.profilePictureUrl) {
+        setProfilePic(currentUserProfile.profilePictureUrl);
       }
-    };
-    checkAuth();
-  }, [router]);
+    }
+  }, [currentUserProfile, address]);
+
+  useEffect(() => {
+    if (!isConnected) {
+      router.push("/");
+      return;
+    }
+    setLoading(false);
+  }, [isConnected, router]);
 
   if (loading) {
     return (

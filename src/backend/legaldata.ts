@@ -93,32 +93,7 @@ export const legalDocs = [
         ]
            },
       {
-        heading: "7. Email Login via Supabase (Optional)",
-        content: [
-      {
-        type: "paragraph",
-        text: "Users may optionally sign up using an email address via Supabase. This email address is:",
-       },
-      {
-        type: "list",
-        items: [
-          "Stored securely by Supabase Inc., not by XaoDAO",
-          "Used only for authentication purposes",
-          "Never shared with third parties beyond Supabase",
-        ]
-      },
-      {
-        type: "paragraph",
-        text: "XaoDAO does not access or process user email addresses. If you wish to delete your Supabase-linked account, you must contact Supabase or use the in-app deletion feature if available. See Supabase’s Privacy Policy for more information: "
-      },
-      {
-        type: "link",
-        label:"https://supabase.com/privacy",
-        url: "https://supabase.com/privacy",
-      }
-    ] },
-      {
-        heading: "8. Uploaded Documents and Decentralized Storage",
+        heading: "7. Uploaded Documents and Decentralized Storage",
        content: [
       {
         type: "paragraph",
@@ -373,34 +348,7 @@ export const legalDocs = [
     ]
         },
       {
-        heading: "3. Supabase Email Authentication",
-        content: [
-      {
-        type: "paragraph",
-        text: "Users may optionally sign up using an email address via Supabase.",
-      },
-      {
-        type: "list",
-        items: [
-          "This email address is stored securely by Supabase Inc, not by XaoDAO.",
-          "The email is used only for login/authentication purposes.",
-          "Xao does not use email addresses for marketing, profiling, or cross-site tracking.",
-          "Users may request deletion of their email-based account by contacting the support forum or via the in-app deletion tool (if available).",
-        ]
-      },
-      {
-        type: "paragraph",
-        text: "We do not share user emails with third parties outside of Supabase. Supabase acts as a third-party data processor. For information on their practices, please see: ",
-      },
-      {
-        type: "link",
-        label: "https://supabase.com/privacy",
-        url: "https://supabase.com/privacy"
-      }
-    ]
-        },
-      {
-        heading: "4. Uploaded Documents and IPFS",
+        heading: "3. Uploaded Documents and IPFS",
         content: [
       {
         type: "paragraph",

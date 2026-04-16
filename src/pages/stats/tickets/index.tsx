@@ -4,13 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import styles from '../../../styles/Home.module.css';
-import { supabase } from '../../../lib/supabase';
 import StatsNav from '../../../components/StatsNav';
 import Layout from '../../../components/Layout';
 import ShareModal from '../../../components/ShareModal';
 import { TicketsQR } from '../../../backend/ticket-services/ticketdata';
 const TicketsPage: NextPage = () => {
-  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [mutedTickets, setMutedTickets] = useState<Set<string>>(new Set());
   const [likedTickets, setLikedTickets] = useState<Set<string>>(new Set());
@@ -29,24 +27,8 @@ const TicketsPage: NextPage = () => {
   const [tickets, setTickets] = useState<any[]>(TicketsQR);
 
   useEffect(() => {
-    const getUser = async () => {
-      setLoading(true);
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          router.push('/');
-          return;
-        }
-        setUser(user);
-      } catch (error) {
-        console.error('Error in tickets page:', error);
-        router.push('/');
-      } finally {
-        setLoading(false);
-      }
-    };
-    getUser();
-  }, [router]);
+    setLoading(false);
+  }, []);
 
   const handleTicketClick = (ticketId: string) => {
     router.push(`/stats/tickets/${ticketId}`);

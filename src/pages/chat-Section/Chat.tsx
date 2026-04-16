@@ -4,7 +4,6 @@ import BackNavbar from "../../components/BackNav";
 import Layout from "../../components/Layout";
 import Head from "next/head";
 import styles from "../../styles/CreateContract.module.css";
-import { supabase } from "../../lib/supabase";
 import { ChatComponent } from "../../components/Chat";
 import { ContractProposalMessage } from "../../types/contractMessage";
 import { useProfileCache } from "../../contexts/ProfileCacheContext";
@@ -31,32 +30,14 @@ const Chat: React.FC = () => {
   const peerProfile = peerAddress ? getProfile(peerAddress) : null;
   const peerDisplayName = peerProfile?.username || (peerAddress ? truncateAddress(peerAddress) : userName);
 
-  // Get user profile for navbar
+  // Get user profile from local cache
+  const { currentUserProfile } = useProfileCache();
   useEffect(() => {
-    const getUser = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-
-        if (!error && data) {
-          setUserName(data.username || "User");
-          setUserImage(data.profile_picture_url || "/Chat-Section-Icons/Image 1.svg");
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      }
-    };
-
-    getUser();
-  }, []);
+    if (currentUserProfile) {
+      setUserName(currentUserProfile.username || "User");
+      setUserImage(currentUserProfile.profilePictureUrl || "/Chat-Section-Icons/Image 1.svg");
+    }
+  }, [currentUserProfile]);
 
   const handleBack = () => {
     router.push("/chat-Section/Search");

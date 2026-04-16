@@ -4,9 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import styles from '../styles/Home.module.css';
-import { supabase } from '../lib/supabase';
-import { useAccount, useSignMessage } from 'wagmi';
-import { formatWalletEmail } from '../lib/utils';
+import { useAccount } from 'wagmi';
+import { useProfileCache } from '../contexts/ProfileCacheContext';
 
 // Genre hierarchy data structure
 const genreHierarchy = {
@@ -80,23 +79,17 @@ const CreateProfile: NextPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [profilePictureURL, setProfilePictureURL] = useState<string | null>(null);
-  const [usernameError, setUsernameError] = useState<string | null>(null);
-  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
-  const [usernameCheckLoading, setUsernameCheckLoading] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [isGenreDropdownOpen, setIsGenreDropdownOpen] = useState(false);
   const [availableSubgenres, setAvailableSubgenres] = useState<string[]>([]);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const genreDropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { address, isConnected } = useAccount();
-  const { signMessageAsync } = useSignMessage();
+  const { currentUserProfile, setProfile } = useProfileCache();
 
-  // Get the current user when the component mounts
-  const [user, setUser] = useState<any>(null);
-  
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -133,98 +126,23 @@ const CreateProfile: NextPage = () => {
     }
   }, [selectedGenres]);
 
+  // Load existing profile from local storage
   useEffect(() => {
-    let cancelled = false;
+    if (!isConnected || !address) return;
 
-    const loadUser = async (authUser: any) => {
-      if (cancelled) return;
-      setUser(authUser);
-
-      // Check if user already has a profile
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
-
-      if (cancelled) return;
-
-      if (profileData && !error) {
-        setIsEditingProfile(true);
-        setUsername(profileData.username || '');
-        setLocation(profileData.location || '');
-        setRadius(profileData.radius ? `${profileData.radius} Miles` : '50 Miles');
-        if (profileData.profile_picture_url) {
-          setProfilePictureURL(profileData.profile_picture_url);
-        }
-        if (profileData.genres && profileData.genres.length > 0) {
-          setSelectedGenres(profileData.genres);
-        }
+    if (currentUserProfile) {
+      setIsEditingProfile(true);
+      setUsername(currentUserProfile.username || '');
+      setLocation(currentUserProfile.location || '');
+      setRadius(currentUserProfile.radius ? `${currentUserProfile.radius} Miles` : '50 Miles');
+      if (currentUserProfile.profilePictureUrl) {
+        setProfilePictureURL(currentUserProfile.profilePictureUrl);
       }
-    };
-
-    // Check if session already exists
-    supabase.auth.getUser().then(({ data: { user: existingUser } }) => {
-      if (cancelled) return;
-      if (existingUser) {
-        loadUser(existingUser);
+      if (currentUserProfile.genres && currentUserProfile.genres.length > 0) {
+        setSelectedGenres(currentUserProfile.genres);
       }
-    });
-
-    // Listen for session changes (covers the race with Dynamic→Supabase bridge)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (cancelled) return;
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
-        loadUser(session.user);
-      } else if (event === 'SIGNED_OUT') {
-        router.push('/');
-      }
-    });
-
-    return () => {
-      cancelled = true;
-      subscription.unsubscribe();
-    };
-  }, [router]);
-
-  // Check if username exists with debounce
-  useEffect(() => {
-    if (!username) {
-      setUsernameError(null);
-      setUsernameAvailable(null);
-      return;
     }
-
-    const timeoutId = setTimeout(async () => {
-      setUsernameCheckLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('username', username);
-
-        if (error) {
-          console.error('Error checking username:', error);
-          setUsernameError(null);
-          setUsernameAvailable(null);
-        } else if (data && data.length === 0) {
-          // No match found, username is available
-          setUsernameAvailable(true);
-          setUsernameError(null);
-        } else {
-          // Username exists
-          setUsernameAvailable(false);
-          setUsernameError('Username already taken');
-        }
-      } catch (error) {
-        console.error('Error checking username:', error);
-      } finally {
-        setUsernameCheckLoading(false);
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [username]);
+  }, [isConnected, address, currentUserProfile]);
 
   const handleProfilePictureClick = () => {
     fileInputRef.current?.click();
@@ -264,108 +182,35 @@ const CreateProfile: NextPage = () => {
     setLoading(true);
     setError(null);
 
-    // Force a user check if one isn't set
-    if (!user) {
-      try {
-        const { data } = await supabase.auth.getUser();
-        if (data.user) {
-          setUser(data.user);
-        } else {
-          setError('You must be logged in to create a profile');
-          setLoading(false);
-          return;
-        }
-      } catch (error) {
-        setError('You must be logged in to create a profile');
-        setLoading(false);
-        return;
-      }
+    if (!isConnected || !address) {
+      setError('You must connect your wallet to create a profile');
+      setLoading(false);
+      return;
     }
 
     try {
-      // Check if a profile already exists for this user
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single();
-      
-      let profilePictureUrl = null;
-
-      // Upload profile picture if one is selected
+      // Convert profile picture to base64 data URL if one is selected
+      let pictureUrl = profilePictureURL;
       if (profilePicture) {
-        try {
-          const fileExt = profilePicture.name.split('.').pop();
-          const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-          const filePath = `profile-pictures/${fileName}`;
-
-          const { error: uploadError, data } = await supabase.storage
-            .from('profile-pictures')
-            .upload(filePath, profilePicture);
-
-          if (uploadError) {
-            console.error('Error uploading profile picture:', uploadError);
-            // Continue without the profile picture
-          } else {
-            // Get the public URL
-            const { data: urlData } = await supabase.storage
-              .from('profile-pictures')
-              .getPublicUrl(filePath);
-
-            profilePictureUrl = urlData.publicUrl;
-          }
-        } catch (uploadError) {
-          console.error('Error uploading profile picture:', uploadError);
-          // Continue without the profile picture
-        }
+        pictureUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(profilePicture);
+        });
       }
 
-      // Create profile data object with required fields
-      const profileData: any = {
+      setProfile({
+        walletAddress: address,
         username,
+        profilePictureUrl: pictureUrl || undefined,
         location,
-        radius: radius.split(' ')[0], // Extract the number part
+        radius: radius.split(' ')[0],
         genres: selectedGenres,
-      };
+        cachedAt: Date.now(),
+      });
 
-      // Only add profile_picture_url if we successfully uploaded an image
-      if (profilePictureUrl) {
-        profileData.profile_picture_url = profilePictureUrl;
-      }
-
-      let error;
-
-      if (existingProfile) {
-        // Update existing profile
-        const response = await supabase
-          .from('profiles')
-          .update(profileData)
-          .eq('id', user.id);
-        
-        error = response.error;
-      } else {
-        // Create new profile
-        const response = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            created_at: new Date(),
-            ...profileData
-          });
-        
-        error = response.error;
-      }
-
-      if (error) {
-        // Check if this is a duplicate username error
-        if (error.message && error.message.includes('duplicate key value violates unique constraint "profiles_username_key"')) {
-          setError('Username already taken. Please choose a different username.');
-        } else {
-          throw error;
-        }
-      } else {
-        router.push('/dashboard');
-      }
+      router.push('/dashboard');
     } catch (error: any) {
       setError(error.message);
     } finally {
@@ -395,13 +240,13 @@ const CreateProfile: NextPage = () => {
           <h1 className={styles.pageTitle}>{isEditingProfile ? 'Edit Profile' : 'Create Profile'}</h1>
         </div>
         
-        {!user && (
+        {!isConnected && (
           <div className={styles.loginPrompt}>
-            <p>Waiting for authentication...</p>
+            <p>Please connect your wallet to continue.</p>
           </div>
         )}
-        
-        {user && (
+
+        {isConnected && (
           <>
             <div className={styles.profileImageContainer}>
               <div 
@@ -454,9 +299,6 @@ const CreateProfile: NextPage = () => {
                     required
                   />
                 </div>
-                {usernameCheckLoading && <div className={styles.inputFeedback}>Checking...</div>}
-                {usernameError && <div className={styles.inputError}>{usernameError}</div>}
-                {usernameAvailable && <div className={styles.inputSuccess}>Username available</div>}
               </div>
               
               <div className={styles.formRow}>
@@ -572,7 +414,7 @@ const CreateProfile: NextPage = () => {
               <button 
                 type="submit" 
                 className={styles.confirmButton}
-                disabled={loading || Boolean(username && usernameAvailable === false)}
+                disabled={loading}
               >
                 {loading ? (isEditingProfile ? 'Updating Profile...' : 'Creating Profile...') : 'Confirm'}
               </button>

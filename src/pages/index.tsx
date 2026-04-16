@@ -2,28 +2,20 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import Image from 'next/image'
 import styles from '../styles/Home.module.css';
-import { DynamicEmbeddedWidget } from '@dynamic-labs/sdk-react-core';
+import { DynamicEmbeddedWidget, useDynamicContext } from '@dynamic-labs/sdk-react-core';
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
-import { useAccount } from 'wagmi';
-import { supabase } from '../lib/supabase';
 
 const Home: NextPage = () => {
   const router = useRouter();
-  const { address, isConnected } = useAccount();
+  const { user: dynamicUser } = useDynamicContext();
 
-  // Redirect to dashboard only when both wallet and Supabase session are ready
+  // Redirect when Dynamic user is authenticated
   useEffect(() => {
-    if (!isConnected || !address) return;
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
-        router.push('/dashboard');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [isConnected, address, router]);
+    if (dynamicUser) {
+      router.push('/dashboard');
+    }
+  }, [dynamicUser, router]);
 
   return (
     <div className={styles.container}>

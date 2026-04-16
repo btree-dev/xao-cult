@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 
 import styles from '../styles/Home.module.css';
-import { supabase } from '../lib/supabase';
 import Navbar from '../components/Navbar';
 import Layout from '../components/Layout';
 import Scrollbar from '../components/Scrollbar';
@@ -12,6 +11,7 @@ import ShareModal from '../components/ShareModal';
 import CalendarFilter, { FilterOptions, LocationFilterData } from '../components/CalendarFilter';
 import { EventDocs } from '../backend/eventsdata';
 import { useWeb3 } from '../hooks/useWeb3';
+import { useProfileCache } from '../contexts/ProfileCacheContext';
 import { useUserContractsWithSummaries, CONTRACT_STATUS_LABELS, formatContractDate } from '../hooks/useGetContracts';
 import {
   getStoredLocationFilter,
@@ -21,8 +21,6 @@ import {
 } from '../backend/services/dashboardHelpers';
 
 const Dashboard: NextPage = () => {
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<any[]>(EventDocs);
   const [filteredEvents, setFilteredEvents] = useState<any[]>(EventDocs);
@@ -37,6 +35,7 @@ const Dashboard: NextPage = () => {
 
   // Web3 hooks for blockchain contracts
   const { address, isConnected, chain } = useWeb3();
+  const { currentUserProfile } = useProfileCache();
   const { contracts, isLoading: contractsLoading, refetch: refetchContracts } = useUserContractsWithSummaries(chain?.id, address);
 
   // Load filters from sessionStorage on mount
@@ -128,59 +127,21 @@ const Dashboard: NextPage = () => {
   // Combined filter effect - applies both date and location filters together
   useEffect(() => {
     const runFilters = async () => {
-      const filtered = await applyAllFilters(events, dateFilters, filterLocation, profile);
+      const filtered = await applyAllFilters(events, dateFilters, filterLocation, currentUserProfile);
       setFilteredEvents(filtered);
     };
     runFilters();
-  }, [filterLocation, dateFilters, events, profile]);
+  }, [filterLocation, dateFilters, events, currentUserProfile]);
 
-  // Listen for Supabase auth state to avoid race with Dynamic→Supabase session bridge
+  // Check wallet connection and load profile from local cache
   useEffect(() => {
-    let cancelled = false;
-
-    const fetchProfile = async (authUser: any) => {
-      setUser(authUser);
-
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .single();
-
-        if (cancelled) return;
-
-        if (!error && data) {
-          setProfile(data);
-        } else {
-          router.push('/create-profile');
-          return;
-        }
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    // Listen for session changes — INITIAL_SESSION fires on mount with current state
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (cancelled) return;
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session?.user) {
-        fetchProfile(session.user);
-      } else if (event === 'INITIAL_SESSION' && !session) {
-        // No Supabase session exists — redirect to login
-        router.push('/');
-      } else if (event === 'SIGNED_OUT') {
-        router.push('/');
-      }
-    });
-
-    return () => {
-      cancelled = true;
-      subscription.unsubscribe();
-    };
-  }, [router]);
+    if (!isConnected || !address) {
+      setLoading(false);
+      router.push('/');
+      return;
+    }
+    setLoading(false);
+  }, [isConnected, address, router]);
 
 
   const handleEventClick = (eventId: string) => {
@@ -210,8 +171,8 @@ const Dashboard: NextPage = () => {
 
       <Navbar
         userProfile={{
-          username: profile?.username,
-          avatar: profile?.profile_picture_url || '/profileIcon.svg'
+          username: currentUserProfile?.username,
+          avatar: currentUserProfile?.profilePictureUrl || '/profileIcon.svg'
         }}
         showNotificationIcon={true}
         showSearchIcon={false}
@@ -236,7 +197,7 @@ const Dashboard: NextPage = () => {
           }}
         >
           <div className={styles.walletCardHeader}>
-            <span className={styles.walletUsername}>@{profile?.username || 'yevhenii_d'}</span>
+            <span className={styles.walletUsername}>@{currentUserProfile?.username || 'yevhenii_d'}</span>
           </div>
           <div className={styles.walletCurrencyRow}>
             <div className={styles.walletCurrencyLeft}>

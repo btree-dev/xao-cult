@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import styles from '../../../styles/Home.module.css';
-import { supabase } from '../../../lib/supabase';
 import Navbar from '../../../components/Navbar';
 import Scrollbar from '../../../components/Scrollbar';
 const TicketPurchase: NextPage = () => {

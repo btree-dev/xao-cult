@@ -1,5 +1,3 @@
-import { supabase } from "../../lib/supabase";
-
 export const handleWalletSelection = (
   value: string,
   identities: any[],
@@ -77,8 +75,12 @@ export const handleDeleteIdentity = (
 
 
 export const handleSignOut = async (router: any) => {
-  await supabase.auth.signOut();
+  // Preserve profile cache across sign-outs
+  const profileCache = localStorage.getItem('xao-cult-profile-cache');
   localStorage.clear();
+  if (profileCache) {
+    localStorage.setItem('xao-cult-profile-cache', profileCache);
+  }
   sessionStorage.clear();
-  router.push("/dashboard");
+  router.push("/");
 };

@@ -1141,6 +1141,48 @@
   }
 }
 
+/* Embedded chat (desktop + all viewports) — mobile-specific tweaks live in @media below */
+.chatContainer {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 250px);
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+  justify-content: stretch;
+}
+
+.chatContainer .messagesContainer {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  top: 0;
+  margin-bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chatContainer .messageInputContainer {
+  position: relative;
+  flex: 0 0 auto;
+  bottom: auto;
+  width: 100%;
+  max-width: 100%;
+  left: auto;
+  transform: none;
+  background: transparent;
+  padding: 10px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0;
+  z-index: 1;
+}
+
 /* Direct Contract Creation Page Styles */
 .section {
   background: rgba(0, 0, 0, 0.3);

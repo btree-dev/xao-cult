@@ -14,8 +14,63 @@ import { useAddTicketType, useAddTierToXAOTicket, dollarToWei, dateTimeToTimesta
 import { useWeb3 } from "../../hooks/useWeb3";
 import { useReadContract } from "wagmi";
 import { SHOW_CONTRACT_ABI } from "../../lib/web3/eventcontract";
-import { readContract } from "@wagmi/core";
+import { USDC_ADDRESS_TESTNET, USDC_ADDRESS_MAINNET } from "../../lib/web3/chains";
+import { readContract, writeContract, waitForTransactionReceipt } from "@wagmi/core";
+import { keccak256, toHex } from "viem";
 import { config } from "../../wagmi";
+
+const USDC_APPROVE_ABI = [
+  { inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], name: 'approve', outputs: [{ name: '', type: 'bool' }], stateMutability: 'nonpayable', type: 'function' },
+] as const;
+
+// Add all payment schedules to the contract on-chain (party1 only, before finalization)
+async function addPaymentSchedules(contractAddr: `0x${string}`, formData: any): Promise<void> {
+  const parsePct = (s: string): bigint => {
+    const n = parseFloat(s || '0');
+    return BigInt(isNaN(n) ? 0 : Math.round(n * 100));
+  };
+  const parseUsdc = (s: string): bigint => {
+    const n = parseFloat((s || '').replace(/,/g, ''));
+    return BigInt(isNaN(n) ? 0 : Math.round(n * 1e6));
+  };
+  const parseTs = (s: string): bigint => {
+    if (!s) return BigInt(0);
+    const ms = new Date(s).getTime();
+    return BigInt(isNaN(ms) ? 0 : Math.floor(ms / 1000));
+  };
+  const isValidRow = (r: any) =>
+    r && (parseUsdc(r.dollarAmount) > 0n || parseTs(r.dateTime || r.cutoffTimestamp) > 0n);
+
+  const writeRows = async (arr: any[] | undefined, fn: string) => {
+    if (!arr) return;
+    for (const r of arr) {
+      if (!isValidRow(r)) continue;
+      try {
+        const tx = await writeContract(config, {
+          address: contractAddr,
+          abi: SHOW_CONTRACT_ABI as any,
+          functionName: fn,
+          args: [
+            parseTs(r.dateTime || r.cutoffTimestamp || ''),
+            parsePct(r.percentage || '0'),
+            parseUsdc(r.dollarAmount || '0'),
+          ],
+        });
+        await waitForTransactionReceipt(config, { hash: tx });
+        console.log(`[PaymentSchedule] ${fn} added`);
+      } catch (e) {
+        console.warn(`[PaymentSchedule] ${fn} failed (skipping):`, e);
+      }
+    }
+  };
+
+  await writeRows(formData?.money?.securityDepositRows, 'addParty1Deposit');
+  await writeRows(formData?.money?.securityDeposit2Rows, 'addParty2Deposit');
+  await writeRows(formData?.payments?.party1, 'addParty1Payout');
+  await writeRows(formData?.payments?.party2, 'addParty2Payout');
+  await writeRows(formData?.money?.cancelParty1Rows, 'addParty1CancellationRefund');
+  await writeRows(formData?.money?.cancelParty2Rows, 'addParty2CancellationRefund');
+}
 import { useXMTPConversation } from "../../hooks/useXMTPConversation";
 import { ContractProposalMessage } from "../../types/contractMessage";
 import { handleSaveContract, handleSignContract, addTicketsToContract, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
@@ -124,15 +179,17 @@ const CreateContract = () => {
   }, [peerParam, party1, party2]);
 
   // XMTP for sending contract proposals
-  const { sendContractProposal, isClientReady } = useXMTPConversation({
+  const { sendContractProposal, isClientReady, conversation: xmtpConversation } = useXMTPConversation({
     peerAddress,
   });
 
   // Keep a ref to the latest sendContractProposal so useEffect closures always use the current version
   const sendProposalRef = useRef(sendContractProposal);
+  const xmtpConversationRef = useRef(xmtpConversation);
   useEffect(() => {
     sendProposalRef.current = sendContractProposal;
-  }, [sendContractProposal]);
+    xmtpConversationRef.current = xmtpConversation;
+  }, [sendContractProposal, xmtpConversation]);
 
   // Handle receiving a contract proposal from chat
   const handleContractProposalSelect = useCallback((proposal: ContractProposalMessage) => {
@@ -186,6 +243,42 @@ const CreateContract = () => {
         termsObject.contractAddress = savedContractAddress;
       }
 
+      // If contract exists on-chain and this is a revision, call updateContractCID
+      // This anchors the counter-proposal hash on-chain and resets the appropriate party's signature
+      if (savedContractAddress && revisionNumber > 1) {
+        try {
+          // Compute keccak256 of the JSON string as the new CID hash
+          const jsonStr = JSON.stringify(termsObject);
+          const newCIDHash = keccak256(toHex(jsonStr)) as `0x${string}`;
+
+          const usdcAddr = (chain?.id === 8453 ? USDC_ADDRESS_MAINNET : USDC_ADDRESS_TESTNET) as `0x${string}`;
+          const editFee = BigInt(1e6); // $1 USDC
+
+          // Approve $1 USDC edit fee
+          const approveTx = await writeContract(config, {
+            address: usdcAddr,
+            abi: USDC_APPROVE_ABI,
+            functionName: 'approve',
+            args: [savedContractAddress as `0x${string}`, editFee],
+          });
+          await waitForTransactionReceipt(config, { hash: approveTx });
+
+          // Call updateContractCID — this sets status to COUNTER_PROPOSED or PROPOSED
+          const updateTx = await writeContract(config, {
+            address: savedContractAddress as `0x${string}`,
+            abi: SHOW_CONTRACT_ABI as any,
+            functionName: 'updateContractCID',
+            args: [newCIDHash],
+          });
+          await waitForTransactionReceipt(config, { hash: updateTx });
+          console.log('[CreateContract] updateContractCID called, hash:', newCIDHash);
+          termsObject.cidHash = newCIDHash;
+        } catch (cidErr) {
+          console.warn('[CreateContract] updateContractCID failed (non-blocking):', cidErr);
+          // Don't block the XMTP send — proposal still goes through even if on-chain update fails
+        }
+      }
+
       // Send the proposal
       await sendContractProposal(termsObject, revisionNumber);
 
@@ -206,18 +299,37 @@ const CreateContract = () => {
   };
 
   // Handle save contract (draft) using helper function
-  const handleSave = () => handleSaveContract(
-    isConnected,
-    chain?.id,
-    contractSectionRef,
-    party1,
-    party2,
-    peerAddress || '',
-    stateSetters,
-    createEventContract,
-    imageUri,
-    address as `0x${string}`
-  );
+  // Preserve agreement roles: if current user IS party2, pass party1's wallet as callerAddress
+  // and current user's wallet as otherPartyAddress (party2 on-chain)
+  const handleSave = () => {
+    const isCurrentUserParty2 = address && party2 &&
+      address.toLowerCase() === party2.toLowerCase();
+
+    if (isCurrentUserParty2 && !peerAddress) {
+      stateSetters.setCreationError("Cannot save: party 1 wallet address is unknown");
+      return;
+    }
+
+    const party1Wallet = isCurrentUserParty2
+      ? peerAddress as `0x${string}`
+      : address as `0x${string}`;
+    const party2Wallet = isCurrentUserParty2
+      ? address as string
+      : (peerAddress || '');
+
+    return handleSaveContract(
+      isConnected,
+      chain?.id,
+      contractSectionRef,
+      party1,
+      party2,
+      party2Wallet,
+      stateSetters,
+      createEventContract,
+      imageUri,
+      party1Wallet
+    );
+  };
 
   // Handle sign contract (signs an already-created contract)
   const handleSign = async () => {
@@ -246,14 +358,26 @@ const CreateContract = () => {
           setSavedContractAddress(newContractAddress);
 
           // Add tickets while contract is still in Draft status
-          // (addTicketType requires inDraft modifier on the smart contract)
           await addTicketsToContract(newContractAddress, ticketRowsToAdd, addTicketTypeAsync);
+
+          // Add payment schedules (deposits, payouts, cancellation refunds) before finalization
+          const formDataForSchedules = contractSectionRef.current?.getContractData?.();
+          if (formDataForSchedules) {
+            try {
+              await addPaymentSchedules(newContractAddress, formDataForSchedules);
+            } catch (scheduleErr) {
+              console.warn('[CreateContract] Some payment schedules failed to add:', scheduleErr);
+            }
+          }
 
           setIsContractCreating(false);
 
           // Send proposal with contract address to party2 via XMTP
-          // Use sendProposalRef.current to avoid stale closure capturing an old sendContractProposal
-          if (isClientReady && sendProposalRef.current) {
+          // Wait up to 15s for the XMTP conversation to be ready before sending
+          let proposalSent = false;
+          let proposalError: Error | null = null;
+
+          if (sendProposalRef.current) {
             try {
               const termsObject = contractSectionRef.current?.getContractData
                 ? contractSectionRef.current.getContractData()
@@ -267,15 +391,42 @@ const CreateContract = () => {
               // Include the created contract address
               termsObject.contractAddress = newContractAddress;
 
+              // Wait for XMTP client AND conversation to be ready (both are async)
+              let waited = 0;
+              while ((!isClientReady || !xmtpConversationRef.current) && waited < 15000) {
+                await new Promise(r => setTimeout(r, 500));
+                waited += 500;
+              }
+
+              if (!xmtpConversationRef.current) {
+                throw new Error(
+                  `XMTP conversation with ${party2 || "party B"} was not ready after ${waited}ms. ` +
+                  `Party B may not be on the XMTP network yet.`
+                );
+              }
+
               await sendProposalRef.current(termsObject, revisionNumber);
               setRevisionNumber((prev) => prev + 1);
+              proposalSent = true;
               console.log("[CreateContract] Sent draft contract proposal with address to party2");
             } catch (err) {
-              console.warn("Failed to send draft proposal to party2:", err);
+              proposalError = err instanceof Error ? err : new Error(String(err));
+              console.error("[CreateContract] Failed to send draft proposal to party2:", err);
             }
+          } else {
+            proposalError = new Error("XMTP not initialized — cannot send proposal to party2");
           }
 
-          alert(`Contract saved as draft on blockchain!\nContract: ${newContractAddress}`);
+          if (proposalSent) {
+            alert(`Contract saved as draft on blockchain!\nContract: ${newContractAddress}\nSent to party B in chat.`);
+          } else {
+            alert(
+              `Contract saved as draft on blockchain, but the chat message to party B did NOT send.\n\n` +
+              `Contract: ${newContractAddress}\n\n` +
+              `Reason: ${proposalError?.message || "unknown"}\n\n` +
+              `You can re-send from the chat page once party B is online.`
+            );
+          }
         } catch (err) {
           setCreationError(err instanceof Error ? err.message : "Failed to process contract");
           setIsContractCreating(false);

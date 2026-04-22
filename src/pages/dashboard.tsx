@@ -43,6 +43,7 @@ const Dashboard: NextPage = () => {
   const [filterLocation, setFilterLocation] = useState<LocationFilterData>({ name: '', coordinates: null });
   const [dateFilters, setDateFilters] = useState<FilterOptions | null>(null);
   const [filtersLoaded, setFiltersLoaded] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<number | null>(null);
 
   // Web3 hooks for blockchain contracts
   const { address, isConnected, chain } = useWeb3();
@@ -300,9 +301,57 @@ const Dashboard: NextPage = () => {
         </div>
       </div>
 
+        {/* Status filter chips + Create CTA */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '0 16px 12px', alignItems: 'center' }}>
+          {[
+            { label: 'All', value: null },
+            { label: 'Negotiating', value: 1 },
+            { label: 'Approved', value: 3 },
+            { label: 'Active', value: 4 },
+            { label: 'Completed', value: 5 },
+            { label: 'Disputed', value: 7 },
+          ].map(chip => (
+            <button
+              key={String(chip.value)}
+              onClick={() => setStatusFilter(statusFilter === chip.value ? null : chip.value)}
+              style={{
+                padding: '4px 12px',
+                borderRadius: '20px',
+                border: `1px solid ${statusFilter === chip.value ? '#ff9900' : 'rgba(255,255,255,0.15)'}`,
+                background: statusFilter === chip.value ? 'rgba(255,153,0,0.15)' : 'transparent',
+                color: statusFilter === chip.value ? '#ff9900' : 'rgba(255,255,255,0.6)',
+                fontSize: '12px',
+                cursor: 'pointer',
+                fontWeight: statusFilter === chip.value ? 600 : 400,
+              }}
+            >
+              {chip.label}
+            </button>
+          ))}
+          <button
+            onClick={() => router.push('/contracts/create-contract')}
+            style={{
+              marginLeft: 'auto',
+              padding: '4px 14px',
+              borderRadius: '20px',
+              border: '1px solid #ff9900',
+              background: 'linear-gradient(to right, #ff9900, #e100ff)',
+              color: 'white',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            + New Contract
+          </button>
+        </div>
+
         {/* Blockchain Contracts — filtered and sorted */}
         <div className={styles.feedContainer}>
-          {filteredContracts.map((contract, index) => (
+          {(statusFilter !== null
+            ? filteredContracts.filter(c => c.status === statusFilter)
+            : filteredContracts
+          ).map((contract, index) => (
             <div
               key={contract.contractAddress || index}
               className={styles.feedItem}

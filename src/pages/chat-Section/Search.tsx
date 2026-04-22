@@ -7,7 +7,7 @@ import { useRouter } from "next/router";
 import BackNavbar from "../../components/BackNav";
 import Scrollbar from "../../components/Scrollbar";
 import Image from "next/image";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAccount, useChainId, useDisconnect } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useGetUserNFTs } from "../../hooks/useContractNFT";
@@ -118,21 +118,24 @@ export default function Search() {
   }, [isConnected]);
 
   // Load conversations when XMTP client is ready
-  useEffect(() => {
-    const loadConversations = async () => {
-      if (!xmtpClient) return;
+  const loadConversations = useCallback(async () => {
+    if (!xmtpClient) return;
 
-      setIsLoadingConversations(true);
+    setIsLoadingConversations(true);
 
+    try {
+      // Full network sync to pick up new DMs created by others
       try {
-        // Sync and list all conversations
+        await (xmtpClient.conversations as any).syncAll(["allowed", "unknown", "denied"]);
+      } catch {
         await xmtpClient.conversations.sync();
-        const convos = await xmtpClient.conversations.list({
-          consentStates: ["allowed", "unknown", "denied"] as unknown as ConsentState[],
-        });
+      }
+      const convos = await xmtpClient.conversations.list({
+        consentStates: ["allowed", "unknown", "denied"] as unknown as ConsentState[],
+      });
 
-        const previews: ConversationPreview[] = await Promise.all(
-          convos.map(async (convo: any) => {
+      const previews: ConversationPreview[] = await Promise.all(
+        convos.map(async (convo: any) => {
             let lastMessage = "";
             let lastMessageTime: Date | undefined;
 
@@ -227,25 +230,26 @@ export default function Search() {
               conversation: convo,
             };
           })
-        );
+      );
 
-        // Sort by last message time
-        previews.sort((a, b) => {
-          if (!a.lastMessageTime) return 1;
-          if (!b.lastMessageTime) return -1;
-          return b.lastMessageTime.getTime() - a.lastMessageTime.getTime();
-        });
+      // Sort by last message time
+      previews.sort((a, b) => {
+        if (!a.lastMessageTime) return 1;
+        if (!b.lastMessageTime) return -1;
+        return b.lastMessageTime.getTime() - a.lastMessageTime.getTime();
+      });
 
-        setConversations(previews);
-      } catch (err: any) {
-        console.error("[Search] Failed to load conversations:", err);
-      } finally {
-        setIsLoadingConversations(false);
-      }
-    };
-
-    loadConversations();
+      setConversations(previews);
+    } catch (err: any) {
+      console.error("[Search] Failed to load conversations:", err);
+    } finally {
+      setIsLoadingConversations(false);
+    }
   }, [xmtpClient]);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
 
   // Load events when token IDs are available
   // Load events when token IDs are available
@@ -424,7 +428,7 @@ export default function Search() {
           </div>
 
           {/* Tab Filters */}
-          <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "16px", alignItems: "center" }}>
             {(["all", "conversations", "events"] as const).map((tab) => (
               <button
                 key={tab}
@@ -445,6 +449,24 @@ export default function Search() {
                 {tab}
               </button>
             ))}
+            {xmtpClient && (
+              <button
+                onClick={() => loadConversations()}
+                disabled={isLoadingConversations}
+                style={{
+                  marginLeft: "auto",
+                  padding: "6px 12px",
+                  borderRadius: "20px",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  background: "transparent",
+                  color: isLoadingConversations ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.6)",
+                  fontSize: "12px",
+                  cursor: isLoadingConversations ? "default" : "pointer",
+                }}
+              >
+                {isLoadingConversations ? "Syncing…" : "↻ Refresh"}
+              </button>
+            )}
           </div>
 
           {/* Connect Wallet Prompt */}

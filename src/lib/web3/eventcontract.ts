@@ -1622,6 +1622,13 @@ export const SHOW_CONTRACT_ABI = [
   },
   {
     "inputs": [],
+    "name": "markActive",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "markCompleted",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -3684,5 +3691,160 @@ export const XAO_TICKET_ABI = [
     "stateMutability": "view",
     "type": "function"
   }
+] as const;
+
+// ─── ArbitrationAgent ABI ─────────────────────────────────────────────────────
+
+export const ARBITRATION_AGENT_ABI = [
+  { "inputs": [{ "internalType": "address", "name": "admin", "type": "address" }], "stateMutability": "nonpayable", "type": "constructor" },
+  { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "uint256", "name": "caseId", "type": "uint256" }, { "indexed": true, "internalType": "address", "name": "arbitrator", "type": "address" }], "name": "ArbitratorAssigned", "type": "event" },
+  { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "uint256", "name": "caseId", "type": "uint256" }], "name": "CaseDefaulted", "type": "event" },
+  { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "uint256", "name": "caseId", "type": "uint256" }, { "indexed": true, "internalType": "address", "name": "showContract", "type": "address" }, { "indexed": true, "internalType": "address", "name": "openedBy", "type": "address" }], "name": "CaseOpened", "type": "event" },
+  { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "uint256", "name": "caseId", "type": "uint256" }, { "indexed": true, "internalType": "address", "name": "by", "type": "address" }], "name": "CaseWithdrawn", "type": "event" },
+  { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "uint256", "name": "caseId", "type": "uint256" }, { "indexed": true, "internalType": "address", "name": "submittedBy", "type": "address" }, { "internalType": "string", "name": "ipfsCID", "type": "string" }], "name": "EvidenceSubmitted", "type": "event" },
+  { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "uint256", "name": "caseId", "type": "uint256" }, { "internalType": "enum ArbitrationAgent.Ruling", "name": "ruling", "type": "uint8" }, { "indexed": true, "internalType": "address", "name": "arbitrator", "type": "address" }], "name": "RulingIssued", "type": "event" },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "caseId", "type": "uint256" }, { "internalType": "address", "name": "arbitrator", "type": "address" }],
+    "name": "assignArbitrator", "outputs": [], "stateMutability": "nonpayable", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "name": "cases",
+    "outputs": [
+      { "internalType": "uint256", "name": "caseId", "type": "uint256" },
+      { "internalType": "address", "name": "showContract", "type": "address" },
+      { "internalType": "address", "name": "openedBy", "type": "address" },
+      { "internalType": "address", "name": "party1", "type": "address" },
+      { "internalType": "address", "name": "party2", "type": "address" },
+      { "internalType": "uint8", "name": "caseStatus", "type": "uint8" },
+      { "internalType": "uint8", "name": "ruling", "type": "uint8" },
+      { "internalType": "address", "name": "arbitrator", "type": "address" },
+      { "internalType": "uint256", "name": "openedAt", "type": "uint256" },
+      { "internalType": "uint256", "name": "ruledAt", "type": "uint256" },
+      { "internalType": "string", "name": "rulingNotes", "type": "string" }
+    ],
+    "stateMutability": "view", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "showContract", "type": "address" }],
+    "name": "contractToOpenCase", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "caseId", "type": "uint256" }],
+    "name": "getCase",
+    "outputs": [
+      { "internalType": "address", "name": "showContract", "type": "address" },
+      { "internalType": "address", "name": "openedBy", "type": "address" },
+      { "internalType": "address", "name": "party1", "type": "address" },
+      { "internalType": "address", "name": "party2", "type": "address" },
+      { "internalType": "uint8", "name": "caseStatus", "type": "uint8" },
+      { "internalType": "uint8", "name": "ruling", "type": "uint8" },
+      { "internalType": "address", "name": "arbitrator", "type": "address" },
+      { "internalType": "uint256", "name": "openedAt", "type": "uint256" },
+      { "internalType": "uint256", "name": "ruledAt", "type": "uint256" },
+      { "internalType": "string", "name": "rulingNotes", "type": "string" },
+      { "internalType": "uint256", "name": "evidenceCount", "type": "uint256" }
+    ],
+    "stateMutability": "view", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "caseId", "type": "uint256" }],
+    "name": "getCaseEvidence",
+    "outputs": [{ "components": [{ "internalType": "address", "name": "submittedBy", "type": "address" }, { "internalType": "string", "name": "ipfsCID", "type": "string" }, { "internalType": "uint256", "name": "timestamp", "type": "uint256" }, { "internalType": "string", "name": "description", "type": "string" }], "internalType": "struct ArbitrationAgent.Evidence[]", "name": "", "type": "tuple[]" }],
+    "stateMutability": "view", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "showContract", "type": "address" }],
+    "name": "getOpenCaseForContract",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "caseId", "type": "uint256" }, { "internalType": "enum ArbitrationAgent.Ruling", "name": "ruling", "type": "uint8" }, { "internalType": "string", "name": "rulingNotesCID", "type": "string" }],
+    "name": "issueRuling", "outputs": [], "stateMutability": "nonpayable", "type": "function"
+  },
+  { "inputs": [], "name": "nextCaseId", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+  {
+    "inputs": [{ "internalType": "address", "name": "showContract", "type": "address" }, { "internalType": "string", "name": "initialEvidenceCID", "type": "string" }, { "internalType": "string", "name": "description", "type": "string" }],
+    "name": "openCase", "outputs": [{ "internalType": "uint256", "name": "caseId", "type": "uint256" }], "stateMutability": "nonpayable", "type": "function"
+  },
+  { "inputs": [], "name": "pause", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "caseId", "type": "uint256" }, { "internalType": "string", "name": "ipfsCID", "type": "string" }, { "internalType": "string", "name": "description", "type": "string" }],
+    "name": "submitEvidence", "outputs": [], "stateMutability": "nonpayable", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "caseId", "type": "uint256" }],
+    "name": "triggerDefault", "outputs": [], "stateMutability": "nonpayable", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "caseId", "type": "uint256" }],
+    "name": "withdrawCase", "outputs": [], "stateMutability": "nonpayable", "type": "function"
+  },
+  { "inputs": [], "name": "unpause", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+] as const;
+
+// ─── XAOWalletFactory ABI ─────────────────────────────────────────────────────
+
+export const XAO_WALLET_FACTORY_ABI = [
+  { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "owner", "type": "address" }, { "indexed": true, "internalType": "address", "name": "wallet", "type": "address" }, { "internalType": "string", "name": "xaoUsername", "type": "string" }], "name": "WalletDeployed", "type": "event" },
+  {
+    "inputs": [{ "internalType": "string", "name": "xaoUsername", "type": "string" }, { "internalType": "enum XAOWallet.PrimaryRole", "name": "primaryRole", "type": "uint8" }, { "internalType": "string", "name": "didCID", "type": "string" }],
+    "name": "deploy", "outputs": [{ "internalType": "address", "name": "walletAddr", "type": "address" }], "stateMutability": "nonpayable", "type": "function"
+  },
+  {
+    "inputs": [], "name": "getAllWallets",
+    "outputs": [{ "internalType": "address[]", "name": "", "type": "address[]" }],
+    "stateMutability": "view", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "owner", "type": "address" }],
+    "name": "predictWalletAddress", "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "name": "walletOf", "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view", "type": "function"
+  },
+] as const;
+
+// ─── XAOWallet ABI ────────────────────────────────────────────────────────────
+
+export const XAO_WALLET_ABI = [
+  { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "showContract", "type": "address" }], "name": "ContractRegistered", "type": "event" },
+  { "anonymous": false, "inputs": [{ "internalType": "string", "name": "didDocumentCID", "type": "string" }, { "internalType": "string", "name": "profileMetadataCID", "type": "string" }], "name": "ProfileUpdated", "type": "event" },
+  { "anonymous": false, "inputs": [{ "indexed": true, "internalType": "address", "name": "owner", "type": "address" }, { "internalType": "string", "name": "xaoUsername", "type": "string" }], "name": "WalletInitialized", "type": "event" },
+  { "inputs": [], "name": "didDocumentCID", "outputs": [{ "internalType": "string", "name": "", "type": "string" }], "stateMutability": "view", "type": "function" },
+  {
+    "inputs": [{ "internalType": "address", "name": "target", "type": "address" }, { "internalType": "uint256", "name": "value", "type": "uint256" }, { "internalType": "bytes", "name": "data", "type": "bytes" }],
+    "name": "execute", "outputs": [{ "internalType": "bytes", "name": "", "type": "bytes" }], "stateMutability": "nonpayable", "type": "function"
+  },
+  { "inputs": [], "name": "getContracts", "outputs": [{ "internalType": "address[]", "name": "", "type": "address[]" }], "stateMutability": "view", "type": "function" },
+  { "inputs": [], "name": "owner", "outputs": [{ "internalType": "address", "name": "", "type": "address" }], "stateMutability": "view", "type": "function" },
+  { "inputs": [], "name": "primaryRole", "outputs": [{ "internalType": "uint8", "name": "", "type": "uint8" }], "stateMutability": "view", "type": "function" },
+  { "inputs": [], "name": "profileMetadataCID", "outputs": [{ "internalType": "string", "name": "", "type": "string" }], "stateMutability": "view", "type": "function" },
+  {
+    "inputs": [{ "internalType": "address", "name": "showContract", "type": "address" }],
+    "name": "registerContract", "outputs": [], "stateMutability": "nonpayable", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "newOwner", "type": "address" }],
+    "name": "transferOwnership", "outputs": [], "stateMutability": "nonpayable", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "string", "name": "_didCID", "type": "string" }, { "internalType": "string", "name": "_profileCID", "type": "string" }],
+    "name": "updateProfile", "outputs": [], "stateMutability": "nonpayable", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "enum XAOWallet.PrimaryRole", "name": "_role", "type": "uint8" }],
+    "name": "updatePrimaryRole", "outputs": [], "stateMutability": "nonpayable", "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "string", "name": "_username", "type": "string" }],
+    "name": "updateUsername", "outputs": [], "stateMutability": "nonpayable", "type": "function"
+  },
+  { "inputs": [], "name": "xaoUsername", "outputs": [{ "internalType": "string", "name": "", "type": "string" }], "stateMutability": "view", "type": "function" },
 ] as const;
 

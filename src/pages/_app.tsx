@@ -17,6 +17,7 @@ import Navbar from '../components/Navbar';
 import Scrollbar from '../components/Scrollbar';
 import { XMTPProvider } from '../contexts/XMTPContext';
 import { ProfileCacheProvider } from '../contexts/ProfileCacheContext';
+import { ToastProvider } from '../components/Toast';
 
 const client = new QueryClient();
 
@@ -95,12 +96,14 @@ function MyApp({ Component, pageProps }: AppProps) {
         <RainbowKitProvider theme={darkTheme()} initialChain={baseSepolia}>
           <XMTPProvider>
             <ProfileCacheProvider>
+              <ToastProvider>
               <Head>
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
               </Head>
               <Scrollbar />
               {/* {userProfile && <Navbar userProfile={userProfile} />} */}
               <Component {...pageProps} />
+              </ToastProvider>
             </ProfileCacheProvider>
           </XMTPProvider>
         </RainbowKitProvider>

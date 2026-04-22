@@ -277,8 +277,12 @@ export function useXMTPConversation({
         const normalizedPeer = peer.toLowerCase();
         setCurrentPeerAddress(normalizedPeer);
 
-        // Sync conversations first
-        await client.conversations.sync();
+        // Full network sync so we discover conversations created by others
+        try {
+          await (client.conversations as any).syncAll(["allowed", "unknown", "denied"]);
+        } catch {
+          await client.conversations.sync();
+        }
 
         // Try to find existing conversation
         const convos = await client.conversations.list();
@@ -457,22 +461,24 @@ export function useXMTPConversation({
   const sendContractProposal = useCallback(
     async (contractData: Partial<IContract>, revisionNumber: number = 1) => {
       if (!conversation || !walletAddress) {
-        console.error("Cannot send proposal: no conversation or wallet address");
-        return;
+        console.error("[XMTP] Cannot send proposal: conversation=", !!conversation, "wallet=", !!walletAddress);
+        throw new Error("XMTP conversation not ready — cannot send proposal");
       }
 
+      const proposal = createContractProposal(
+        contractData,
+        walletAddress,
+        revisionNumber
+      );
+
       try {
-        const proposal = createContractProposal(
-          contractData,
-          walletAddress,
-          revisionNumber
-        );
-        // Serialize to JSON for XMTP
+        // Serialize to JSON for XMTP — the stream listener will pick this up and add it to messages state
         await conversation.send(JSON.stringify(proposal));
         console.log("[XMTP] Contract proposal sent, revision:", revisionNumber);
       } catch (err) {
         console.error("Failed to send contract proposal:", err);
         setError("Failed to send contract proposal");
+        throw err; // surface to caller so UI can react
       }
     },
     [conversation, walletAddress]

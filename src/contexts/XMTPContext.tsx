@@ -12,6 +12,9 @@ interface XMTPContextType {
   clearUnread: () => void;
   retry: () => void;
   handleRevokeAndRetry: () => Promise<void>;
+  // Frees XMTP installation slots on the network while keeping the current
+  // client/session alive. Fixes "10/10 installations" without full reset.
+  revokeOtherInstallations: () => Promise<{ revoked: boolean; error?: string }>;
 }
 
 const XMTPContext = createContext<XMTPContextType | null>(null);
@@ -31,27 +34,62 @@ const findXmtpDatabases = async (): Promise<string[]> => {
   return [];
 };
 
-// Helper to clear XMTP OPFS data
-const clearXmtpOPFS = async (): Promise<void> => {
+// Helper to clear XMTP OPFS data.
+// Per-entry try/catch: a locked file (from the live WASM worker) must NOT
+// abort the rest of the sweep or propagate to React's error boundary.
+const clearXmtpOPFS = async (): Promise<{ removed: string[]; skipped: string[] }> => {
+  const removed: string[] = [];
+  const skipped: string[] = [];
   try {
     const root = await navigator.storage.getDirectory();
-    // Type assertion needed as entries() is not fully typed in all TS versions
     const entries = (root as any).entries?.();
-    if (entries) {
-      for await (const [name] of entries) {
-        if (name.includes("xmtp") || name.includes("libxmtp")) {
-          try {
-            await root.removeEntry(name, { recursive: true });
-            console.log(`[XMTP] Deleted OPFS: ${name}`);
-          } catch (e) {
-            console.error(`[XMTP] Failed to delete ${name}:`, e);
-          }
-        }
+    if (!entries) return { removed, skipped };
+
+    const targets: string[] = [];
+    for await (const [name] of entries) {
+      if (name.includes("xmtp") || name.includes("libxmtp")) targets.push(name);
+    }
+    for (const name of targets) {
+      try {
+        await root.removeEntry(name, { recursive: true });
+        removed.push(name);
+        console.log(`[XMTP] Deleted OPFS: ${name}`);
+      } catch (e: any) {
+        skipped.push(name);
+        console.warn(`[XMTP] OPFS "${name}" still locked (harmless if IndexedDB was cleared): ${e?.message || e}`);
       }
     }
   } catch (e) {
-    console.error("[XMTP] Failed to clear OPFS:", e);
+    console.warn("[XMTP] OPFS cleanup failed:", e);
   }
+  return { removed, skipped };
+};
+
+// After reload, clear any storage the previous session requested to wipe.
+// Runs before Client.create so no OPFS handles are open yet.
+const consumePendingReset = async (): Promise<boolean> => {
+  if (typeof window === "undefined") return false;
+  const pending = window.sessionStorage.getItem("xao-xmtp-reset-pending");
+  if (!pending) return false;
+  window.sessionStorage.removeItem("xao-xmtp-reset-pending");
+  console.log("[XMTP] Consuming pending reset — wiping local database…");
+  try {
+    const dbs = await findXmtpDatabases();
+    for (const dbName of dbs) {
+      await new Promise<void>((resolve) => {
+        const req = indexedDB.deleteDatabase(dbName);
+        req.onsuccess = () => { console.log(`  deleted db: ${dbName}`); resolve(); };
+        req.onerror   = () => resolve();
+        req.onblocked = () => resolve();
+      });
+    }
+    await new Promise((r) => setTimeout(r, 500));
+    const { removed, skipped } = await clearXmtpOPFS();
+    console.log(`[XMTP] Reset complete. OPFS: ${removed.length} removed, ${skipped.length} skipped.`);
+  } catch (e) {
+    console.warn("[XMTP] Reset swallowed error:", e);
+  }
+  return true;
 };
 
 // Show CLI instructions for manual cleanup
@@ -124,6 +162,10 @@ export function XMTPProvider({ children }: XMTPProviderProps) {
       }
 
       initializingRef.current = true;
+
+      // If the previous session asked for a reset, wipe the XMTP database
+      // BEFORE we open any OPFS handles. Runs at most once per page load.
+      await consumePendingReset();
 
       setIsLoading(true);
       setError(null);
@@ -281,51 +323,60 @@ export function XMTPProvider({ children }: XMTPProviderProps) {
     [isConnected, address, client, createSigner]
   );
 
-  // Handle manual revoke and retry
-  const handleRevokeAndRetry = useCallback(async () => {
-    if (!address) {
-      setError("No wallet connected. Please refresh.");
-      return;
+  // Revoke old installations on the XMTP network while keeping this client
+  // alive. Call this to free "10/10" slots without destroying local state.
+  const revokeOtherInstallations = useCallback(async (): Promise<{ revoked: boolean; error?: string }> => {
+    if (!client) {
+      return { revoked: false, error: "XMTP client not initialized" };
     }
+    try {
+      console.log("[XMTP] Revoking all other installations (keeping current)…");
+      await (client as any).revokeAllOtherInstallations();
+      console.log("[XMTP] Other installations revoked.");
+      return { revoked: true };
+    } catch (err: any) {
+      console.error("[XMTP] revokeAllOtherInstallations failed:", err);
+      return { revoked: false, error: err?.message || String(err) };
+    }
+  }, [client]);
 
+  // Handle manual reset.
+  //
+  // Can't delete the XMTP database while the WASM client is holding OPFS
+  // handles — that's why in-place cleanup always fails with
+  // NoModificationAllowedError. Instead:
+  //   1. First, free an installation slot on the XMTP network by calling
+  //      revokeAllOtherInstallations() (needs a live client).
+  //   2. Set a flag in sessionStorage and reload.
+  //   3. On next page load, consumePendingReset() runs before any client is
+  //      created, clearing IndexedDB + OPFS cleanly.
+  //
+  // Without step 1 you'd burn an installation slot each time and eventually
+  // hit the hard 10-per-inbox limit.
+  const handleRevokeAndRetry = useCallback(async () => {
+    if (typeof window === "undefined") return;
     setShowRevokeOption(false);
-    setError("Clearing installations...");
     setIsLoading(true);
+    setError("Resetting — freeing installation slots…");
 
     try {
-      // Clear IndexedDB
-      const existingDbs = await findXmtpDatabases();
-      for (const dbName of existingDbs) {
+      if (client) {
         try {
-          await new Promise<void>((resolve) => {
-            const req = indexedDB.deleteDatabase(dbName);
-            req.onsuccess = () => resolve();
-            req.onerror = () => resolve();
-            req.onblocked = () => resolve();
-          });
-        } catch (e) {
-          // Ignore
+          await (client as any).revokeAllOtherInstallations();
+          console.log("[XMTP] Pre-reset: revoked other installations.");
+        } catch (revokeErr: any) {
+          // Not fatal — continue with reset. If the cap was already hit, the
+          // local reset still makes progress; user may need XMTP CLI to
+          // fully recover.
+          console.warn("[XMTP] Pre-reset revoke failed:", revokeErr?.message || revokeErr);
         }
       }
-
-      // Clear OPFS
-      await clearXmtpOPFS();
-
-      // Reset client state
-      setClient(null);
-      currentAddressRef.current = null;
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setError(null);
-      initializingRef.current = false;
-      await initializeXMTP(true);
-    } catch (err: any) {
-      console.error("[XMTP] Cleanup failed:", err);
-      setError("Cleanup failed. See console for CLI instructions.");
-      setIsLoading(false);
-      showCliInstructions();
+    } finally {
+      setError("Resetting — reloading to clear local XMTP database…");
+      window.sessionStorage.setItem("xao-xmtp-reset-pending", "1");
+      setTimeout(() => window.location.reload(), 200);
     }
-  }, [address, initializeXMTP]);
+  }, [client]);
 
   const clearUnread = useCallback(() => {
     setUnreadCount(0);
@@ -368,6 +419,17 @@ export function XMTPProvider({ children }: XMTPProviderProps) {
     }
   }, [isConnected, address]);
 
+  // Dev-friendly globals for the browser console.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    (window as any).__xaoResetXMTP = handleRevokeAndRetry;
+    (window as any).__xaoRevokeOtherInstallations = revokeOtherInstallations;
+    return () => {
+      delete (window as any).__xaoResetXMTP;
+      delete (window as any).__xaoRevokeOtherInstallations;
+    };
+  }, [handleRevokeAndRetry, revokeOtherInstallations]);
+
   const value: XMTPContextType = {
     client,
     isLoading,
@@ -378,6 +440,7 @@ export function XMTPProvider({ children }: XMTPProviderProps) {
     clearUnread,
     retry,
     handleRevokeAndRetry,
+    revokeOtherInstallations,
   };
 
   return <XMTPContext.Provider value={value}>{children}</XMTPContext.Provider>;

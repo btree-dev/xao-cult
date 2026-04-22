@@ -70,6 +70,7 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
 }) => {
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -110,11 +111,18 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
   }, [receivedContactCard, setProfile]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll the messages container itself instead of using scrollIntoView,
+    // which can scroll the outer page when the chat is embedded in a scrollable parent.
+    const el = messagesContainerRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
   };
 
   useEffect(() => {
-    scrollToBottom();
+    // Defer one frame so newly-rendered cards are measured before we scroll.
+    const id = requestAnimationFrame(scrollToBottom);
+    return () => cancelAnimationFrame(id);
   }, [messages]);
 
   const handleSend = async () => {
@@ -193,10 +201,35 @@ const ChatComponent: React.FC<ChatComponentProps> = ({
           >
             {isSyncing ? "Syncing..." : "↻ Sync"}
           </button>
+          <button
+            onClick={() => {
+              const ok = window.confirm(
+                "Wipe ALL XMTP conversations from this browser?\n\n" +
+                "This deletes the local XMTP database (IndexedDB + OPFS) and reloads the page. " +
+                "You'll need to re-sign to recreate your XMTP identity. " +
+                "Messages stored on the XMTP network will re-sync from scratch."
+              );
+              if (ok) handleRevokeAndRetry();
+            }}
+            disabled={isLoadingState}
+            title="Delete all local XMTP data and start fresh"
+            style={{
+              padding: "6px 12px",
+              background: "rgba(200, 50, 50, 0.3)",
+              border: "1px solid rgba(255, 100, 100, 0.5)",
+              borderRadius: "16px",
+              color: "white",
+              cursor: isLoadingState ? "not-allowed" : "pointer",
+              fontSize: "12px",
+              opacity: isLoadingState ? 0.6 : 1,
+            }}
+          >
+            🗑 Reset
+          </button>
         </div>
       )}
 
-      <div className={styles.messagesContainer}>
+      <div ref={messagesContainerRef} className={styles.messagesContainer}>
         {isLoadingState && (
           <div className={styles.RecievedMessage}>
             {isClientLoading ? "Loading XMTP client..." : "Loading conversation..."}

@@ -1,0 +1,70 @@
+import type { Address, Hex } from 'viem';
+
+/** Content type — keep the order locked; integer values are sent on the wire. */
+export enum ContentType {
+  TEXT = 0,
+  PROPOSAL = 1,
+  COUNTER_PROPOSAL = 2,
+  ACCEPT = 3,
+  REJECT = 4,
+  SYSTEM = 5,
+}
+
+export interface TextPayload { kind: 'text'; text: string; }
+export interface ProposalPayload {
+  kind: 'proposal' | 'counter-proposal';
+  revisionNumber: number;
+  data: Record<string, unknown>;
+}
+export interface AcceptPayload { kind: 'accept'; proposalHash: Hex; }
+export interface RejectPayload { kind: 'reject'; proposalHash: Hex; reason?: string; }
+
+export type MessagePayload = TextPayload | ProposalPayload | AcceptPayload | RejectPayload;
+
+/**
+ * SessionCert authorises a session keypair on behalf of a wallet for a 24h window.
+ * The wallet signs a fixed-format challenge string; verifiers ecrecover it.
+ */
+export interface SessionCert {
+  v: 1;
+  walletAddress: Address;
+  sessionPublicKeyHex: string;     // 33-byte compressed secp256k1 pubkey, hex with 0x prefix
+  expiresAtUnixMs: number;
+  chainId: number;
+  /** EIP-191 personal-sign signature over `sessionChallengeString(...)`. */
+  walletSignature: Hex;
+}
+
+/** The body an author signs — flat, deterministic, no extra fields. */
+export interface MessageBody {
+  v: 1;
+  messageId: Hex;          // random per-message uuid → 32 bytes hex
+  threadId: Hex;
+  contentType: ContentType;
+  /** Hash of the parent body, or 0x00…00 for root. Forward-compat for Plan 3 DAG. */
+  parentHash: Hex;
+  payload: MessagePayload;
+  /** Unix epoch milliseconds. */
+  sentAt: number;
+  /** Address claiming authorship — verifier checks against cert.walletAddress. */
+  sender: Address;
+}
+
+/** What goes on the wire (and on disk for storage tests). */
+export interface OnWireEnvelope {
+  body: MessageBody;
+  /** keccak256(canonicalJSON(body)). Redundant with hashing on receive but stops a bad-impl peer from sending mismatched body+sig. */
+  payloadHash: Hex;
+  /** ECDSA over `payloadHash` using the session private key. 64 bytes, hex with 0x prefix. */
+  signature: Hex;
+  cert: SessionCert;
+}
+
+/** Once a peer has verified the envelope, this is the fully-resolved record. */
+export interface ResolvedMessage {
+  envelope: OnWireEnvelope;
+  /** Hash used as the parent reference for child messages. */
+  bodyHash: Hex;
+  /** Wall-clock receive time on this client. */
+  receivedAtUnixMs: number;
+}

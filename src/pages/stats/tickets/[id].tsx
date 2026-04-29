@@ -51,7 +51,7 @@ const TicketDetailPage: NextPage = () => {
             try {
               // Read ShowContract address and ticket data from XAOTicket
               const [showContractAddr, tierId, isScanned] = await Promise.all([
-                readContract(config, { address: ticketCollectionAddr, abi: XAO_TICKET_ABI as any, functionName: 'showContract' }),
+                readContract(config, { address: ticketCollectionAddr, abi: XAO_TICKET_ABI as any, functionName: 'showContract', args: [] }),
                 readContract(config, { address: ticketCollectionAddr, abi: XAO_TICKET_ABI as any, functionName: 'tokenToTier', args: [tokenId] }),
                 readContract(config, { address: ticketCollectionAddr, abi: XAO_TICKET_ABI as any, functionName: 'scanned', args: [tokenId] }),
               ]);
@@ -70,10 +70,10 @@ const TicketDetailPage: NextPage = () => {
 
               // Read event details from ShowContract
               const [eventName, flyerDNSLink, venueName, eventStartDate] = await Promise.all([
-                readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'eventName' }),
-                readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'flyerDNSLink' }),
-                readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'venueName' }),
-                readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'eventStartDate' }),
+                readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'eventName', args: [] }),
+                readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'flyerDNSLink', args: [] }),
+                readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'venueName', args: [] }),
+                readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'eventStartDate', args: [] }),
               ]);
 
               const showTimestamp = Number(eventStartDate);

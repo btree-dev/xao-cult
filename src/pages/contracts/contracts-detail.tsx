@@ -371,6 +371,7 @@ const Contractsdetail: React.FC = () => {
           address: ticketCollectionAddr!,
           abi: XAO_TICKET_ABI as any,
           functionName: 'SCANNER_ROLE',
+          args: [],
         })
       ) as `0x${string}`;
 

@@ -97,6 +97,7 @@ const PurchaseConfirmation: NextPage = () => {
           address: contractAddress,
           abi: SHOW_CONTRACT_ABI as any,
           functionName: 'ticketCollection',
+          args: [],
         }) as `0x${string}`;
 
         if (!ticketCollectionAddr || ticketCollectionAddr === '0x0000000000000000000000000000000000000000') {

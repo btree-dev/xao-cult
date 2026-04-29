@@ -1,5 +1,5 @@
 import React from 'react';
-import { CreateEventContractParams } from '../../hooks/useCreateContract';
+import { CreateEventContractParams, CreateShowContractParams } from '../../hooks/useCreateContract';
 import { buildContractParams, validateContractParams } from './contractHelpers';
 import { validateBaseChain } from '../contracts';
 import { TicketRow } from '../../pages/contracts/TicketsSection';
@@ -11,7 +11,6 @@ export interface ContractStateSetters {
   setCreationError: (value: string) => void;
   setIsUploading: (value: boolean) => void;
   setTicketRowsToAdd: (value: TicketRow[]) => void;
-  setPendingSign?: (value: boolean) => void;
 }
 
 // Helper to gather form data from contract section ref
@@ -29,16 +28,26 @@ export const getFormData = (
 };
 
 // Helper to handle image upload
+// If new base64 imageData exists, upload it (new image selected by user).
+// Otherwise, use formData.eventImageUri (from getContractData) or existingImageUri as fallback.
 export const handleImageUpload = async (
   formData: any,
-  setIsUploading: (value: boolean) => void
+  setIsUploading: (value: boolean) => void,
+  existingImageUri?: string | null,
+  groupName?: string
 ): Promise<void> => {
-  if (formData.promotion?.imageData) {
+  const eventName = (formData.promotion?.value || 'event').replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+  const startDate = formData.datesAndTimes?.eventStartDate || '';
+  const ipfsFilename = startDate ? `${eventName}-${startDate}` : eventName;
+
+  // New image selected — base64 data present and no IPFS URI yet
+  if (formData.promotion?.imageData && !formData.eventImageUri) {
     setIsUploading(true);
     try {
       const imageUrl = await uploadImageToIPFS(
         formData.promotion.imageData,
-        formData.promotion.imageFile?.name
+        ipfsFilename,
+        groupName || ipfsFilename
       );
       formData.eventImageUri = imageUrl;
     } catch (uploadErr) {
@@ -46,6 +55,65 @@ export const handleImageUpload = async (
       formData.eventImageUri = '';
     }
     setIsUploading(false);
+    return;
+  }
+
+  // For XAO group (save/sign): ensure image exists in XAO group
+  if (groupName === 'XAO') {
+    const currentUri = formData.eventImageUri || existingImageUri;
+    if (currentUri) {
+      // Extract IPFS hash from the URI
+      const hashMatch = currentUri.match(/ipfs\/([a-zA-Z0-9]+)/);
+      const ipfsHash = hashMatch ? hashMatch[1] : null;
+
+      if (ipfsHash) {
+        // Check if this hash already exists in XAO group (API handles the check)
+        setIsUploading(true);
+        try {
+          const checkRes = await fetch('/api/upload-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ existingIpfsHash: ipfsHash, groupName: 'XAO', filename: ipfsFilename }),
+          });
+          const checkResult = await checkRes.json();
+          if (checkResult.success) {
+            // Already exists in XAO — use that URL
+            formData.eventImageUri = checkResult.url;
+            setIsUploading(false);
+            return;
+          }
+        } catch (err) {
+          console.warn('Check existing in XAO failed:', err);
+        }
+
+        // Not in XAO yet — fetch the image and re-upload to XAO
+        try {
+          const imgResponse = await fetch(currentUri);
+          const imgBlob = await imgResponse.blob();
+          const imageData = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(imgBlob);
+          });
+          const imageUrl = await uploadImageToIPFS(imageData, ipfsFilename, 'XAO');
+          formData.eventImageUri = imageUrl;
+        } catch (uploadErr) {
+          console.warn('Re-upload to XAO failed, keeping existing URI:', uploadErr);
+          formData.eventImageUri = currentUri;
+        }
+        setIsUploading(false);
+        return;
+      }
+    }
+  }
+
+  // Already has URI from getContractData (e.g. received proposal image unchanged)
+  if (formData.eventImageUri) {
+    return;
+  }
+  // Fallback to previously uploaded URI
+  if (existingImageUri) {
+    formData.eventImageUri = existingImageUri;
   }
 };
 
@@ -59,9 +127,11 @@ export const buildAndValidateParams = (
   formData: any,
   party1: string,
   party2: string,
-  action: string = 'SAVED'
-): { params: CreateEventContractParams; error: string | null } => {
-  const params = buildContractParams(formData, party1);
+  otherPartyAddress: string,
+  action: string = 'SAVED',
+  callerAddress?: `0x${string}`
+): { params: CreateShowContractParams; error: string | null } => {
+  const params = buildContractParams(formData, party1, otherPartyAddress, callerAddress);
   logContractData(formData, party1, party2, params, action);
   const error = validateContractParams(params);
   return { params, error };
@@ -74,8 +144,11 @@ export const handleSaveContract = async (
   contractSectionRef: React.RefObject<any>,
   party1: string,
   party2: string,
+  otherPartyAddress: string,
   stateSetters: ContractStateSetters,
-  createEventContract: (params: CreateEventContractParams) => void
+  createEventContract: (params: CreateShowContractParams) => void,
+  existingImageUri?: string | null,
+  callerAddress?: `0x${string}`
 ): Promise<void> => {
   const { setIsContractCreating, setCreationError, setIsUploading, setTicketRowsToAdd } = stateSetters;
 
@@ -95,10 +168,10 @@ export const handleSaveContract = async (
     setCreationError("");
 
     const formData = getFormData(contractSectionRef, party1, party2);
-    await handleImageUpload(formData, setIsUploading);
+    await handleImageUpload(formData, setIsUploading, existingImageUri, 'XAO');
     setTicketRowsToAdd(getTicketRows(formData));
 
-    const { params, error: validationError } = buildAndValidateParams(formData, party1, party2, 'SAVED');
+    const { params, error: validationError } = buildAndValidateParams(formData, party1, party2, otherPartyAddress, 'SAVED', callerAddress);
     if (validationError) {
       setCreationError(validationError);
       setIsContractCreating(false);
@@ -115,20 +188,25 @@ export const handleSaveContract = async (
   }
 };
 
-// Main function to handle signing contract
+// Main function to handle signing an already-created contract
 export const handleSignContract = async (
   isConnected: boolean,
   chainId: number | undefined,
-  contractSectionRef: React.RefObject<any>,
+  savedContractAddress: string | null,
   party1: string,
-  party2: string,
   stateSetters: ContractStateSetters,
-  createEventContract: (params: CreateEventContractParams) => void
+  signContractAsync: (contractAddress: `0x${string}`, username: string) => Promise<any>,
+  contractSectionRef: React.RefObject<any>
 ): Promise<void> => {
-  const { setIsContractCreating, setCreationError, setIsUploading, setTicketRowsToAdd, setPendingSign } = stateSetters;
+  const { setIsContractCreating, setCreationError } = stateSetters;
 
   if (!isConnected) {
     setCreationError("Please connect your wallet");
+    return;
+  }
+
+  if (!savedContractAddress) {
+    setCreationError("Please save the contract as a draft first before signing");
     return;
   }
 
@@ -142,26 +220,17 @@ export const handleSignContract = async (
     setIsContractCreating(true);
     setCreationError("");
 
-    const formData = getFormData(contractSectionRef, party1, party2);
-    await handleImageUpload(formData, setIsUploading);
-    setTicketRowsToAdd(getTicketRows(formData));
+    await signContractAsync(savedContractAddress as `0x${string}`, party1);
 
-    const { params, error: validationError } = buildAndValidateParams(formData, party1, party2, 'SIGNED');
-    if (validationError) {
-      setCreationError(validationError);
-      setIsContractCreating(false);
-      return;
-    }
-
-    setPendingSign?.(true);
-    createEventContract(params);
+    // Delete proposal image group from Pinata in background (non-blocking)
+    deleteProposalImageGroup(contractSectionRef).catch((err) => {
+      console.warn('Background cleanup of proposal image group failed:', err);
+    });
   } catch (err) {
     setCreationError(
-      err instanceof Error ? err.message : "Failed to create and sign contract"
+      err instanceof Error ? err.message : "Failed to sign contract"
     );
     setIsContractCreating(false);
-    setIsUploading(false);
-    setPendingSign?.(false);
   }
 };
 
@@ -174,11 +243,13 @@ export const addTicketsToContract = async (
   if (ticketRows.length > 0) {
     for (const ticketRow of ticketRows) {
       if (ticketRow.ticketType && ticketRow.numberOfTickets) {
+        const price = dollarToWei(ticketRow.ticketPrice);
         await addTicketTypeAsync(contractAddress, {
           ticketTypeName: ticketRow.ticketType,
           onSaleDate: dateTimeToTimestamp(ticketRow.onSaleDate),
           numberOfTickets: parseFormattedNumber(ticketRow.numberOfTickets),
-          ticketPrice: dollarToWei(ticketRow.ticketPrice),
+          ticketPrice: price,
+          isFree: price === BigInt(0),
         });
       }
     }
@@ -194,6 +265,55 @@ export const toggleGenreSelection = (
       ? prev.filter((g) => g !== genre)
       : [...prev, genre]
   );
+};
+
+// Helper to delete the proposal image group from Pinata after save/sign
+// After deletion, re-fetch the final image from gateway cache and re-upload to XAO group
+export const deleteProposalImageGroup = async (
+  contractSectionRef: React.RefObject<any>
+): Promise<void> => {
+  try {
+    const formData = contractSectionRef.current?.getContractData?.();
+    if (!formData) return;
+
+    const eventName = (formData.promotion?.value || '').replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+    const startDate = formData.datesAndTimes?.eventStartDate || '';
+    if (!eventName) return;
+
+    const groupName = startDate ? `${eventName}-${startDate}` : eventName;
+    const ipfsFilename = startDate ? `${eventName}-${startDate}` : eventName;
+
+    // Get the final image URI before deleting the group
+    const imageUri = formData.eventImageUri;
+
+    // Delete the proposal group (this unpins all files in it)
+    await fetch('/api/deletegroup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ groupName }),
+    });
+
+    // Re-fetch the image from gateway cache and re-upload to XAO group
+    if (imageUri) {
+      try {
+        const imgResponse = await fetch(imageUri);
+        if (imgResponse.ok) {
+          const imgBlob = await imgResponse.blob();
+          const imageData = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(imgBlob);
+          });
+          await uploadImageToIPFS(imageData, ipfsFilename, 'XAO');
+          console.log('Re-uploaded final image to XAO group after cleanup');
+        }
+      } catch (uploadErr) {
+        console.warn('Failed to re-upload image to XAO after group deletion:', uploadErr);
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to delete proposal image group:', err);
+  }
 };
 
 // Helper function to handle image file selection
@@ -214,9 +334,10 @@ export const handleImageSelection = (
 };
 
 // Helper function to upload image to IPFS via Pinata
-export const uploadImageToIPFS = async (imageData: string, filename?: string): Promise<string> => {
+export const uploadImageToIPFS = async (imageData: string, filename?: string, groupName?: string): Promise<string> => {
   console.log('=== UPLOADING IMAGE TO IPFS ===');
   console.log('Filename:', filename);
+  console.log('Group:', groupName);
 
   const response = await fetch('/api/upload-image', {
     method: 'POST',
@@ -225,7 +346,8 @@ export const uploadImageToIPFS = async (imageData: string, filename?: string): P
     },
     body: JSON.stringify({
       imageData,
-      filename: filename || 'contract-image.jpg',
+      filename: filename || 'event',
+      groupName: groupName || filename || 'event',
     }),
   });
 

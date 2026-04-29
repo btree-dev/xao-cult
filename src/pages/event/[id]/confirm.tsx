@@ -4,6 +4,12 @@ import Head from "next/head";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import styles from "../../../styles/Home.module.css";
+import { useBuyTickets } from "../../../hooks/useBuyTickets";
+import { useWeb3 } from "../../../hooks/useWeb3";
+import { waitForTransactionReceipt, readContract } from "@wagmi/core";
+import { config } from "../../../wagmi";
+import { SHOW_CONTRACT_ABI, XAO_TICKET_ABI } from "../../../lib/web3/eventcontract";
+import { USDC_ADDRESS_TESTNET, USDC_ADDRESS_MAINNET } from "../../../lib/web3/chains";
 
 import Navbar from "../../../components/Navbar";
 
@@ -11,8 +17,19 @@ const PurchaseConfirmation: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [event, setEvent] = useState<any>(null);
   const [selectedTickets, setSelectedTickets] = useState<any[]>([]);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string>("");
   const router = useRouter();
-  const { id, tickets } = router.query;
+  const { id, tickets, eventTitle, eventImage, eventLocation, eventDate, eventTime } = router.query;
+  
+  // Web3 hooks
+  const { address, isConnected, chain } = useWeb3();
+  const { buyTickets, isPending, isWaiting, isSuccess, error: txError } = useBuyTickets();
+
+  // Check if ID is a contract address
+  const isContractAddress = typeof id === 'string' && id.startsWith('0x');
+  const contractAddress = isContractAddress ? (id as `0x${string}`) : undefined;
+  const usdcAddress = chain?.id === 8453 ? USDC_ADDRESS_MAINNET : USDC_ADDRESS_TESTNET;
 
   useEffect(() => {
     if (tickets) {
@@ -26,62 +43,18 @@ const PurchaseConfirmation: NextPage = () => {
   }, [tickets]);
 
   useEffect(() => {
-     if (!id) return;
-    setLoading(true);
-    try {
-      let mockEvent;
-      if (id === "rivo-event-1") {
-        mockEvent = {
-          id,
-          title: "Rivo Open Air",
-          date: "5th December",
-          time: "06:30PM",
-          location: "Wembley Stadium, London",
-          image:
-            "https://images.unsplash.com/photo-1583244532610-2a234e7c3eca?q=80&w=2070&auto=format&fit=crop",
-          ticketPrice: 50.0,
-        };
-      } else if (id === "xao-event-1") {
-        mockEvent = {
-          id,
-          title: "XAO Festival",
-          date: "15th December",
-          time: "08:00PM",
-          location: "O2 Arena, London",
-          image:
-            "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80",
-          ticketPrice: 65.0,
-        };
-      } else if (id === "edm-event-1") {
-        mockEvent = {
-          id,
-          title: "Electric Dreams",
-          date: "20th January",
-          time: "09:00PM",
-          location: "Alexandra Palace, London",
-          image:
-            "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1740&q=80",
-          ticketPrice: 45.0,
-        };
-      } else {
-        mockEvent = {
-          id,
-          title: "Rivo Open Air",
-          date: "5th December",
-          time: "06:30PM",
-          location: "Wembley Stadium, London",
-          image:
-            "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80",
-          ticketPrice: 50.0,
-        };
-            }
-    setEvent(mockEvent);
-    } catch (error) {
-      console.error("Error fetching event:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+    if (!id || !eventTitle) return;
+    setEvent({
+      id,
+      title: eventTitle as string,
+      date: (eventDate as string) || 'TBD',
+      time: (eventTime as string) || 'TBD',
+      location: (eventLocation as string) || 'No venue specified',
+      image: (eventImage as string) || 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80',
+      ticketPrice: 0,
+    });
+    setLoading(false);
+  }, [id, eventTitle, eventImage, eventLocation, eventDate, eventTime]);
   const formatDate = (date: Date) => {
     const d = new Date(date);
     const day = d.getDate();
@@ -96,19 +69,104 @@ const PurchaseConfirmation: NextPage = () => {
   };
 
  
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    // If it's a blockchain contract, call buyTickets
+    if (isContractAddress && contractAddress) {
+      if (!isConnected) {
+        setPurchaseError("Please connect your wallet to purchase tickets");
+        return;
+      }
 
-    router.push({
-      pathname: `/event/${id}/ticket-confirmation`,
-      query: {
-        event: event.title,
-        date: event.date,
-        time: event.time,
-        image: event.image,
-        location: event.location,
-        tickets: JSON.stringify(selectedTickets),
-      },
-    });
+      setIsPurchasing(true);
+      setPurchaseError("");
+
+      // Check if any selected ticket's sale date hasn't started yet
+      const now = Math.floor(Date.now() / 1000);
+      for (const ticket of selectedTickets) {
+        if (ticket.saleDate && ticket.saleDate > now) {
+          const saleStart = new Date(ticket.saleDate * 1000);
+          setPurchaseError(`Sale for "${ticket.type}" hasn't started yet. It starts on ${saleStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at ${saleStart.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`);
+          setIsPurchasing(false);
+          return;
+        }
+      }
+
+      try {
+        // Read ticketCollection address from ShowContract
+        const ticketCollectionAddr = await readContract(config, {
+          address: contractAddress,
+          abi: SHOW_CONTRACT_ABI as any,
+          functionName: 'ticketCollection',
+        }) as `0x${string}`;
+
+        if (!ticketCollectionAddr || ticketCollectionAddr === '0x0000000000000000000000000000000000000000') {
+          setPurchaseError("Ticket collection not deployed yet. Both parties must sign the contract first.");
+          setIsPurchasing(false);
+          return;
+        }
+
+        const txHashes: string[] = [];
+
+        // Buy each selected ticket — XAOTicket.buyTicket buys 1 at a time
+        for (const ticket of selectedTickets) {
+          const tierId = ticket.typeId ?? 0;
+          const quantity = ticket.count;
+          const priceUSDC = BigInt(ticket.priceRaw ?? Math.floor(ticket.price * 1e6));
+
+          console.log(`Purchasing tier ${tierId} (${ticket.type}):`, {
+            tierId,
+            quantity,
+            priceUSDC: priceUSDC.toString(),
+          });
+
+          // Buy one ticket at a time (XAOTicket.buyTicket buys 1)
+          for (let i = 0; i < quantity; i++) {
+            const txHash = await buyTickets(
+              contractAddress,
+              ticketCollectionAddr,
+              usdcAddress as `0x${string}`,
+              tierId,
+              priceUSDC,
+            );
+
+            if (txHash) {
+              await waitForTransactionReceipt(config, { hash: txHash });
+              txHashes.push(txHash as string);
+            }
+          }
+        }
+
+        router.push({
+          pathname: `/event/${id}/ticket-confirmation`,
+          query: {
+            event: event.title,
+            date: event.date,
+            time: event.time,
+            image: event.image,
+            location: event.location,
+            tickets: JSON.stringify(selectedTickets),
+            contractAddress: contractAddress,
+            txHash: txHashes[txHashes.length - 1] || '',
+          },
+        });
+      } catch (err) {
+        console.error('Purchase failed:', err);
+        setPurchaseError(err instanceof Error ? err.message : "Failed to purchase tickets");
+        setIsPurchasing(false);
+      }
+    } else {
+      router.push({
+        pathname: `/event/${id}/ticket-confirmation`,
+        query: {
+          event: event.title,
+          date: event.date,
+          time: event.time,
+          image: event.image,
+          location: event.location,
+          tickets: JSON.stringify(selectedTickets),
+        },
+      });
+    }
   };
 
   if (loading || !event) {
@@ -148,7 +206,7 @@ const PurchaseConfirmation: NextPage = () => {
         >
           <div className={styles.confirmOverlay}>
     
-            <div className={styles.confirmationHeaderTitle}>
+            <div className={styles.confirmationHeaderTitle} style={{ textAlign: 'center', width: '100%' }}>
               <h1>{event.title}</h1>
             </div>
 
@@ -243,9 +301,23 @@ const PurchaseConfirmation: NextPage = () => {
 
             {/* Confirm Button */}
             <div className={styles.confirmButtonContainer}>
-              <button className={styles.confirmButton} onClick={handleConfirm}>
-                Confirm Purchase
+              {purchaseError && (
+                <div style={{ color: 'red', marginBottom: '10px', textAlign: 'center' }}>
+                  {purchaseError}
+                </div>
+              )}
+              <button 
+                className={styles.confirmButton} 
+                onClick={handleConfirm}
+                disabled={isPurchasing || isPending || isWaiting}
+              >
+                {isPurchasing || isPending || isWaiting ? 'Processing...' : 'Confirm Purchase'}
               </button>
+              {isContractAddress && !isConnected && (
+                <p style={{ color: 'yellow', marginTop: '10px', textAlign: 'center', fontSize: '14px' }}>
+                  Please connect your wallet to purchase tickets
+                </p>
+              )}
             </div>
           </div>
         </div>

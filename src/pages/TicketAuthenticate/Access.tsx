@@ -18,6 +18,21 @@ export default function Access() {
   }, [router.query]);
 
   const isSuccess = authStatus === "success";
+  const reason = router.query.reason as string | undefined;
+  const ticketType = router.query.ticketType ? decodeURIComponent(router.query.ticketType as string) : '';
+
+  const getErrorMessage = () => {
+    switch (reason) {
+      case 'invalid_format': return 'Invalid QR code format';
+      case 'wallet_not_connected': return 'Wallet not connected';
+      case 'invalid_contract': return 'Invalid contract address';
+      case 'no_tickets': return 'No tickets found on contract';
+      case 'already_redeemed': return 'All tickets already redeemed';
+      case 'not_organizer': return 'Only organizers can check in';
+      case 'checkin_failed': return 'Check-in transaction failed';
+      default: return 'failed';
+    }
+  };
 
   return (
     
@@ -77,7 +92,7 @@ export default function Access() {
                 {isSuccess ? "Authenticate" : "Authentication"}
               </h1>
               <h2 className={styles.accessSubtitle}>
-                {isSuccess ? "successful" : "failed"}
+                {isSuccess ? (ticketType ? `${ticketType} — successful` : "successful") : getErrorMessage()}
               </h2>
             </div>
 

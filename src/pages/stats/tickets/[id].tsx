@@ -6,13 +6,31 @@ import Image from 'next/image';
 import styles from '../../../styles/Home.module.css';
 import Navbar from '../../../components/Navbar';
 import { mockTickets } from '../../../backend/ticket-services/ticketdata';
+import { readContract } from '@wagmi/core';
+import { config } from '../../../wagmi';
+import { SHOW_CONTRACT_ABI, XAO_TICKET_ABI } from '../../../lib/web3/eventcontract';
 const TicketDetailPage: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [ticket, setTicket] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const router = useRouter();
   const { id } = router.query;
-  
+
+  // Matches both old 'blockchain-' and new 'chain-' prefixed IDs
+  const isBlockchainTicket = typeof id === 'string' && (id.startsWith('blockchain-') || id.startsWith('chain-'));
+
+  // Parse contract address and ticket ID from the chain- format: chain-{contractAddr}-{ticketId}
+  const parseChainId = (ticketId: string) => {
+    if (ticketId.startsWith('chain-')) {
+      // Format: chain-0x...-ticketNum
+      const withoutPrefix = ticketId.slice(6); // remove 'chain-'
+      // Contract address is 42 chars (0x + 40 hex)
+      const contractAddress = withoutPrefix.slice(0, 42);
+      const onChainTicketId = withoutPrefix.slice(43); // skip the '-' after address
+      return { contractAddress, onChainTicketId };
+    }
+    return null;
+  };
 
   useEffect(() => {
     const getTicketData = async () => {
@@ -21,31 +39,128 @@ const TicketDetailPage: NextPage = () => {
       setLoading(true);
 
       try {
+        // Check if this is a blockchain purchased ticket
+        if (isBlockchainTicket) {
+          const parsed = parseChainId(id as string);
+
+          if (parsed) {
+            // Format: chain-{ticketCollectionAddr}-{tokenId}
+            const ticketCollectionAddr = parsed.contractAddress as `0x${string}`;
+            const tokenId = BigInt(parsed.onChainTicketId);
+
+            try {
+              // Read ShowContract address and ticket data from XAOTicket
+              const [showContractAddr, tierId, isScanned] = await Promise.all([
+                readContract(config, { address: ticketCollectionAddr, abi: XAO_TICKET_ABI as any, functionName: 'showContract' }),
+                readContract(config, { address: ticketCollectionAddr, abi: XAO_TICKET_ABI as any, functionName: 'tokenToTier', args: [tokenId] }),
+                readContract(config, { address: ticketCollectionAddr, abi: XAO_TICKET_ABI as any, functionName: 'scanned', args: [tokenId] }),
+              ]);
+
+              const showAddr = showContractAddr as `0x${string}`;
+
+              // Get tier info
+              const tier = await readContract(config, {
+                address: ticketCollectionAddr, abi: XAO_TICKET_ABI as any, functionName: 'getTier', args: [tierId as bigint],
+              }) as any;
+
+              const ticketTypeEnum = Number(tier.ticketType ?? tier[0] ?? 0);
+              const customName = tier.customName ?? tier[1] ?? '';
+              const typeNames = ['Comp', 'Presale', 'General Admission', 'VIP', 'Custom'];
+              const tierName = ticketTypeEnum === 4 ? customName : (typeNames[ticketTypeEnum] || `Tier ${Number(tierId)}`);
+
+              // Read event details from ShowContract
+              const [eventName, flyerDNSLink, venueName, eventStartDate] = await Promise.all([
+                readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'eventName' }),
+                readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'flyerDNSLink' }),
+                readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'venueName' }),
+                readContract(config, { address: showAddr, abi: SHOW_CONTRACT_ABI as any, functionName: 'eventStartDate' }),
+              ]);
+
+              const showTimestamp = Number(eventStartDate);
+              const eventDate = showTimestamp > 0
+                ? new Date(showTimestamp * 1000).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
+                : 'TBD';
+
+              setTicket({
+                id: id,
+                eventId: showAddr,
+                title: (eventName as string) || 'Event',
+                date: eventDate,
+                location: (venueName as string) || '',
+                image: (flyerDNSLink as string) || '',
+                redeemed: isScanned as boolean,
+                ticketCode: `${ticketCollectionAddr}:${parsed.onChainTicketId}`,
+                lineup: [],
+                details: `${tierName} ticket. ShowContract: ${showAddr}`,
+                organizer: 'Smart Contract',
+                contractAddress: showAddr,
+                ticketCollectionAddress: ticketCollectionAddr,
+                isBlockchain: true,
+              });
+              setLoading(false);
+              return;
+            } catch (err) {
+              console.error('Error fetching on-chain ticket:', err);
+            }
+          }
+
+          // Fallback: try localStorage for old blockchain- prefix tickets
+          const stored = localStorage.getItem('purchasedTickets');
+          if (stored) {
+            const purchasedTickets = JSON.parse(stored);
+            const purchased = purchasedTickets.find((t: any) => t.id === id);
+            if (purchased) {
+              setTicket({
+                id: purchased.id,
+                eventId: purchased.eventId,
+                title: purchased.title,
+                date: purchased.date,
+                location: purchased.location,
+                image: purchased.image || '',
+                redeemed: purchased.redeemed || false,
+                ticketCode: purchased.ticketCode || `${purchased.contractAddress}:${purchased.txHash}`,
+                lineup: [],
+                details: `Blockchain ticket purchased on ${new Date(purchased.purchasedAt).toLocaleDateString()}. Contract: ${purchased.contractAddress}${purchased.txHash ? `. Tx: ${purchased.txHash}` : ''}`,
+                organizer: 'Smart Contract',
+                contractAddress: purchased.contractAddress,
+                txHash: purchased.txHash,
+                tickets: purchased.tickets,
+                time: purchased.time,
+                isBlockchain: true,
+              });
+              setLoading(false);
+              return;
+            }
+          }
+          router.push('/stats/tickets');
+          return;
+        }
+
         const ticketData = mockTickets.find(t => t.id === id);
 
         if (!ticketData) {
-          router.push('/tickets');
+          router.push('/stats/tickets');
           return;
         }
 
         setTicket(ticketData);
       } catch (error) {
         console.error('Error in ticket detail page:', error);
-        router.push('/tickets');
+        router.push('/stats/tickets');
       } finally {
         setLoading(false);
       }
     };
-    
+
     getTicketData();
-  }, [id, router]);
+  }, [id, router, isBlockchainTicket]);
 
   const handlePageChange = (pageIndex: number) => {
     setCurrentPage(pageIndex);
   };
 
   const handleBackToTickets = () => {
-    router.push('/tickets');
+    router.push('/stats/tickets');
   };
 
   // Generate QR code URL
@@ -79,7 +194,7 @@ const TicketDetailPage: NextPage = () => {
         <div className={styles.ticketQrContainer}>
           <div className={styles.qrPagination}>
             <span className={styles.qrPageIndicator}>
-              {mockTickets.findIndex(t => t.id === id) + 1} / {mockTickets.length}
+              {isBlockchainTicket ? '1 / 1' : `${mockTickets.findIndex(t => t.id === id) + 1} / ${mockTickets.length}`}
             </span>
           </div>
           <div className={styles.qrCodeWrapper}>
@@ -114,7 +229,7 @@ const TicketDetailPage: NextPage = () => {
 
           <div className={styles.feedContent} style={{ overflow: 'hidden' }}>
             <img
-              src={ticket.image}
+              src={ticket.image || '/profileIcon.svg'}
               alt={`${ticket.title} Ticket`}
               className={styles.feedImage}
               style={{ borderRadius: '30px' }}
@@ -154,17 +269,18 @@ const TicketDetailPage: NextPage = () => {
             </div>
           </div>
 
+          {ticket.lineup && ticket.lineup.length > 0 && (
           <div className={styles.ticketDetailSection}>
             <h3 className={styles.sectionTitle}>LINEUP</h3>
             <div className={styles.lineupGrid}>
               {ticket.lineup.map((artist: string, index: number) => (
                 <div key={index} className={styles.lineupItem}>
                   <div className={styles.lineupAvatar}>
-                    <Image 
-                      src={index % 2 === 0 ? '/rivo-profile-pic.svg' : '/xao-profile.svg'} 
-                      alt={artist} 
-                      width={48} 
-                      height={48} 
+                    <Image
+                      src={index % 2 === 0 ? '/rivo-profile-pic.svg' : '/xao-profile.svg'}
+                      alt={artist}
+                      width={48}
+                      height={48}
                     />
                   </div>
                   <span className={styles.lineupName}>{artist}</span>
@@ -172,6 +288,18 @@ const TicketDetailPage: NextPage = () => {
               ))}
             </div>
           </div>
+          )}
+
+          {ticket.isBlockchain && ticket.tickets && ticket.tickets.length > 0 && (
+          <div className={styles.ticketDetailSection}>
+            <h3 className={styles.sectionTitle}>PURCHASED TICKETS</h3>
+            {ticket.tickets.map((t: any, index: number) => (
+              <div key={index} className={styles.detailRow}>
+                <span className={styles.detailText}>{t.type} × {t.count}</span>
+              </div>
+            ))}
+          </div>
+          )}
 
           <div className={styles.ticketDetailSection}>
             <h3 className={styles.sectionTitle}>DETAILS</h3>

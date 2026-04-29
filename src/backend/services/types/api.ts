@@ -160,6 +160,7 @@ export interface IContract {
   party2?: string;
   status?: string;
   terms?: string;
+  contractAddress?: string;
   datesAndTimes?: {
     startTime?: string;
     endTime?: string;
@@ -183,6 +184,7 @@ export interface IContract {
   payments?: any;
   promotion?: any;
   rider?: any;
+  eventImageUri?: string;
   legalAgreement?: string;
   ticketLegalLanguage?: string;
   createdAt?: Date;

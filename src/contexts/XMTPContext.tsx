@@ -8,6 +8,8 @@ interface XMTPContextType {
   error: string | null;
   walletAddress: string | null;
   showRevokeOption: boolean;
+  unreadCount: number;
+  clearUnread: () => void;
   retry: () => void;
   handleRevokeAndRetry: () => Promise<void>;
 }
@@ -84,6 +86,8 @@ export function XMTPProvider({ children }: XMTPProviderProps) {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [showRevokeOption, setShowRevokeOption] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const streamAbortRef = useRef<AbortController | null>(null);
 
   const initializingRef = useRef(false);
   const signerRef = useRef<Signer | null>(null);
@@ -164,6 +168,73 @@ export function XMTPProvider({ children }: XMTPProviderProps) {
 
         setClient(xmtpClient);
         setError(null);
+
+        // Count existing unread messages + stream new ones
+        if (streamAbortRef.current) {
+          streamAbortRef.current.abort();
+        }
+        const abortController = new AbortController();
+        streamAbortRef.current = abortController;
+
+        const myInboxId = xmtpClient.inboxId;
+
+        (async () => {
+          try {
+            const conversations = await xmtpClient.conversations.list();
+            console.log(`[XMTP] Checking ${conversations.length} conversations for unread messages`);
+
+            // Get last-read timestamp from localStorage
+            const lastReadKey = `xmtp-last-read-${normalizedAddress}`;
+            const lastReadStr = localStorage.getItem(lastReadKey);
+            const lastReadTime = lastReadStr ? new Date(lastReadStr).getTime() : 0;
+
+            let initialUnread = 0;
+
+            // Count unread from existing conversations
+            for (const conv of conversations) {
+              if (abortController.signal.aborted) break;
+              try {
+                await conv.sync();
+                const messages = await conv.messages({ limit: BigInt(20) });
+                for (const msg of messages) {
+                  const msgTime = msg.sentAtNs ? Number(msg.sentAtNs) / 1_000_000 : 0; // ns to ms
+                  const isFromOther = msg.senderInboxId !== myInboxId;
+                  if (isFromOther && msgTime > lastReadTime) {
+                    initialUnread++;
+                  }
+                }
+              } catch {
+                // Skip errored conversations
+              }
+            }
+
+            if (!abortController.signal.aborted) {
+              console.log(`[XMTP] Initial unread count: ${initialUnread}`);
+              setUnreadCount(initialUnread);
+            }
+
+            // Stream new incoming messages across all conversations
+            for (const conv of conversations) {
+              if (abortController.signal.aborted) break;
+              (async () => {
+                try {
+                  const stream = await conv.stream();
+                  for await (const message of stream) {
+                    if (abortController.signal.aborted) break;
+                    if (message.senderInboxId !== myInboxId) {
+                      console.log("[XMTP] New message notification");
+                      setUnreadCount((prev) => prev + 1);
+                    }
+                  }
+                } catch {
+                  // Stream ended
+                }
+              })();
+            }
+          } catch (err) {
+            console.log("[XMTP] Notification stream setup failed:", err);
+          }
+        })();
       } catch (err: any) {
         console.error("[XMTP] Initialization failed:", err);
 
@@ -256,6 +327,14 @@ export function XMTPProvider({ children }: XMTPProviderProps) {
     }
   }, [address, initializeXMTP]);
 
+  const clearUnread = useCallback(() => {
+    setUnreadCount(0);
+    // Save last-read timestamp so we don't recount on next load
+    if (walletAddress) {
+      localStorage.setItem(`xmtp-last-read-${walletAddress}`, new Date().toISOString());
+    }
+  }, [walletAddress]);
+
   // Retry function
   const retry = useCallback(() => {
     setRetryCount((c) => c + 1);
@@ -275,7 +354,12 @@ export function XMTPProvider({ children }: XMTPProviderProps) {
       setWalletAddress(null);
       setError(null);
       setShowRevokeOption(false);
+      setUnreadCount(0);
       currentAddressRef.current = null;
+      if (streamAbortRef.current) {
+        streamAbortRef.current.abort();
+        streamAbortRef.current = null;
+      }
     } else if (address && currentAddressRef.current && address.toLowerCase() !== currentAddressRef.current) {
       // Wallet changed, reset client
       console.log("[XMTP] Wallet changed, resetting client");
@@ -290,6 +374,8 @@ export function XMTPProvider({ children }: XMTPProviderProps) {
     error,
     walletAddress,
     showRevokeOption,
+    unreadCount,
+    clearUnread,
     retry,
     handleRevokeAndRetry,
   };

@@ -314,6 +314,148 @@ const applySorting = async (
   }
 };
 
+// Convert a bigint/number Unix timestamp to a Date object
+const timestampToDate = (timestamp: bigint | number | undefined): Date | null => {
+  if (!timestamp) return null;
+  const num = typeof timestamp === 'bigint' ? Number(timestamp) : timestamp;
+  if (num === 0 || isNaN(num)) return null;
+  const d = new Date(num * 1000);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+// Apply all filters to blockchain contracts (mirrors applyAllFilters but uses contract fields)
+export const applyContractFilters = async (
+  contracts: any[],
+  dateFilters: FilterOptions | null,
+  filterLocation: LocationFilterData,
+  profile: any
+): Promise<any[]> => {
+  const now = new Date();
+
+  let filtered = [...contracts];
+
+  // Step 1: Only show signed contracts (both parties signed)
+  filtered = filtered.filter(c => c.party1Signed && c.party2Signed);
+
+  // Step 2: Show events whose start date is today or later
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+
+  filtered = filtered.filter((c) => {
+    const startDate = timestampToDate(c.showDate);
+    if (!startDate) return true; // keep contracts without a date
+    const startDay = new Date(startDate);
+    startDay.setHours(0, 0, 0, 0);
+    return startDay >= todayStart;
+  });
+
+  // Step 3: Apply date range filter if set
+  if (dateFilters?.startDate) {
+    filtered = filtered.filter((c) => {
+      const eventDate = timestampToDate(c.showDate);
+      if (!eventDate) return false;
+      eventDate.setHours(0, 0, 0, 0);
+
+      const startDate = new Date(dateFilters.startDate);
+      startDate.setHours(0, 0, 0, 0);
+
+      if (!dateFilters.endDate) {
+        // Filter by month only
+        return eventDate.getMonth() === startDate.getMonth() &&
+               eventDate.getFullYear() === startDate.getFullYear();
+      } else {
+        const endDate = new Date(dateFilters.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        return eventDate >= startDate && eventDate <= endDate;
+      }
+    });
+  }
+
+  // Step 4: Apply genre filter if set (contracts use genres array from on-chain data)
+  // Genre is not stored on-chain in contract summaries, so skip genre filtering for now
+
+  // Step 5: Apply location filter if coordinates are set (using venueName)
+  if (filterLocation.coordinates) {
+    const { lat: filterLat, lng: filterLng } = filterLocation.coordinates;
+    const RADIUS_KM = 10;
+
+    const filteredWithDistance = await Promise.all(
+      filtered.map(async (c) => {
+        const eventCoords = await geocodeLocation(c.venueName || '');
+        if (!eventCoords) return { contract: c, distance: Infinity };
+        const distance = calculateDistanceKm(
+          filterLat, filterLng,
+          eventCoords.lat, eventCoords.lng
+        );
+        return { contract: c, distance };
+      })
+    );
+
+    filtered = filteredWithDistance
+      .filter(({ distance }) => distance <= RADIUS_KM)
+      .sort((a, b) => a.distance - b.distance)
+      .map(({ contract }) => contract);
+  } else {
+    // Sort by showDate (soonest first), then by distance from user location
+    filtered = await applyContractDefaultSorting(filtered, dateFilters, profile);
+  }
+
+  return filtered;
+};
+
+// Apply default sorting for contracts
+const applyContractDefaultSorting = async (
+  filtered: any[],
+  dateFilters: FilterOptions | null,
+  profile: any
+): Promise<any[]> => {
+  const hasLocation = dateFilters?.sortBy?.includes('location');
+  const hasDate = dateFilters?.sortBy?.includes('date');
+
+  if (hasLocation && profile?.location) {
+    let userCoords = userDefaultLocationCache?.coords;
+    if (!userDefaultLocationCache || userDefaultLocationCache.location !== profile.location) {
+      userCoords = await geocodeLocation(profile.location);
+      userDefaultLocationCache = { location: profile.location, coords: userCoords };
+    }
+
+    if (userCoords) {
+      const withDistance = await Promise.all(
+        filtered.map(async (c) => {
+          const eventCoords = await geocodeLocation(c.venueName || '');
+          if (!eventCoords) return { contract: c, distance: Infinity };
+          const distance = calculateDistanceKm(
+            userCoords!.lat, userCoords!.lng,
+            eventCoords.lat, eventCoords.lng
+          );
+          return { contract: c, distance };
+        })
+      );
+
+      withDistance.sort((a, b) => {
+        if (a.distance !== b.distance) return a.distance - b.distance;
+        if (hasDate) {
+          const dateA = timestampToDate(a.contract.showDate);
+          const dateB = timestampToDate(b.contract.showDate);
+          if (dateA && dateB) return dateA.getTime() - dateB.getTime();
+        }
+        return 0;
+      });
+
+      return withDistance.map(({ contract }) => contract);
+    }
+  }
+
+  // Default: sort by date (soonest first)
+  filtered.sort((a, b) => {
+    const dateA = timestampToDate(a.showDate);
+    const dateB = timestampToDate(b.showDate);
+    if (!dateA || !dateB) return 0;
+    return dateA.getTime() - dateB.getTime();
+  });
+  return filtered;
+};
+
 // Apply default sorting (by distance from user's location or by date)
 const applyDefaultSorting = async (filtered: any[], profile: any): Promise<any[]> => {
   if (profile?.location) {

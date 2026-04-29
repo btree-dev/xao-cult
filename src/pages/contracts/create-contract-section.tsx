@@ -10,6 +10,9 @@ import { EventDocs } from "../../backend/eventsdata";
 import { Genres } from "../../backend/public-information-services/publicinfodata";
 import { IContract } from "../../backend/services/types/api";
 const dropdownOptions = ["Option 1", "Option 2", "Option 3"];
+
+// ── Toggle this to enable/disable the "Fill Dummy Data" button ──
+const ENABLE_DUMMY_DATA = true;
 interface CreateContractsectionProps {
   party1: string;
   party2: string;
@@ -73,8 +76,12 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
   interface RiderRow {
     value: string;
   }
-  const [riderRows, setRiderRows] = useState<RiderRow[]>([{ value: "" }]);
-  const [promotionImage, setPromotionImage] = useState<string | null>(null);
+  const [riderRows, setRiderRows] = useState<RiderRow[]>([
+    { value: "" }
+  ]);
+  const [promotionImage, setPromotionImage] = useState<string | null>(null); // base64 preview
+  const [promotionImageUri, setPromotionImageUri] = useState<string | null>(null); // IPFS URI
+  const [isImageUploading, setIsImageUploading] = useState(false);
   const [payoutDateTime, setPayoutDateTime] = useState("");
   const [payoutPercentage, setPayoutPercentage] = useState("");
   const [payoutDollarAmount, setPayoutDollarAmount] = useState("");
@@ -87,69 +94,69 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     { ticketType: "", onSaleDate: "", numberOfTickets: "", ticketPrice: "" }
   ]);
 
-  
+  // Add security deposit rows state
   const [securityDepositRows, setSecurityDepositRows] = useState<SecurityDepositRow[]>([
-  { dateTime: "", percentage: "", dollarAmount: "" }
-]);
+    { dateTime: "", percentage: "", dollarAmount: "" }
+  ]);
 
-const [cancelParty1Rows, setCancelParty1Rows] = useState<CancelPartyRow[]>([
-  { dateTime: "", percentage: "", dollarAmount: "" }
-]);
-const addCancelParty1Row = () => setCancelParty1Rows([...cancelParty1Rows, { dateTime: "", percentage: "", dollarAmount: "" }]);
-const updateCancelParty1Row = (index: number, field: keyof CancelPartyRow, value: string) => {
-  const updated = [...cancelParty1Rows];
-  updated[index][field] = value;
-  setCancelParty1Rows(updated);
-};
-const [securityDeposit2Rows, setSecurityDeposit2Rows] = useState<SecurityDepositRow[]>([
-  { dateTime: "", percentage: "", dollarAmount: "" }
-]);
-const addSecurityDeposit2Row = () => setSecurityDeposit2Rows([...securityDeposit2Rows, { dateTime: "", percentage: "", dollarAmount: "" }]);
-const updateSecurityDeposit2Row = (index: number, field: keyof SecurityDepositRow, value: string) => {
-  const updated = [...securityDeposit2Rows];
-  updated[index][field] = value;
-  setSecurityDeposit2Rows(updated);
-};
+  const [cancelParty1Rows, setCancelParty1Rows] = useState<CancelPartyRow[]>([
+    { dateTime: "", percentage: "", dollarAmount: "" }
+  ]);
+  const addCancelParty1Row = () => setCancelParty1Rows([...cancelParty1Rows, { dateTime: "", percentage: "", dollarAmount: "" }]);
+  const updateCancelParty1Row = (index: number, field: keyof CancelPartyRow, value: string) => {
+    const updated = [...cancelParty1Rows];
+    updated[index][field] = value;
+    setCancelParty1Rows(updated);
+  };
+  const [securityDeposit2Rows, setSecurityDeposit2Rows] = useState<SecurityDepositRow[]>([
+    { dateTime: "", percentage: "", dollarAmount: "" }
+  ]);
+  const addSecurityDeposit2Row = () => setSecurityDeposit2Rows([...securityDeposit2Rows, { dateTime: "", percentage: "", dollarAmount: "" }]);
+  const updateSecurityDeposit2Row = (index: number, field: keyof SecurityDepositRow, value: string) => {
+    const updated = [...securityDeposit2Rows];
+    updated[index][field] = value;
+    setSecurityDeposit2Rows(updated);
+  };
 
-const [cancelParty2Rows, setCancelParty2Rows] = useState<CancelPartyRow[]>([
-  { dateTime: "", percentage: "", dollarAmount: "" }
-]);
-const addCancelParty2Row = () => setCancelParty2Rows([...cancelParty2Rows, { dateTime: "", percentage: "", dollarAmount: "" }]);
-const updateCancelParty2Row = (index: number, field: keyof CancelPartyRow, value: string) => {
-  const updated = [...cancelParty2Rows];
-  updated[index][field] = value;
-  setCancelParty2Rows(updated);
-};
+  const [cancelParty2Rows, setCancelParty2Rows] = useState<CancelPartyRow[]>([
+    { dateTime: "", percentage: "", dollarAmount: "" }
+  ]);
+  const addCancelParty2Row = () => setCancelParty2Rows([...cancelParty2Rows, { dateTime: "", percentage: "", dollarAmount: "" }]);
+  const updateCancelParty2Row = (index: number, field: keyof CancelPartyRow, value: string) => {
+    const updated = [...cancelParty2Rows];
+    updated[index][field] = value;
+    setCancelParty2Rows(updated);
+  };
 
-// Payment rows state for Party 1
-const [payoutRows, setPayoutRows] = useState<PaymentRow[]>([
-  { dateTime: "", percentage: "", dollarAmount: "" }
-]);
-const addPayoutRow = () => setPayoutRows([...payoutRows, { dateTime: "", percentage: "", dollarAmount: "" }]);
-const updatePayoutRow = (index: number, field: keyof PaymentRow, value: string) => {
-  const updated = [...payoutRows];
-  updated[index][field] = value;
-  setPayoutRows(updated);
-};
+  // Payment rows state for Party 1
+  const [payoutRows, setPayoutRows] = useState<PaymentRow[]>([
+    { dateTime: "", percentage: "", dollarAmount: "" }
+  ]);
+  const addPayoutRow = () => setPayoutRows([...payoutRows, { dateTime: "", percentage: "", dollarAmount: "" }]);
+  const updatePayoutRow = (index: number, field: keyof PaymentRow, value: string) => {
+    const updated = [...payoutRows];
+    updated[index][field] = value;
+    setPayoutRows(updated);
+  };
 
-// Payment rows state for Party 2
-const [payout2Rows, setPayout2Rows] = useState<PaymentRow[]>([
-  { dateTime: "", percentage: "", dollarAmount: "" }
-]);
-const addPayout2Row = () => setPayout2Rows([...payout2Rows, { dateTime: "", percentage: "", dollarAmount: "" }]);
-const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string) => {
-  const updated = [...payout2Rows];
-  updated[index][field] = value;
-  setPayout2Rows(updated);
-};
+  // Payment rows state for Party 2
+  const [payout2Rows, setPayout2Rows] = useState<PaymentRow[]>([
+    { dateTime: "", percentage: "", dollarAmount: "" }
+  ]);
+  const addPayout2Row = () => setPayout2Rows([...payout2Rows, { dateTime: "", percentage: "", dollarAmount: "" }]);
+  const updatePayout2Row = (index: number, field: keyof PaymentRow, value: string) => {
+    const updated = [...payout2Rows];
+    updated[index][field] = value;
+    setPayout2Rows(updated);
+  };
 
-// Rider row functions
-const addRiderRow = () => setRiderRows([...riderRows, { value: "" }]);
-const updateRiderRow = (index: number, value: string) => {
-  const updated = [...riderRows];
-  updated[index].value = value;
-  setRiderRows(updated);
-};
+  // Rider row functions
+  const addRiderRow = () => setRiderRows([...riderRows, { value: "" }]);
+  const updateRiderRow = (index: number, value: string) => {
+    const updated = [...riderRows];
+    updated[index].value = value;
+    setRiderRows(updated);
+  };
 
   const startTimeInputRef = useRef<HTMLInputElement | null>(null);
   const endTimeInputRef = useRef<HTMLInputElement | null>(null);
@@ -312,6 +319,13 @@ const updateRiderRow = (index: number, value: string) => {
       setIsPromotionOpen(true);
     }
 
+    // Event Image - use IPFS URI to display image in promotion section
+    if (data.eventImageUri) {
+      setPromotionImage(data.eventImageUri);
+      setPromotionImageUri(data.eventImageUri);
+      setIsPromotionOpen(true);
+    }
+
     // Rider
     if (data.rider && data.rider.rows) {
       setRiderRows(data.rider.rows);
@@ -345,6 +359,8 @@ const updateRiderRow = (index: number, value: string) => {
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Clear existing IPFS URI so the new image gets uploaded
+      setPromotionImageUri(null);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPromotionImage(reader.result as string);
@@ -383,6 +399,7 @@ const updateRiderRow = (index: number, value: string) => {
       ticketRows,
       totalCapacity,
       comps,
+      salesTax: comps,
       resale: {
         party1: resaleParty1,
         party2: resaleParty2,
@@ -412,6 +429,7 @@ const updateRiderRow = (index: number, value: string) => {
       genres: promotionGenres,
       imageData: promotionImage,
     },
+    eventImageUri: promotionImageUri || undefined,
     rider: {
       rows: riderRows,
     },
@@ -420,13 +438,116 @@ const updateRiderRow = (index: number, value: string) => {
     updatedAt: new Date(),
   });
 
-  // Expose getContractData to parent
+  // Fill all form fields with dummy/test data for fast contract creation
+  const fillDummyData = () => {
+    // Dates & Times
+    setEventStartDate("2026-05-15T19:00");
+    setEventEndDate("2026-05-15T23:00");
+    setEventAnnouncementDate("2026-04-20T10:00");
+    setStartTime("19:00");
+    setEndTime("23:00");
+    setLoadIn("14:00");
+    setDoors("18:00");
+    setSetTime("20:00");
+    setSetLength("90");
+    setIsDatesTimeOpen(true);
+
+    // Location
+    setVenueName("The Roxy Theatre");
+    setAddress("9009 Sunset Blvd, West Hollywood, CA 90069");
+    setRadiusDistance("50 miles");
+    setDays("30 days");
+    setIsLocationOpen(true);
+
+    // Tickets
+    setTotalCapacity("500");
+    setComps("8");
+    setResaleParty1("33.33");
+    setResaleParty2("33.33");
+    setResaleReseller("33.34");
+    setticketsEnabled(true);
+    setTicketRows([
+      { ticketType: "General Admission", onSaleDate: "2026-04-01T00:00", numberOfTickets: "400", ticketPrice: "45" },
+      { ticketType: "VIP", onSaleDate: "2026-04-01T00:00", numberOfTickets: "100", ticketPrice: "120" },
+    ]);
+    setIsTicketsOpen(true);
+
+    // Money
+    setguaranteeInput("");
+    setBackendInput("20");
+    setBarsplitInput("15");
+    setMerchSplitInput("10");
+    setdepositbandInput("1,000");
+    setbandCanceledBy("2026-05-01T12:00");
+    setsecuritydepositAdd("");
+    setSecurityDepositRows([
+      { dateTime: "2026-04-30T12:00", percentage: "50", dollarAmount: "2,500" },
+    ]);
+    setCancelParty1Rows([
+      { dateTime: "2026-05-10T12:00", percentage: "25", dollarAmount: "1,250" },
+    ]);
+    setCancelParty2Rows([
+      { dateTime: "2026-05-10T12:00", percentage: "25", dollarAmount: "1,250" },
+    ]);
+    setIsMoneyOpen(true);
+
+    // Payments
+    setPayoutRows([
+      { dateTime: "2026-05-16T12:00", percentage: "100", dollarAmount: "5,000" },
+    ]);
+    setPayout2Rows([
+      { dateTime: "2026-05-16T12:00", percentage: "100", dollarAmount: "5,000" },
+    ]);
+    setIsPaymentsOpen(true);
+
+    // Promotion
+    setPromotionValue("Summer Sunset Sessions");
+    setPromotionGenres(["Rock", "Indie"]);
+    setIsPromotionOpen(true);
+
+    // Rider
+    setRiderRows([
+      { value: "12x bottles of water" },
+      { value: "Vegetarian meal for 4" },
+      { value: "2x cases of beer" },
+    ]);
+    setIsRiderOpen(true);
+
+    // Legal
+    setLegalAgreementValue("Standard performance agreement. All terms subject to mutual consent.");
+    setIsLegalAgreementOpen(true);
+    setTicketLegalLanguageValue("All sales final. No refunds except in case of event cancellation.");
+    setIsTicketLegalLanguageOpen(true);
+  };
+
+  // Expose getContractData and fillDummyData to parent
   useImperativeHandle(ref, () => ({
     getContractData,
+    fillDummyData,
   }));
 
   return (
     <div className={styles.sectioncontainer}>
+      {ENABLE_DUMMY_DATA && (
+        <button
+          type="button"
+          onClick={fillDummyData}
+          style={{
+            width: "100%",
+            padding: "10px",
+            marginBottom: "12px",
+            background: "linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%)",
+            color: "#fff",
+            border: "none",
+            borderRadius: "30px",
+            cursor: "pointer",
+            fontWeight: "bold",
+            fontSize: "14px",
+          }}
+        >
+          Fill Dummy Data
+        </button>
+      )}
       <DatesAndTimesSection
         isOpen={isDatesTimeOpen}
         onToggle={() => setIsDatesTimeOpen(!isDatesTimeOpen)}
@@ -560,7 +681,7 @@ const updateRiderRow = (index: number, value: string) => {
               />
               <div className={styles.promotionImageContainer}>
                 {promotionImage ? (
-                  <>
+                  <div onClick={handleImageClick} style={{ cursor: 'pointer', position: 'relative' }}>
                     <img
                       src={promotionImage}
                       alt="Uploaded promotion"
@@ -577,7 +698,7 @@ const updateRiderRow = (index: number, value: string) => {
                         Sat. 19 December
                       </span>
                     </div>
-                  </>
+                  </div>
                 ) : (
                   <div
                     className={styles.promotionImagePlaceholder}

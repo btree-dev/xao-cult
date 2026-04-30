@@ -12,6 +12,7 @@ import { SHOW_CONTRACT_ABI, XAO_TICKET_ABI } from "../../../lib/web3/eventcontra
 import { USDC_ADDRESS_TESTNET, USDC_ADDRESS_MAINNET } from "../../../lib/web3/chains";
 
 import Navbar from "../../../components/Navbar";
+import FundTicketButton from "../../../components/FundTicketButton";
 
 const PurchaseConfirmation: NextPage = () => {
   const [loading, setLoading] = useState(true);
@@ -307,13 +308,22 @@ const PurchaseConfirmation: NextPage = () => {
                   {purchaseError}
                 </div>
               )}
-              <button 
-                className={styles.confirmButton} 
+              <button
+                className={styles.confirmButton}
                 onClick={handleConfirm}
                 disabled={isPurchasing || isPending || isWaiting}
               >
                 {isPurchasing || isPending || isWaiting ? 'Processing...' : 'Confirm Purchase'}
               </button>
+              {isContractAddress && isConnected && (
+                <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'center' }}>
+                  <FundTicketButton
+                    walletAddress={address as `0x${string}` | undefined}
+                    amountUsd={totalAmount}
+                    chainId={chain?.id}
+                  />
+                </div>
+              )}
               {isContractAddress && !isConnected && (
                 <p style={{ color: 'yellow', marginTop: '10px', textAlign: 'center', fontSize: '14px' }}>
                   Please connect your wallet to purchase tickets

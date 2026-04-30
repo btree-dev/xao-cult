@@ -1,4 +1,11 @@
 import React, { useCallback, useState } from 'react';
+import {
+  ONRAMP_ENABLED,
+  CDP_PROJECT_ID,
+  buildOnrampUrl,
+  openOnrampPopup,
+  networkForChainId,
+} from '../lib/coinbase/onramp';
 
 interface FundTicketButtonProps {
   walletAddress?: `0x${string}`;
@@ -6,59 +13,6 @@ interface FundTicketButtonProps {
   chainId?: number;
   className?: string;
   onPopupClose?: () => void;
-}
-
-const ONRAMP_ENABLED = process.env.NEXT_PUBLIC_ENABLE_FIAT_ONRAMP === 'true';
-const CDP_PROJECT_ID = process.env.NEXT_PUBLIC_CDP_PROJECT_ID;
-
-function buildOnrampUrl(params: {
-  projectId: string;
-  address: `0x${string}`;
-  amountUsd: number;
-  network: 'base' | 'base-sepolia';
-}): string {
-  const destinationWallets = [
-    {
-      address: params.address,
-      blockchains: [params.network],
-      assets: ['USDC'],
-    },
-  ];
-
-  const url = new URL('https://pay.coinbase.com/buy/select-asset');
-  url.searchParams.set('appId', params.projectId);
-  url.searchParams.set('destinationWallets', JSON.stringify(destinationWallets));
-  url.searchParams.set('defaultAsset', 'USDC');
-  url.searchParams.set('defaultNetwork', params.network);
-  if (params.amountUsd > 0) {
-    url.searchParams.set('presetFiatAmount', params.amountUsd.toFixed(2));
-    url.searchParams.set('fiatCurrency', 'USD');
-  }
-  return url.toString();
-}
-
-function openOnrampPopup(url: string, onClose?: () => void) {
-  const width = 460;
-  const height = 730;
-  const left = window.screenX + (window.outerWidth - width) / 2;
-  const top = window.screenY + (window.outerHeight - height) / 2;
-  const popup = window.open(
-    url,
-    'coinbase-onramp',
-    `width=${width},height=${height},left=${left},top=${top},popup=yes,scrollbars=yes`,
-  );
-  if (!popup || popup.closed) {
-    window.open(url, '_blank');
-    return;
-  }
-  if (onClose) {
-    const interval = window.setInterval(() => {
-      if (popup.closed) {
-        window.clearInterval(interval);
-        onClose();
-      }
-    }, 500);
-  }
 }
 
 export const FundTicketButton: React.FC<FundTicketButtonProps> = ({
@@ -72,12 +26,11 @@ export const FundTicketButton: React.FC<FundTicketButtonProps> = ({
 
   const handleClick = useCallback(() => {
     if (!walletAddress || !CDP_PROJECT_ID) return;
-    const network: 'base' | 'base-sepolia' = chainId === 8453 ? 'base' : 'base-sepolia';
     const fundingUrl = buildOnrampUrl({
       projectId: CDP_PROJECT_ID,
       address: walletAddress,
       amountUsd,
-      network,
+      network: networkForChainId(chainId),
     });
     setOpening(true);
     openOnrampPopup(fundingUrl, () => {

@@ -1,7 +1,7 @@
 // pages/event/[id]/confirm.tsx
 import type { NextPage } from "next";
 import Head from "next/head";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import styles from "../../../styles/Home.module.css";
 import { useBuyTickets } from "../../../hooks/useBuyTickets";
@@ -10,6 +10,14 @@ import { waitForTransactionReceipt, readContract } from "@wagmi/core";
 import { config } from "../../../wagmi";
 import { SHOW_CONTRACT_ABI, XAO_TICKET_ABI } from "../../../lib/web3/eventcontract";
 import { USDC_ADDRESS_TESTNET, USDC_ADDRESS_MAINNET } from "../../../lib/web3/chains";
+import { readUsdcBalance, waitForUsdcBalance, USDC_DECIMALS } from "../../../lib/web3/usdc";
+import {
+  ONRAMP_ENABLED,
+  CDP_PROJECT_ID,
+  buildOnrampUrl,
+  openOnrampPopup,
+  networkForChainId,
+} from "../../../lib/coinbase/onramp";
 
 import Navbar from "../../../components/Navbar";
 import FundTicketButton from "../../../components/FundTicketButton";
@@ -20,6 +28,9 @@ const PurchaseConfirmation: NextPage = () => {
   const [selectedTickets, setSelectedTickets] = useState<any[]>([]);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string>("");
+  const [waitingForFunds, setWaitingForFunds] = useState(false);
+  const [fundsDeficitUsd, setFundsDeficitUsd] = useState(0);
+  const fundsAbortRef = useRef<AbortController | null>(null);
   const router = useRouter();
   const { id, tickets, eventTitle, eventImage, eventLocation, eventDate, eventTime } = router.query;
   
@@ -42,6 +53,12 @@ const PurchaseConfirmation: NextPage = () => {
       }
     }
   }, [tickets]);
+
+  useEffect(() => {
+    return () => {
+      fundsAbortRef.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     if (!id || !eventTitle) return;
@@ -105,6 +122,57 @@ const PurchaseConfirmation: NextPage = () => {
           setPurchaseError("Ticket collection not deployed yet. Both parties must sign the contract first.");
           setIsPurchasing(false);
           return;
+        }
+
+        // Compute total USDC required across all tiers
+        const totalUsdcWei = selectedTickets.reduce<bigint>((sum, t) => {
+          const priceWei = BigInt(t.priceRaw ?? Math.floor(t.price * 1e6));
+          return sum + priceWei * BigInt(t.count);
+        }, BigInt(0));
+
+        // Check current balance and top up via Coinbase Onramp if short
+        if (ONRAMP_ENABLED && CDP_PROJECT_ID && address) {
+          const balance = await readUsdcBalance(address as `0x${string}`, chain?.id);
+          if (balance < totalUsdcWei) {
+            const deficitWei = totalUsdcWei - balance;
+            const deficitUsd = Number(deficitWei) / 10 ** USDC_DECIMALS;
+            setFundsDeficitUsd(deficitUsd);
+            setWaitingForFunds(true);
+
+            const fundingUrl = buildOnrampUrl({
+              projectId: CDP_PROJECT_ID,
+              address: address as `0x${string}`,
+              amountUsd: deficitUsd,
+              network: networkForChainId(chain?.id),
+            });
+            openOnrampPopup(fundingUrl);
+
+            fundsAbortRef.current?.abort();
+            fundsAbortRef.current = new AbortController();
+            try {
+              await waitForUsdcBalance(
+                address as `0x${string}`,
+                totalUsdcWei,
+                chain?.id,
+                { signal: fundsAbortRef.current.signal },
+              );
+            } catch (err) {
+              setWaitingForFunds(false);
+              const msg = err instanceof Error ? err.message : 'unknown';
+              if (msg === 'cancelled') {
+                setPurchaseError("Payment cancelled. Try again when you're ready.");
+              } else if (msg === 'timeout') {
+                setPurchaseError(
+                  "We didn't see your payment arrive within 5 minutes. If you completed it, refresh and try again — funds typically settle within a few minutes.",
+                );
+              } else {
+                setPurchaseError(`Payment check failed: ${msg}`);
+              }
+              setIsPurchasing(false);
+              return;
+            }
+            setWaitingForFunds(false);
+          }
         }
 
         const txHashes: string[] = [];
@@ -308,12 +376,27 @@ const PurchaseConfirmation: NextPage = () => {
                   {purchaseError}
                 </div>
               )}
+              {waitingForFunds && (
+                <div style={{ color: '#fff', marginBottom: '10px', textAlign: 'center', fontSize: '14px', lineHeight: 1.4 }}>
+                  Waiting for ${fundsDeficitUsd.toFixed(2)} to arrive from Coinbase…
+                  <br />
+                  <span style={{ opacity: 0.7 }}>This usually takes 30s–2min.</span>
+                  <br />
+                  <button
+                    type="button"
+                    onClick={() => fundsAbortRef.current?.abort()}
+                    style={{ background: 'none', border: 'none', color: '#FF8A00', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline', marginTop: 4 }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
               <button
                 className={styles.confirmButton}
                 onClick={handleConfirm}
-                disabled={isPurchasing || isPending || isWaiting}
+                disabled={isPurchasing || isPending || isWaiting || waitingForFunds}
               >
-                {isPurchasing || isPending || isWaiting ? 'Processing...' : 'Confirm Purchase'}
+                {waitingForFunds ? 'Waiting for payment…' : (isPurchasing || isPending || isWaiting) ? 'Processing...' : 'Confirm Purchase'}
               </button>
               {isContractAddress && isConnected && (
                 <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'center' }}>

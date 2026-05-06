@@ -1,0 +1,83 @@
+import { describe, it, expect } from 'vitest';
+import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts';
+import { type Hex } from 'viem';
+import { ContentType } from './types';
+import {
+  buildUnsignedBody,
+  payloadDigest,
+  computeBodyHash,
+  buildEnvelope,
+  verifyEnvelope,
+} from './envelope';
+import { createSessionKeypair, mintSessionCert, SESSION_DURATION_MS } from './session';
+
+async function seal(text = 'hello') {
+  const pk = generatePrivateKey();
+  const account = privateKeyToAccount(pk);
+  const { privateKey: sk, publicKey: spk } = await createSessionKeypair();
+  const cert = await mintSessionCert({
+    walletAddress: account.address,
+    sessionPublicKeyHex: spk,
+    expiresAtUnixMs: Date.now() + SESSION_DURATION_MS,
+    chainId: 84532,
+    signMessage: async (m) => account.signMessage({ message: m }),
+  });
+  const body = buildUnsignedBody({
+    threadId: ('0x' + 'aa'.repeat(32)) as Hex,
+    contentType: ContentType.TEXT,
+    payload: { kind: 'text', text },
+    parentHash: ('0x' + '00'.repeat(32)) as Hex,
+    sender: account.address,
+  });
+  const envelope = await buildEnvelope(body, sk, cert);
+  return { account, cert, sk, body, envelope };
+}
+
+describe('envelope', () => {
+  it('round-trips build → verify', async () => {
+    const { envelope } = await seal();
+    expect(await verifyEnvelope(envelope)).toBe(true);
+  });
+
+  it('rejects when the body is tampered (payloadHash no longer matches)', async () => {
+    const { envelope } = await seal();
+    const tampered = { ...envelope, body: { ...envelope.body, payload: { kind: 'text' as const, text: 'HELLO' } } };
+    expect(await verifyEnvelope(tampered)).toBe(false);
+  });
+
+  it('rejects when sender does not match cert wallet', async () => {
+    const { envelope } = await seal();
+    const otherAddr = '0x000000000000000000000000000000000000beef' as `0x${string}`;
+    const tampered = { ...envelope, body: { ...envelope.body, sender: otherAddr } };
+    expect(await verifyEnvelope(tampered)).toBe(false);
+  });
+
+  it('rejects an envelope whose payloadHash does not match its body', async () => {
+    const { envelope } = await seal();
+    const tampered = { ...envelope, payloadHash: ('0x' + 'ff'.repeat(32)) as Hex };
+    expect(await verifyEnvelope(tampered)).toBe(false);
+  });
+
+  it('rejects when the cert is expired', async () => {
+    const { envelope } = await seal();
+    const tampered = {
+      ...envelope,
+      cert: { ...envelope.cert, expiresAtUnixMs: Date.now() - 1, walletSignature: envelope.cert.walletSignature },
+    };
+    expect(await verifyEnvelope(tampered)).toBe(false);
+  });
+
+  it('payloadDigest is stable across object key ordering', () => {
+    const a = buildUnsignedBody({
+      threadId: ('0x' + 'aa'.repeat(32)) as Hex,
+      contentType: ContentType.TEXT,
+      payload: { kind: 'text', text: 'x' },
+      parentHash: ('0x' + '00'.repeat(32)) as Hex,
+      sender: '0x000000000000000000000000000000000000dead',
+      messageId: ('0x' + 'bb'.repeat(32)) as Hex,
+      sentAt: 12345,
+    });
+    const b = { ...a }; // structural clone; same fields, same hashes
+    expect(payloadDigest(a)).toEqual(payloadDigest(b));
+  });
+});

@@ -7,7 +7,7 @@ import Image from "next/image";
 import { useRouter } from "next/router";
 import CreateContractsection from "./create-contract-section";
 import Scrollbar from "../../components/Scrollbar";
-import { ChatComponent } from "../../components/Chat";
+import { ChatComponent, XaoMsgComponent } from "../../components/Chat";
 import { useCreateEventContract } from "../../hooks/useCreateContract";
 import { useSignEventContract } from "../../hooks/useSignEventContract";
 import { useAddTicketType, useAddTierToXAOTicket, dollarToWei, dateTimeToTimestamp } from "../../hooks/useAddTicketType";
@@ -444,11 +444,18 @@ const CreateContract = () => {
           </div>
           <div className={styles.content}>
             {selected === "chat" ? (
-              <ChatComponent
-                peerAddress={peerAddress}
-                embedded={true}
-                onContractProposalSelect={handleContractProposalSelect}
-              />
+              process.env.NEXT_PUBLIC_USE_XAOMSG === '1' ? (
+                <XaoMsgComponent
+                  showContract={(savedContractAddress ?? newContractAddress ?? null) as `0x${string}` | null}
+                  embedded={true}
+                />
+              ) : (
+                <ChatComponent
+                  peerAddress={peerAddress}
+                  embedded={true}
+                  onContractProposalSelect={handleContractProposalSelect}
+                />
+              )
             ) : (
               <>
                 <div className={styles.docContainer}>

@@ -30,6 +30,6 @@ export async function decryptBody(b64: string, key: CryptoKey): Promise<string> 
 export async function deriveDeterministicThreadKey(showAddress: Address | string): Promise<CryptoKey> {
   const lower = showAddress.toLowerCase();
   const digest = keccak256(concat([toBytes('xao-thread-key-v1'), toBytes(lower)]));
-  const raw = toBytes(digest); // 32 bytes
+  const raw = new Uint8Array(toBytes(digest)); // 32 bytes, fresh ArrayBuffer-backed
   return crypto.subtle.importKey('raw', raw, 'AES-GCM', true, ['encrypt', 'decrypt']);
 }

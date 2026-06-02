@@ -95,13 +95,6 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
 
   return (
     <>
-      {isConnected && (
-        <div className={styles.walletInfo}>
-          <span className={styles.walletNetwork}>{networkName}</span>
-          <span className={styles.walletAddress}>{shortAddress}</span>
-          <span className={styles.walletBalance}>${formattedUSDC}</span>
-        </div>
-      )}
       {showBackButton ? (
         <nav className={styles.navbar}>
           <div className={styles.navContainer}>

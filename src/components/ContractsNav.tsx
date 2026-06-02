@@ -61,13 +61,6 @@ const ContractsNav: React.FC = () => {
 
   return (
     <nav className={styles.navbar}>
-      {isConnected && (
-        <div className={styles.walletInfo}>
-          <span className={styles.walletNetwork}>{networkName}</span>
-          <span className={styles.walletAddress}>{shortAddress}</span>
-          <span className={styles.walletBalance}>${formattedUSDC}</span>
-        </div>
-      )}
       <div className={styles.iconRow}>
         <span onClick={handleBack} style={{ cursor: "pointer" }}>
           <Image src="/contracts-nav/Back.svg" alt="Back" width={40} height={40} />

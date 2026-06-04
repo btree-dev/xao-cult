@@ -22,12 +22,25 @@ import {
 const DEFAULT_PAY = 'USDC';
 const DEFAULT_GET = 'WETH';
 
-function readStoredToken(key: string, chainId: number): TokenInfo | undefined {
+function readStoredToken(key: string): TokenInfo | undefined {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return undefined;
     const parsed = JSON.parse(raw);
-    return findTokenBySymbol(chainId, parsed.symbol);
+    if (
+      typeof parsed?.address !== 'string' ||
+      typeof parsed?.symbol !== 'string' ||
+      typeof parsed?.decimals !== 'number'
+    ) {
+      return undefined;
+    }
+    return {
+      address: parsed.address as `0x${string}`,
+      symbol: parsed.symbol,
+      name: parsed.name ?? parsed.symbol,
+      decimals: parsed.decimals,
+      icon: parsed.icon ?? '/currency-symbols/eth.svg',
+    };
   } catch {
     return undefined;
   }
@@ -57,8 +70,8 @@ const Swap: NextPage = () => {
     const initialGet = findTokenBySymbol(pickerChainId, DEFAULT_GET)
       || getTokensForChain(pickerChainId)[1]
       || initialPay;
-    setPayToken(readStoredToken('selectedPayToken', pickerChainId) || initialPay);
-    setGetToken(readStoredToken('selectedGetToken', pickerChainId) || initialGet);
+    setPayToken(readStoredToken('selectedPayToken') || initialPay);
+    setGetToken(readStoredToken('selectedGetToken') || initialGet);
   }, [pickerChainId]);
 
   const { balances } = useTokenList(address, pickerChainId);

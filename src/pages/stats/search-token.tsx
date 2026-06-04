@@ -3,7 +3,8 @@ import { useMemo, useState } from 'react';
 import styles from '../../styles/SelectToken.module.css';
 import Layout from '../../components/Layout';
 import { useWeb3 } from '../../hooks/useWeb3';
-import { getTokensForChain, isSwapSupportedChain, TokenInfo } from '../../lib/web3/tokens';
+import { useUniswapTokenList } from '../../hooks/useUniswapTokenList';
+import { isSwapSupportedChain, TokenInfo } from '../../lib/web3/tokens';
 import { baseSepolia } from 'wagmi/chains';
 
 const SelectToken = () => {
@@ -12,14 +13,18 @@ const SelectToken = () => {
     const { chain } = useWeb3();
     const [search, setSearch] = useState('');
 
-    const tokens = useMemo(() => {
-        const id = isSwapSupportedChain(chain?.id) ? chain!.id : baseSepolia.id;
-        return getTokensForChain(id);
-    }, [chain?.id]);
+    const chainId = useMemo(
+        () => (isSwapSupportedChain(chain?.id) ? chain!.id : baseSepolia.id),
+        [chain?.id],
+    );
+    const { tokens, isLoading, error } = useUniswapTokenList(chainId);
 
+    const q = search.trim().toLowerCase();
     const filtered = tokens.filter((t) =>
-        t.symbol.toLowerCase().includes(search.toLowerCase()) ||
-        t.name.toLowerCase().includes(search.toLowerCase()),
+        q === '' ||
+        t.symbol.toLowerCase().includes(q) ||
+        t.name.toLowerCase().includes(q) ||
+        t.address.toLowerCase() === q,
     );
 
     const handleSelect = (token: TokenInfo) => {
@@ -47,8 +52,17 @@ const SelectToken = () => {
                     className={styles.search}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder={search === '' ? 'Search token' : ''}
+                    placeholder={search === '' ? 'Search by name, symbol, or address' : ''}
                 />
+
+            {isLoading && tokens.length === 0 && (
+                <div style={{ textAlign: 'center', color: '#ccc', padding: 16 }}>Loading token list…</div>
+            )}
+            {error && (
+                <div style={{ textAlign: 'center', color: '#ff9900', padding: 8, fontSize: 12 }}>
+                    Using curated list (remote fetch failed)
+                </div>
+            )}
 
             <div className={styles.tokenList}>
                 {filtered.map((token) => (

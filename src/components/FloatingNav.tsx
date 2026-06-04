@@ -26,7 +26,7 @@ const FloatingNav = () => {
     {
       id: 'swap',
       title: 'Swap',
-      routes: ['/dashboard'], 
+      routes: ['/stats/swap-token', '/stats/search-token'],
       icon: '/floating-nav/swap.svg',
       iconSelected: '/floating-nav/swap-selected.svg',
     },

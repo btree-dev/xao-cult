@@ -1,74 +1,82 @@
-import { useState } from "react";
-import styles from "../../styles/TransactionHistory.module.css";
-import Image, { StaticImageData } from "next/image";
+import { useMemo, useState } from 'react';
+import styles from '../../styles/TransactionHistory.module.css';
+import Image from 'next/image';
 import Layout from '../../components/Layout';
 import StatsNav from '../../components/StatsNav';
+import { baseSepolia } from 'wagmi/chains';
 
-import swapIcon from "../../../public/swap-currency.svg";
-import transferIcon from "../../../public/transfer-history/transfer.svg";
-import ticketIcon from "../../../public/transfer-history/ticket.svg";
+import swapIcon from '../../../public/swap-currency.svg';
+import { useWeb3 } from '../../hooks/useWeb3';
+import { useSwapHistory } from '../../hooks/useSwapHistory';
+import { isSwapSupportedChain } from '../../lib/web3/tokens';
 
-type Transaction = {
-  id: number;
-  type: string;
-  icon: StaticImageData;
-  amount: string;
-  status: "Success" | "Sent";
-  date: string;
-};
+function formatDate(timestamp: number): string {
+  if (!timestamp) return '';
+  const d = new Date(timestamp * 1000);
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+}
 
 export default function TransactionHistory() {
-  const [activeTab, setActiveTab] = useState<"All" | "Swap" | "Transfer">("All");
+  const [activeTab, setActiveTab] = useState<'All' | 'Swap' | 'Transfer'>('All');
+  const { address, chain } = useWeb3();
+  const historyChainId = isSwapSupportedChain(chain?.id) ? chain!.id : baseSepolia.id;
+  const { entries, isLoading, error } = useSwapHistory(address, historyChainId);
 
-  const transactions: Transaction[] = [
-    { id: 1, type: "Swap", icon: swapIcon, amount: "20 MATIC", status: "Success", date: "15 May" },
-    { id: 2, type: "Vip Ticket", icon: ticketIcon, amount: "1 Tickets", status: "Sent", date: "16 May" },
-    { id: 3, type: "Transfer", icon: transferIcon, amount: "248.00", status: "Sent", date: "17 May" },
-  ];
-
-  const filteredTransactions =
-    activeTab === "All"
-      ? transactions
-      : transactions.filter((t) => t.type.toLowerCase().includes(activeTab.toLowerCase()));
+  const visible = useMemo(() => {
+    if (activeTab === 'Transfer') return [];
+    return entries;
+  }, [activeTab, entries]);
 
   return (
     <Layout>
+      <div className={styles.container}>
+        <div className={styles.background} />
+        <StatsNav />
+        <h2 className={styles.heading}>Transaction History</h2>
 
-    <div className={styles.container}>
-      <div className={styles.background} />
-      <StatsNav/>
-      <h2 className={styles.heading}>Transaction History</h2>
+        <div className={styles.tabs}>
+          {(['All', 'Swap', 'Transfer'] as const).map((tab) => (
+            <button
+              key={tab}
+              className={`${styles.tabButton} ${activeTab === tab ? styles.activeTab : ''}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
 
-      <div className={styles.tabs}>
-        {(["All", "Swap", "Transfer"] as const).map((tab) => (
-          <button
-            key={tab}
-            className={`${styles.tabButton} ${activeTab === tab ? styles.activeTab : ""}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      <div className={styles.list}>
-        {filteredTransactions.map((t) => (
-          <div key={t.id} className={styles.card}>
-            <div className={styles.cardLeft}>
-              <Image src={t.icon} alt={t.type} width={40} height={40} />
-              <div>
-                <p className={styles.type}>{t.type}</p>
-                <p className={styles.amount}>{t.amount}</p>
+        <div className={styles.list}>
+          {isLoading && (
+            <div style={{ textAlign: 'center', color: '#ccc', padding: 16 }}>Loading…</div>
+          )}
+          {!isLoading && error && (
+            <div style={{ textAlign: 'center', color: '#ff6b6b', padding: 16 }}>{error}</div>
+          )}
+          {!isLoading && !error && visible.length === 0 && (
+            <div style={{ textAlign: 'center', color: '#ccc', padding: 16 }}>
+              {activeTab === 'Transfer' ? 'Transfer history coming soon' : 'No swaps yet'}
+            </div>
+          )}
+          {visible.map((t) => (
+            <div key={t.txHash} className={styles.card}>
+              <div className={styles.cardLeft}>
+                <Image src={swapIcon} alt="Swap" width={40} height={40} />
+                <div>
+                  <p className={styles.type}>Swap</p>
+                  <p className={styles.amount}>
+                    {t.amountInFormatted} {t.tokenIn.symbol} → {t.amountOutFormatted} {t.tokenOut.symbol}
+                  </p>
+                </div>
+              </div>
+              <div className={styles.cardRight}>
+                <p className={styles.date}>{formatDate(t.timestamp)}</p>
+                <p className={styles.success}>Success</p>
               </div>
             </div>
-            <div className={styles.cardRight}>
-              <p className={styles.date}>{t.date}</p>
-              <p className={t.status === "Success" ? styles.success : styles.sent}>{t.status}</p>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
     </Layout>
   );
 }

@@ -14,6 +14,8 @@ import { useProfileCache } from '../contexts/ProfileCacheContext';
 import { useAllContractsWithSummaries, ContractSummary, CONTRACT_STATUS_LABELS, formatContractDate } from '../hooks/useGetContracts';
 import { DEFAULT_CHAIN, USDC_ADDRESS_TESTNET, USDC_ADDRESS_MAINNET } from '../lib/web3/chains';
 import { useReadContract } from 'wagmi';
+import { base } from 'wagmi/chains';
+import { findTokenBySymbol, isSwapSupportedChain } from '../lib/web3/tokens';
 
 const ERC20_BALANCE_ABI = [
   {
@@ -58,6 +60,22 @@ const Dashboard: NextPage = () => {
   });
   const usdcAmount = usdcBalance != null ? Number(usdcBalance) / 1e6 : 0;
   const formattedUSDC = usdcAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // UNI balance — only meaningful on Base mainnet, where there's an actual UNI token.
+  const uniToken = findTokenBySymbol(base.id, 'UNI');
+  const onBaseMainnet = chain?.id === base.id;
+  const { data: uniBalance } = useReadContract({
+    address: uniToken?.address,
+    abi: ERC20_BALANCE_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    chainId: base.id,
+    query: { enabled: !!address && !!uniToken && onBaseMainnet },
+  });
+  const uniAmount = uniBalance != null ? Number(uniBalance) / 1e18 : 0;
+  const formattedUNI = onBaseMainnet
+    ? uniAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+    : '—';
 
   // Stabilize contracts reference to prevent useEffect re-runs on every wagmi refetch
   const contractsRef = useRef<string>('');
@@ -250,15 +268,36 @@ const Dashboard: NextPage = () => {
           <div className={styles.walletCurrencyRow}>
             <div className={styles.walletCurrencyLeft}>
               <div className={styles.walletCurrencyLogo}>
-                <img src="/xao-logo.svg" alt="XAO" />
+                <img src="/xao-logo.svg" alt="UNI" />
               </div>
-              <span className={styles.walletCurrencyName}>XAO</span>
+              <span className={styles.walletCurrencyName}>UNI</span>
             </div>
             <div className={styles.walletCurrencyRight}>
-              <span className={styles.walletCurrencyValue}>1,280.99</span>
-              <span className={styles.walletCurrencyUsd}>(500,000 usd)</span>
+              <span className={styles.walletCurrencyValue}>{formattedUNI}</span>
             </div>
           </div>
+          <button
+            onClick={() => router.push('/stats/swap-token')}
+            style={{
+              marginTop: 12,
+              width: '100%',
+              padding: '10px 16px',
+              borderRadius: 24,
+              border: '1px solid rgba(255,255,255,0.4)',
+              background: 'rgba(0,0,0,0.25)',
+              color: '#fff',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+          >
+            <img src="/swap-currency.svg" alt="" style={{ width: 16, height: 16 }} />
+            Swap Tokens
+          </button>
         </div>
       </div>
 

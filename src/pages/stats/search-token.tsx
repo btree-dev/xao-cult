@@ -1,32 +1,40 @@
 import { useRouter } from 'next/router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import styles from '../../styles/SelectToken.module.css';
 import Layout from '../../components/Layout';
-
-const tokens = [
-    { symbol: 'ADA', name: 'Cardano', icon: '/currency-symbols/ada.svg' },
-    { symbol: 'BTC', name: 'Bitcoin', icon: '/currency-symbols/btc.svg' },
-    { symbol: 'ETH', name: 'Ethereum', icon: '/currency-symbols/eth.svg' },
-    { symbol: 'XRP', name: 'Ripple', icon: '/currency-symbols/xrp.svg' },
-];
+import { useWeb3 } from '../../hooks/useWeb3';
+import { getTokensForChain, isSwapSupportedChain, TokenInfo } from '../../lib/web3/tokens';
+import { baseSepolia } from 'wagmi/chains';
 
 const SelectToken = () => {
     const router = useRouter();
     const { type } = router.query;
+    const { chain } = useWeb3();
     const [search, setSearch] = useState('');
 
-    const filtered = tokens.filter(t =>
+    const tokens = useMemo(() => {
+        const id = isSwapSupportedChain(chain?.id) ? chain!.id : baseSepolia.id;
+        return getTokensForChain(id);
+    }, [chain?.id]);
+
+    const filtered = tokens.filter((t) =>
         t.symbol.toLowerCase().includes(search.toLowerCase()) ||
-        t.name.toLowerCase().includes(search.toLowerCase())
+        t.name.toLowerCase().includes(search.toLowerCase()),
     );
 
-    const handleSelect = (token: any) => {
+    const handleSelect = (token: TokenInfo) => {
+        const stored = {
+            symbol: token.symbol,
+            name: token.name,
+            icon: token.icon,
+            address: token.address,
+            decimals: token.decimals,
+        };
         if (type === 'pay') {
-            localStorage.setItem('selectedPayToken', JSON.stringify(token));
+            localStorage.setItem('selectedPayToken', JSON.stringify(stored));
         } else if (type === 'get') {
-            localStorage.setItem('selectedGetToken', JSON.stringify(token));
+            localStorage.setItem('selectedGetToken', JSON.stringify(stored));
         }
-
         router.push('/stats/swap-token');
     };
 
@@ -44,7 +52,7 @@ const SelectToken = () => {
 
             <div className={styles.tokenList}>
                 {filtered.map((token) => (
-                    <div key={token.symbol} className={styles.tokenRow} onClick={() => handleSelect(token)}>
+                    <div key={token.address} className={styles.tokenRow} onClick={() => handleSelect(token)}>
                         <img src={token.icon} alt={token.symbol} className={styles.icon} />
                         <div>
                             <div className={styles.symbol}>{token.symbol}</div>

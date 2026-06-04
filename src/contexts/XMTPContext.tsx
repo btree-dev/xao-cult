@@ -16,6 +16,24 @@ interface XMTPContextType {
 
 const XMTPContext = createContext<XMTPContextType | null>(null);
 
+// Feature flag: XMTP messaging is currently disabled app-wide.
+// Flip this to `true` to re-enable the XMTP client, conversations, and unread badge.
+const XMTP_ENABLED = false;
+
+// No-op context value used when XMTP is disabled. Keeps all consumers
+// (Navbar, FloatingNav, chat) working without initializing the SDK.
+const DISABLED_XMTP_VALUE: XMTPContextType = {
+  client: null,
+  isLoading: false,
+  error: "Messaging is currently disabled.",
+  walletAddress: null,
+  showRevokeOption: false,
+  unreadCount: 0,
+  clearUnread: () => {},
+  retry: () => {},
+  handleRevokeAndRetry: async () => {},
+};
+
 // Helper to find all XMTP IndexedDB databases
 const findXmtpDatabases = async (): Promise<string[]> => {
   try {
@@ -77,6 +95,15 @@ interface XMTPProviderProps {
 }
 
 export function XMTPProvider({ children }: XMTPProviderProps) {
+  // When disabled, provide a static no-op context and skip all SDK
+  // initialization (no wallet signature prompt, no WASM, no network).
+  if (!XMTP_ENABLED) {
+    return <XMTPContext.Provider value={DISABLED_XMTP_VALUE}>{children}</XMTPContext.Provider>;
+  }
+  return <XMTPProviderImpl>{children}</XMTPProviderImpl>;
+}
+
+function XMTPProviderImpl({ children }: XMTPProviderProps) {
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
 

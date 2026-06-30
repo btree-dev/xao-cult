@@ -1,9 +1,38 @@
 .container {
-    padding: 1rem;
-    background: url('/084251a867b139499f23448c34c1f6f13ca835ec.png') no-repeat center center;
-    background-size: cover;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
     color: white;
+}
+
+.background {
+    position: fixed;
+    top: 0;
+    left: 0 !important;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    background-image: url('/084251a867b139499f23448c34c1f6f13ca835ec.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    transform: none !important;
+    max-width: none !important;
+}
+
+.centeredContent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.card {
+    width: 100%;
+    max-width: 420px;
+    padding: 1.5rem 1rem;
+    color: white;
+    position: relative;
 }
 
 .title {
@@ -12,6 +41,24 @@
     margin-bottom: 20px;
     font-weight: bold;
     color: #fff;
+}
+
+.closeButton {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 22px;
+    line-height: 1;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
 }
 
 .search {
@@ -41,6 +88,7 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    padding-bottom: 72px;
 }
 
 .tokenRow {

@@ -19,20 +19,23 @@ const FloatingNav = () => {
     {
       id: 'home',
       title: 'Home',
+      target: homeRoutes[0],
       routes: homeRoutes,
       icon: '/floating-nav/home.svg',
       iconSelected: '/floating-nav/home-selected.svg',
     },
     {
       id: 'swap',
-      title: 'Swap',
-      routes: ['/stats/swap-token', '/stats/search-token'],
+      title: 'Dashboard',
+      target: '/dashboard',
+      routes: ['/dashboard'],
       icon: '/floating-nav/swap.svg',
       iconSelected: '/floating-nav/swap-selected.svg',
     },
     {
       id: 'chat',
       title: 'Chat',
+      target: '/chat-Section/Search',
       routes: ['/chat-Section/Search'],
       icon: '/floating-nav/chat.svg',
       iconSelected: '/floating-nav/chat-selected.svg',
@@ -40,7 +43,8 @@ const FloatingNav = () => {
     {
       id: 'stats',
       title: 'Stats',
-      routes: ['/stats/tickets?tab=unredeemed'], 
+      target: '/stats/tickets?tab=unredeemed',
+      routes: ['/stats', '/stats/tickets', '/stats/tickets/[id]', '/stats/transaction-history'],
       icon: '/floating-nav/stats.svg',
       iconSelected: '/floating-nav/stats-selected.svg',
     },
@@ -54,7 +58,7 @@ const FloatingNav = () => {
     if (item.id === 'chat') {
       clearUnread();
     }
-    router.push(item.routes[0]);
+    router.push(item.target);
   };
 
   return (

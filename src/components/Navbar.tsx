@@ -164,19 +164,13 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
             <div className={styles.centerSection}>
               <div className={styles.profileAvatar} onClick={handleProfileClick} role="button" aria-label="User profile">
                 {userProfile?.avatar ? (
-                  <div 
-                  className={styles.profileIcon}
-                  onClick={handleProfileClick}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <Image 
-                    src={userProfile.avatar} 
-                    alt="Profile" 
-                    width={40} 
-                    height={40}
+                  <Image
+                    src={userProfile.avatar}
+                    alt="Profile"
+                    width={48}
+                    height={48}
                     className={styles.avatarImage}
                   />
-                  </div>
                 ) : (
                   <div className={styles.avatarPlaceholder}>
                     {userProfile?.username ? userProfile.username.charAt(0).toUpperCase() : 'U'}

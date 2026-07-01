@@ -40,10 +40,24 @@ export default function PublicInfoPage() {
   const { currentUserProfile, setProfile } = useProfileCache();
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setProfilePic(URL.createObjectURL(file));
-    }
+    const file = e.target.files?.[0];
+    if (!file || !address) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setProfilePic(dataUrl);
+      setProfile({
+        walletAddress: address,
+        username: currentIdentity.username,
+        profilePictureUrl: dataUrl,
+        location: currentIdentity.location,
+        radius: currentIdentity.radius.replace(' Miles', ''),
+        genres: currentIdentity.selectedGenres,
+        cachedAt: Date.now(),
+      });
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSave = () => {

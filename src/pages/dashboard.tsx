@@ -253,7 +253,16 @@ const Dashboard: NextPage = () => {
           <div className={styles.walletCardHeader}>
             <span className={styles.walletUsername}>@{currentUserProfile?.username || 'yevhenii_d'}</span>
           </div>
-          <div className={styles.walletCurrencyRow}>
+          <div
+            className={styles.walletCurrencyRow}
+            style={{ cursor: 'pointer' }}
+            role="button"
+            tabIndex={0}
+            onClick={() => router.push('/stats/swap-token')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') router.push('/stats/swap-token');
+            }}
+          >
             <div className={styles.walletCurrencyLeft}>
               <div className={styles.walletCurrencyLogo}>
                 <img src="/usdc-logo.svg" alt="USDC" />
@@ -265,6 +274,7 @@ const Dashboard: NextPage = () => {
               <span className={styles.walletCurrencyUsd}>({formattedUSDC} usd)</span>
             </div>
           </div>
+          {/* UNI token row temporarily disabled
           <div className={styles.walletCurrencyRow}>
             <div className={styles.walletCurrencyLeft}>
               <div className={styles.walletCurrencyLogo}>
@@ -276,6 +286,8 @@ const Dashboard: NextPage = () => {
               <span className={styles.walletCurrencyValue}>{formattedUNI}</span>
             </div>
           </div>
+          */}
+          {/* Swap Tokens button temporarily disabled
           <button
             onClick={() => router.push('/stats/swap-token')}
             style={{
@@ -298,6 +310,7 @@ const Dashboard: NextPage = () => {
             <img src="/swap-currency.svg" alt="" style={{ width: 16, height: 16 }} />
             Swap Tokens
           </button>
+          */}
         </div>
       </div>
 

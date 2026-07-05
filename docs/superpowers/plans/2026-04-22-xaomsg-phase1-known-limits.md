@@ -29,10 +29,14 @@ counter / accept / reject DAG with conflict resolution. That is Plan 3.
 
 ## Transport
 
-**No store-node fallback.** Messages are delivered via light-push +
-filter-subscribe. If both parties are not online simultaneously, late peers
-miss messages. Plan 4 adds Waku store-node integration so a peer reconnecting
-within the retention window can backfill.
+**Store-node backfill — RESOLVED (2026-07-05).** Live messages are delivered
+via light-push + filter-subscribe. In addition, on thread open the client now
+backfills history from a Waku store node (`queryHistory` in `waku.ts`), so a
+peer that was offline when a message was sent sees it on reconnect within the
+store retention window. Backfill is best-effort — if no store peer is reachable
+the live path is unaffected. Currently uses `defaultBootstrap` public Waku
+Network store peers (no pinned peer); a dedicated/self-hosted store node for
+longer, guaranteed retention remains future work.
 
 **No retention policy.** Phase 1 keeps every received message in client
 state indefinitely (in memory). Plan 4 adds tiered retention (long /

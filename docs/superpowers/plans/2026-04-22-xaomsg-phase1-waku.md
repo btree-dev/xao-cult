@@ -1773,7 +1773,7 @@ git commit -m "chore(xaomsg): retire XMTP — XaoMsg is the only chat transport"
 
 1. **Plan 2 — ECIES thread-key handshake**: replace `deriveDeterministicThreadKey` with per-party ECIES wrap. Adds a `SYSTEM` message type carrying the wrapped key payload at thread-open. Mandatory before production.
 2. **Plan 3 — CRDT negotiation DAG**: counter-proposals, accept, reject, branch resolution; the `parentHash` field becomes load-bearing.
-3. **Plan 4 — Thread types + retention + Waku store**: relationship threads, group threads, ephemeral threads with turn-based retention; add Waku store-node history backfill.
+3. **Plan 4 — Thread types + retention + Waku store**: relationship threads, group threads, ephemeral threads with turn-based retention. *Waku store-node history backfill landed 2026-07-05 (offline delivery); thread types + retention policy still deferred.*
 4. **Plan 5 — Hardware-backed sessions**: WebAuthn / passkey-derived session keys; cross-device sync.
 
 ---

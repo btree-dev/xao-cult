@@ -9,6 +9,7 @@ import {
 } from "../../backend/contract-services/negotiation";
 import { currentcontracts } from "../../backend/contract-services/currentcontract";
 import CreateContractsection from "./create-contract-section";
+import { ChatComponent, XaoMsgComponent } from "../../components/Chat";
 import { useRouter } from "next/router";
 import Scrollbar from "../../components/Scrollbar";
 import BlankNavbar from "../../components/BackNav";
@@ -31,12 +32,22 @@ const Contractsdetail: React.FC = () => {
   const [showGrantScanner, setShowGrantScanner] = useState(false);
   const [scannerAddress, setScannerAddress] = useState("");
   const [isGrantingRole, setIsGrantingRole] = useState(false);
+  const [selected, setSelected] = useState<"contract" | "chat">("contract");
   const router = useRouter();
   const { address, chain } = useWeb3();
   const { contracts } = useAllContractsWithSummaries(chain?.id);
   const { id, ticketsold, totalrevenue, source } = router.query;
   const party1 = router.query.party1 as string | undefined;
   const party2 = router.query.party2 as string | undefined;
+
+  // Counterparty wallet for the legacy XMTP chat: whichever party isn't me.
+  const peerAddress = useMemo<string | null>(() => {
+    const me = address?.toLowerCase();
+    if (party1 && party1.toLowerCase() !== me) return party1;
+    if (party2 && party2.toLowerCase() !== me) return party2;
+    return null;
+  }, [address, party1, party2]);
+
   const { signContractAsync, isLoading } = useSignEventContract();
   const { addTicketTypeAsync, isLoading: isAddingTicket } = useAddTicketType();
   const { addTier, isLoading: isAddingTier } = useAddTierToXAOTicket();
@@ -546,6 +557,30 @@ const Contractsdetail: React.FC = () => {
 
         <Scrollbar />
         <main className={styles.contractDetailcontainer}>
+          <div className={styles.toggleWrapper}>
+            <button
+              className={`${styles.toggleBtn} ${selected === "chat" ? styles.active : ""}`}
+              onClick={() => setSelected("chat")}
+            >
+              Chat
+            </button>
+            <button
+              className={`${styles.toggleBtn} ${selected === "contract" ? styles.active : ""}`}
+              onClick={() => setSelected("contract")}
+            >
+              Contract
+            </button>
+          </div>
+          {selected === "chat" ? (
+            <div className={styles.content}>
+              {process.env.NEXT_PUBLIC_USE_XAOMSG === "1" ? (
+                <XaoMsgComponent showContract={contractAddr ?? null} embedded={true} />
+              ) : (
+                <ChatComponent peerAddress={peerAddress} embedded={true} />
+              )}
+            </div>
+          ) : (
+          <>
           {eventDetail && (
             <div className={styles.ImageContainer}>
               <img
@@ -757,6 +792,8 @@ const Contractsdetail: React.FC = () => {
 
           <CreateContractsection party1={party1 || ''} party2={party2 || ''} initialData={chainInitialData} />
           {renderButtons()}
+          </>
+          )}
         </main>
       </div>
     </Layout>

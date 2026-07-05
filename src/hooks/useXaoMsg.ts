@@ -10,7 +10,8 @@ import {
   computeBodyHash,
   verifyEnvelope,
 } from '../lib/xaomsg/envelope';
-import { publishToTopic, subscribeToTopic } from '../lib/xaomsg/waku';
+import { publishToTopic, queryHistory, subscribeToTopic } from '../lib/xaomsg/waku';
+import { mergeResolved } from '../lib/xaomsg/merge';
 import {
   ContentType,
   type OnWireEnvelope,
@@ -68,6 +69,8 @@ export function useXaoMsg({ showContract, session }: UseXaoMsgOptions): UseXaoMs
 
     (async () => {
       try {
+        // Shared decode → decrypt → verify → merge pipeline for every inbound
+        // byte payload, whether it arrives live via filter or as store history.
         const onBytes = async (bytes: Uint8Array) => {
           try {
             const b64 = new TextDecoder().decode(bytes);
@@ -84,17 +87,15 @@ export function useXaoMsg({ showContract, session }: UseXaoMsgOptions): UseXaoMs
               receivedAtUnixMs: Date.now(),
             };
             if (cancelled) return;
-            setMessages((prev) => {
-              if (prev.some((m) => m.envelope.body.messageId === resolved.envelope.body.messageId)) {
-                return prev;
-              }
-              return [...prev, resolved].sort((a, b) => a.envelope.body.sentAt - b.envelope.body.sentAt);
-            });
+            setMessages((prev) => mergeResolved(prev, resolved));
           } catch (err) {
             console.warn('[xaomsg] failed to handle inbound message:', err);
           }
         };
 
+        // Subscribe to live messages BEFORE backfilling history, so nothing
+        // published during the store query is missed (mergeResolved dedupes any
+        // overlap between the two sources).
         const unsub = await subscribeToTopic(contentTopic, (bytes) => { void onBytes(bytes); });
         if (cancelled) {
           await unsub();
@@ -102,6 +103,10 @@ export function useXaoMsg({ showContract, session }: UseXaoMsgOptions): UseXaoMs
         }
         unsubRef.current = unsub;
         setIsLoading(false);
+
+        // Best-effort history backfill so a peer that was offline when the
+        // message was sent still sees it on reconnect (within store retention).
+        await queryHistory(contentTopic, (bytes) => { void onBytes(bytes); });
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : String(err));
@@ -147,9 +152,11 @@ export function useXaoMsg({ showContract, session }: UseXaoMsgOptions): UseXaoMs
         bodyHash: computeBodyHash(envelope),
         receivedAtUnixMs: Date.now(),
       };
-      // Optimistic insert — Waku may also echo this back; subscriber handler
-      // dedupes by messageId.
-      setMessages((prev) => [...prev, resolved].sort((a, b) => a.envelope.body.sentAt - b.envelope.body.sentAt));
+      // Optimistic insert. Waku echoes this message back through our own filter
+      // subscription, and that echo can arrive *before* this line runs — so we
+      // dedupe here too (mergeResolved) rather than blindly append, otherwise
+      // the sender sees their message twice.
+      setMessages((prev) => mergeResolved(prev, resolved));
       return resolved;
     },
     [session, showContract, threadId, threadKey, contentTopic],

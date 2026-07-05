@@ -38,6 +38,40 @@ export async function publishToTopic(contentTopic: string, payload: Uint8Array):
 }
 
 /**
+ * Backfill history from a Waku store node for the given content topic.
+ *
+ * Best-effort: the light node connects to Store peers lazily, so we wait a
+ * short window for one before querying. If no store peer is reachable (some
+ * bootstrap nodes don't serve Store), we log and resolve without throwing —
+ * the live filter path must never regress just because history is unavailable.
+ *
+ * `onMessage` receives raw bytes per message — same contract as
+ * `subscribeToTopic`, so callers reuse one decode/decrypt/verify pipeline.
+ */
+export async function queryHistory(
+  contentTopic: string,
+  onMessage: (bytes: Uint8Array) => void,
+): Promise<void> {
+  const node = await getWakuClient();
+  try {
+    // Store peers connect after the LightPush/Filter ones getWakuClient waits
+    // for; give them a brief window rather than failing outright.
+    await waitForRemotePeer(node, [Protocols.Store], 15_000);
+  } catch {
+    console.warn('[xaomsg] no Waku store peer available; skipping history backfill');
+    return;
+  }
+  try {
+    const decoder = createDecoder(contentTopic);
+    await node.store.queryWithOrderedCallback([decoder], async (wakuMessage) => {
+      if (wakuMessage.payload) onMessage(wakuMessage.payload);
+    });
+  } catch (err) {
+    console.warn('[xaomsg] store history query failed:', err);
+  }
+}
+
+/**
  * Subscribe to a content topic. Returns an unsubscribe function.
  * `onMessage` receives raw bytes — caller is responsible for decode/decrypt.
  */

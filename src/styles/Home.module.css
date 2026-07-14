@@ -9,6 +9,31 @@
   font-size: 1.5rem;
 }
 
+.navOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: wait;
+}
+
+.navSpinner {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #ff9900;
+  animation: navSpin 0.8s linear infinite;
+}
+
+@keyframes navSpin {
+  to { transform: rotate(360deg); }
+}
+
 .bookingSuccessPage {
   display: flex;
   flex-direction: column;

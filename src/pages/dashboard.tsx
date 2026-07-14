@@ -120,6 +120,25 @@ const Dashboard: NextPage = () => {
 
   const router = useRouter();
 
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  useEffect(() => {
+    const handleStart = (url: string) => {
+      if (url !== router.asPath) setIsNavigating(true);
+    };
+    const handleDone = () => setIsNavigating(false);
+
+    router.events.on('routeChangeStart', handleStart);
+    router.events.on('routeChangeComplete', handleDone);
+    router.events.on('routeChangeError', handleDone);
+
+    return () => {
+      router.events.off('routeChangeStart', handleStart);
+      router.events.off('routeChangeComplete', handleDone);
+      router.events.off('routeChangeError', handleDone);
+    };
+  }, [router]);
+
   const toggleMute = (eventId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setMutedEvents(prev => {
@@ -218,6 +237,16 @@ const Dashboard: NextPage = () => {
 
   return (
     <Layout>
+      {isNavigating && (
+        <div
+          className={styles.navOverlay}
+          role="status"
+          aria-live="polite"
+          aria-label="Loading page"
+        >
+          <div className={styles.navSpinner} />
+        </div>
+      )}
       <div className={styles.dashboardContainer}>
       <div className={styles.background} />
       <Head>

@@ -14,7 +14,7 @@ import { useProfileCache } from '../contexts/ProfileCacheContext';
 import { useAllContractsWithSummaries, ContractSummary, CONTRACT_STATUS_LABELS, formatContractDate } from '../hooks/useGetContracts';
 import { DEFAULT_CHAIN, USDC_ADDRESS_TESTNET, USDC_ADDRESS_MAINNET } from '../lib/web3/chains';
 import { useReadContract } from 'wagmi';
-import { base } from 'wagmi/chains';
+import { base, baseSepolia } from 'wagmi/chains';
 import { findTokenBySymbol, isSwapSupportedChain } from '../lib/web3/tokens';
 
 const ERC20_BALANCE_ABI = [
@@ -49,13 +49,16 @@ const Dashboard: NextPage = () => {
   const { currentUserProfile } = useProfileCache();
   const { contracts: rawContracts, isLoading: contractsLoading, refetch: refetchContracts } = useAllContractsWithSummaries(chain?.id || DEFAULT_CHAIN);
 
-  // Fetch USDC balance
-  const usdcAddress = chain?.id === 8453 ? USDC_ADDRESS_MAINNET : USDC_ADDRESS_TESTNET;
+  // Fetch USDC balance on the app's Base network regardless of the wallet's
+  // currently-active chain — otherwise wagmi runs balanceOf on the wrong chain.
+  const usdcChainId = chain?.id === base.id ? base.id : baseSepolia.id;
+  const usdcAddress = usdcChainId === base.id ? USDC_ADDRESS_MAINNET : USDC_ADDRESS_TESTNET;
   const { data: usdcBalance } = useReadContract({
     address: usdcAddress as `0x${string}`,
     abi: ERC20_BALANCE_ABI,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
+    chainId: usdcChainId,
     query: { enabled: !!address },
   });
   const usdcAmount = usdcBalance != null ? Number(usdcBalance) / 1e6 : 0;

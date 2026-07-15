@@ -12,6 +12,7 @@ import { useCreateEventContract } from "../../hooks/useCreateContract";
 import { useSignEventContract } from "../../hooks/useSignEventContract";
 import { useAddTicketType, useAddTierToXAOTicket, dollarToWei, dateTimeToTimestamp } from "../../hooks/useAddTicketType";
 import { useWeb3 } from "../../hooks/useWeb3";
+import { useProfileCache } from "../../contexts/ProfileCacheContext";
 import { useReadContract } from "wagmi";
 import { SHOW_CONTRACT_ABI } from "../../lib/web3/eventcontract";
 import { readContract } from "@wagmi/core";
@@ -29,7 +30,7 @@ const CreateContract = () => {
   const { peer: peerParam } = router.query;
 
   const [selected, setSelected] = useState<"chat" | "contract">("contract");
-  const [party1, setParty1] = useState(ENABLE_DUMMY_DATA ? "TestArtist" : ""); // Username for Party 1
+  const [party1, setParty1] = useState(""); // Wallet address for Party 1 (contract creator)
   const [party2, setParty2] = useState(ENABLE_DUMMY_DATA ? "0xc426A5300dCd57D8E448DAEda6FA1b583f36604E" : ""); // Wallet address for Party 2 (peer)
   const [isContractCreating, setIsContractCreating] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
@@ -47,6 +48,14 @@ const CreateContract = () => {
   const [lastProposalSender, setLastProposalSender] = useState<string | null>(null);
 
   const { address, isConnected, chain } = useWeb3();
+  const { currentUserProfile } = useProfileCache();
+
+  // Party 1 is always the wallet creating the contract — auto-fill once the
+  // connected address is known. Doesn't override values loaded from an
+  // existing proposal (those flow in via a separate effect).
+  useEffect(() => {
+    if (address && !party1) setParty1(address);
+  }, [address, party1]);
 
   // Contract creation hooks
   const { createEventContract, isLoading, isSuccess, error, transactionHash, contractAddress: newContractAddress } = useCreateEventContract(chain?.id);
@@ -474,14 +483,16 @@ const CreateContract = () => {
                     />
                   </div>
                   <div className={styles.ticketInputWrapper}>
-                    <label className={styles.ticketsLabel}>Party 1</label>
+                    <label className={styles.ticketsLabel}>
+                      Party 1{currentUserProfile?.username ? ` - ${currentUserProfile.username}` : ""}
+                    </label>
                     <div className={styles.inputRow}>
                       <input
                         type="text"
                         value={party1}
-                        onChange={(e) => setParty1(e.target.value)}
                         placeholder="Party1"
                         className={styles.input}
+                        readOnly
                         required
                       />
                     </div>

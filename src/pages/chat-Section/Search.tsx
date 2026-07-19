@@ -11,20 +11,17 @@ import { useState, useEffect, useMemo } from "react";
 import { useAccount, useChainId, useDisconnect } from "wagmi";
 import { DynamicConnectButton } from "@dynamic-labs/sdk-react-core";
 import { useGetUserNFTs } from "../../hooks/useContractNFT";
-import { useXMTPClient } from "../../contexts/XMTPContext";
+import { useXaoMsgSession } from "../../hooks/useXaoMsgSession";
+import { useXaoInbox } from "../../hooks/useXaoInbox";
 import { useProfileCache, CachedProfile } from "../../contexts/ProfileCacheContext";
-import { isContactCard } from "../../types/contactMessage";
-import { isContractProposal } from "../../types/contractMessage";
-import type { ConsentState } from "@xmtp/browser-sdk";
 
 interface ConversationPreview {
   id: string;
   type: "conversation";
-  peerAddress?: string;
+  peerAddress: string;
   peerInboxId: string;
   lastMessage?: string;
   lastMessageTime?: Date;
-  conversation: any;
 }
 
 interface EventPreview {
@@ -46,20 +43,13 @@ export default function Search() {
   const { disconnect } = useDisconnect();
   const chainId = useChainId();
   const [searchQuery, setSearchQuery] = useState("");
-  const [conversations, setConversations] = useState<ConversationPreview[]>([]);
   const [events, setEvents] = useState<EventPreview[]>([]);
-  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "conversations" | "events">("all");
 
-  // Use shared XMTP client hook
-  const {
-    client: xmtpClient,
-    isLoading: isXmtpLoading,
-    error: xmtpError,
-    showRevokeOption,
-    handleRevokeAndRetry,
-  } = useXMTPClient();
+  // Waku-backed DM session + conversation index
+  const { session } = useXaoMsgSession();
+  const { conversations: dmConversations } = useXaoInbox(session);
 
   // Profile cache for displaying usernames
   const { getProfile } = useProfileCache();
@@ -109,143 +99,26 @@ export default function Search() {
     }
   };
 
-  // Clear conversations when wallet disconnects
+  // Clear events when wallet disconnects (conversations are cleared internally
+  // by useXaoInbox when the connected address changes/clears)
   useEffect(() => {
     if (!isConnected) {
-      setConversations([]);
       setEvents([]);
     }
   }, [isConnected]);
 
-  // Load conversations when XMTP client is ready
-  useEffect(() => {
-    const loadConversations = async () => {
-      if (!xmtpClient) return;
-
-      setIsLoadingConversations(true);
-
-      try {
-        // Sync and list all conversations
-        await xmtpClient.conversations.sync();
-        const convos = await xmtpClient.conversations.list({
-          consentStates: ["allowed", "unknown", "denied"] as unknown as ConsentState[],
-        });
-
-        const previews: ConversationPreview[] = await Promise.all(
-          convos.map(async (convo: any) => {
-            let lastMessage = "";
-            let lastMessageTime: Date | undefined;
-
-            try {
-              await convo.sync();
-              const msgs = await convo.messages({ limit: BigInt(100) });
-              // Iterate newest first to find the latest visible message
-              for (let i = msgs.length - 1; i >= 0; i--) {
-                const msg = msgs[i];
-                // Skip system messages
-                if (typeof msg.content === "object" && msg.content !== null) {
-                  if ("initiatedByInboxId" in msg.content) continue;
-                  if ("membersAdded" in msg.content) continue;
-                  if ("membersRemoved" in msg.content) continue;
-                }
-
-                // Try to parse JSON strings (contact cards, contract proposals)
-                let parsed = msg.content;
-                if (typeof parsed === "string") {
-                  try {
-                    const json = JSON.parse(parsed);
-                    if (json && typeof json === "object" && json.type) {
-                      parsed = json;
-                    }
-                  } catch {
-                    // Not JSON, keep as string
-                  }
-                }
-
-                // Skip contact cards
-                if (isContactCard(parsed)) continue;
-
-                // Show indicator for contract proposals
-                if (isContractProposal(parsed)) {
-                  lastMessage = "📋 Contract proposal received";
-                  lastMessageTime = msg.sentAtNs ? new Date(Number(msg.sentAtNs) / 1000000) : undefined;
-                  break;
-                }
-
-                if (typeof msg.content === "string") {
-                  lastMessage = msg.content;
-                } else if (msg.content?.text) {
-                  lastMessage = msg.content.text;
-                } else if (msg.content?.content) {
-                  lastMessage = msg.content.content;
-                } else {
-                  continue;
-                }
-                lastMessageTime = msg.sentAtNs ? new Date(Number(msg.sentAtNs) / 1000000) : undefined;
-                break;
-              }
-            } catch (e) {
-              console.error("Error loading last message:", e);
-            }
-
-            let peerInboxId: string = "Unknown";
-            try {
-              let rawPeerInboxId = convo.peerInboxId;
-              if (typeof rawPeerInboxId === "function") {
-                rawPeerInboxId = rawPeerInboxId.call(convo);
-              }
-              if (rawPeerInboxId && typeof rawPeerInboxId === "object" && "then" in rawPeerInboxId) {
-                rawPeerInboxId = await rawPeerInboxId;
-              }
-              peerInboxId = String(rawPeerInboxId || convo.id || "Unknown");
-            } catch (e) {
-              peerInboxId = String(convo.id || "Unknown");
-            }
-
-            let peerAddress: string | undefined;
-            try {
-              if (convo.peerAddresses && convo.peerAddresses.length > 0) {
-                peerAddress = convo.peerAddresses[0];
-              } else if (typeof convo.members === "function") {
-                const members = await convo.members();
-                const otherMember = members?.find((m: any) => m.inboxId !== xmtpClient!.inboxId);
-                if (otherMember?.accountIdentifiers?.length > 0) {
-                  peerAddress = otherMember.accountIdentifiers[0].identifier;
-                }
-              }
-            } catch (e) {
-              console.debug("Could not resolve inbox ID to address:", e);
-            }
-
-            return {
-              id: convo.id || peerInboxId,
-              type: "conversation" as const,
-              peerAddress,
-              peerInboxId,
-              lastMessage,
-              lastMessageTime,
-              conversation: convo,
-            };
-          })
-        );
-
-        // Sort by last message time
-        previews.sort((a, b) => {
-          if (!a.lastMessageTime) return 1;
-          if (!b.lastMessageTime) return -1;
-          return b.lastMessageTime.getTime() - a.lastMessageTime.getTime();
-        });
-
-        setConversations(previews);
-      } catch (err: any) {
-        console.error("[Search] Failed to load conversations:", err);
-      } finally {
-        setIsLoadingConversations(false);
-      }
-    };
-
-    loadConversations();
-  }, [xmtpClient]);
+  // Map the Waku-backed conversation index into the existing render shape
+  const conversations: ConversationPreview[] = useMemo(
+    () => dmConversations.map((c) => ({
+      id: c.threadId,
+      type: "conversation" as const,
+      peerAddress: c.peer,
+      peerInboxId: c.peer,
+      lastMessage: c.lastPreview,
+      lastMessageTime: c.lastActivityUnixMs ? new Date(c.lastActivityUnixMs) : undefined,
+    })),
+    [dmConversations],
+  );
 
   // Load events when token IDs are available
   // Load events when token IDs are available
@@ -337,7 +210,7 @@ export default function Search() {
     );
   }, [searchQuery, isConnected, conversations, address]);
 
-  const isLoading = isXmtpLoading || isLoadingConversations || isLoadingEvents || isLoadingTokenIds;
+  const isLoading = isLoadingEvents || isLoadingTokenIds;
 
   return (
     <Layout>
@@ -477,70 +350,6 @@ export default function Search() {
             </div>
           )}
 
-          {/* Error State */}
-          {xmtpError && (
-            <div style={{
-              color: "white",
-              textAlign: "center",
-              padding: "20px",
-              background: "rgba(255, 107, 107, 0.1)",
-              borderRadius: "12px",
-              margin: "0 0 16px 0"
-            }}>
-              <p style={{ marginBottom: showRevokeOption ? "12px" : "0" }}>{xmtpError}</p>
-              {showRevokeOption && (
-                <>
-                  <button
-                    onClick={handleRevokeAndRetry}
-                    style={{
-                      padding: "10px 20px",
-                      background: "linear-gradient(to right, #ff9900, #e100ff)",
-                      border: "none",
-                      borderRadius: "20px",
-                      color: "white",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: "bold",
-                      width: "100%",
-                      marginBottom: "16px"
-                    }}
-                  >
-                    Try Clearing Local Data
-                  </button>
-                  <div style={{ fontSize: "12px", opacity: 0.9, textAlign: "left" }}>
-                    <div style={{ fontWeight: "bold", marginBottom: "8px" }}>If that doesn&apos;t work, use XMTP CLI:</div>
-                    <code style={{
-                      display: "block",
-                      background: "rgba(0,0,0,0.3)",
-                      padding: "8px",
-                      borderRadius: "8px",
-                      marginBottom: "4px"
-                    }}>
-                      npm install -g @xmtp/cli
-                    </code>
-                    <code style={{
-                      display: "block",
-                      background: "rgba(0,0,0,0.3)",
-                      padding: "8px",
-                      borderRadius: "8px",
-                      marginBottom: "4px"
-                    }}>
-                      xmtp auth
-                    </code>
-                    <code style={{
-                      display: "block",
-                      background: "rgba(0,0,0,0.3)",
-                      padding: "8px",
-                      borderRadius: "8px"
-                    }}>
-                      xmtp installations revoke-all-other
-                    </code>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
           {/* Start New Chat Option */}
           {showNewChatOption && (
             <div className={docStyles.searchResultsContainer}>
@@ -587,7 +396,7 @@ export default function Search() {
           )}
 
           {/* Empty State */}
-          {isConnected && !isLoading && filteredItems.length === 0 && !showNewChatOption && !xmtpError && (
+          {isConnected && !isLoading && filteredItems.length === 0 && !showNewChatOption && (
             <div style={{ color: "rgba(255,255,255,0.6)", textAlign: "center", padding: "20px" }}>
               {searchQuery ? "No results found" : "No conversations or events yet"}
             </div>

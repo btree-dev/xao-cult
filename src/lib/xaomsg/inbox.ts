@@ -73,7 +73,12 @@ export async function queryPeerKeyBundle(peer: Address): Promise<SessionCert | n
     candidates.push(cert);
   });
   candidates.sort((a, b) => b.expiresAtUnixMs - a.expiresAtUnixMs);
+  const peerLower = peer.toLowerCase();
   for (const cert of candidates) {
+    // A cert can be genuinely self-signed by a wallet that is NOT the peer —
+    // anyone can post their own cert onto the peer's public topic. Only a
+    // cert whose walletAddress matches the queried peer proves ownership.
+    if (cert.walletAddress?.toLowerCase() !== peerLower) continue;
     if (await verifySessionCert(cert)) return cert;
   }
   return null;
@@ -93,6 +98,10 @@ export async function subscribeInbox(
     if (cert) {
       // Never surface an unverified cert — the topic is publicly writable.
       if (isExpired(cert)) return;
+      // Only my own cert belongs on my topic (publishKeyBundle publishes a
+      // wallet's cert to its own topic); a validly self-signed cert for a
+      // different wallet is off-invariant and must not reach the callback.
+      if (cert.walletAddress?.toLowerCase() !== myAddress.toLowerCase()) return;
       void verifySessionCert(cert).then((ok) => { if (ok) onKeyBundle(cert); });
       return;
     }

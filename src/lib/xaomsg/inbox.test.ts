@@ -133,6 +133,26 @@ describe('queryPeerKeyBundle', () => {
     const out = await queryPeerKeyBundle('0x1111111111111111111111111111111111111111');
     expect(out).toBeNull();
   });
+
+  it('rejects a validly-signed cert for a different wallet posted on the peer topic', async () => {
+    // Attacker posts their OWN genuine (self-consistent) cert onto peer's topic.
+    // It passes verifySessionCert, but its walletAddress is not the peer's.
+    const attacker = await makeGenuineCert();
+    const peer = '0x9999999999999999999999999999999999999999' as const;
+    scriptHistory([encodeKeyBundle(attacker)]);
+    const out = await queryPeerKeyBundle(peer);
+    expect(out).toBeNull();
+  });
+
+  it('still returns the peer bundle when an attacker cert for another wallet sorts first', async () => {
+    const genuine = await makeGenuineCert();
+    // Attacker cert is genuinely signed by a different wallet and has a
+    // higher expiry so it sorts ahead of the peer's real bundle.
+    const attacker = await makeGenuineCert(genuine.expiresAtUnixMs + 1_000_000);
+    scriptHistory([encodeKeyBundle(attacker), encodeKeyBundle(genuine)]);
+    const out = await queryPeerKeyBundle(genuine.walletAddress);
+    expect(out).toEqual(genuine);
+  });
 });
 
 describe('subscribeInbox key-bundle verification', () => {
@@ -180,5 +200,24 @@ describe('subscribeInbox key-bundle verification', () => {
     getDeliver()(encodeKeyBundle(expired));
     await flush();
     expect(onKeyBundle).not.toHaveBeenCalled();
+  });
+
+  it('ignores a validly-signed cert for a different wallet but accepts my own', async () => {
+    const getDeliver = captureSubscription();
+    const onKeyBundle = vi.fn();
+    const onDmNotice = vi.fn();
+    const mine = await makeGenuineCert();
+    // Genuinely signed by someone else's wallet — passes verifySessionCert,
+    // but does not belong on my topic.
+    const foreign = await makeGenuineCert();
+    await subscribeInbox(mine.walletAddress, '0x' + '11'.repeat(32), onKeyBundle, onDmNotice);
+    getDeliver()(encodeKeyBundle(foreign));
+    await flush();
+    expect(onKeyBundle).not.toHaveBeenCalled();
+    getDeliver()(encodeKeyBundle(mine));
+    await flush();
+    expect(onKeyBundle).toHaveBeenCalledTimes(1);
+    expect(onKeyBundle).toHaveBeenCalledWith(mine);
+    expect(onDmNotice).not.toHaveBeenCalled();
   });
 });

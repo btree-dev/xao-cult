@@ -41,7 +41,13 @@ export function useXaoInbox(session: PersistedSession | null): UseXaoInboxResult
     (async () => {
       try {
         await publishKeyBundle(session.cert);
+      } catch (err) {
+        console.warn('[xaomsg] key bundle publish failed:', err);
+      }
+
+      try {
         unsub = await subscribeInbox(address as Address, session.privateKeyHex, () => {}, applyNotice);
+        if (cancelled) { await unsub(); return; }
         await queryInboxNotices(address as Address, session.privateKeyHex, applyNotice);
       } catch (err) {
         console.error('[xaomsg] inbox subscription failed:', err);

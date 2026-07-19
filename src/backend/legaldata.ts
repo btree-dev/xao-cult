@@ -318,7 +318,7 @@ export const legalDocs = [
         content: [
       {
         type: "paragraph",
-        text: "Xao does not create or store centralized user profiles. There is no global directory or searchable user database. Instead, discovery of other users occurs organically through decentralized group chats (e.g., via XMTP). Profile data is not publicly browsable, and all sharing of information is opt-in, contextual, and handled peer-to-peer.",
+        text: "Xao does not create or store centralized user profiles. There is no global directory or searchable user database. Instead, discovery of other users occurs organically through decentralized peer-to-peer messaging. Profile data is not publicly browsable, and all sharing of information is opt-in, contextual, and handled peer-to-peer.",
       },
     ]
       },

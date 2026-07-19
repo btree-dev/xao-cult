@@ -1,7 +1,7 @@
 /**
  * Contract Proposal Message Type
  *
- * Used for sending contract proposals through XMTP chat.
+ * Used for sending contract proposals through chat.
  * Enables negotiation flow between Party1 and Party2.
  */
 

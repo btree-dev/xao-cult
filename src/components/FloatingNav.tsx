@@ -1,10 +1,8 @@
 import { useRouter } from 'next/router';
 import styles from '../styles/FloatingNav.module.css';
-import { useXMTPClient } from '../contexts/XMTPContext';
 
 const FloatingNav = () => {
   const router = useRouter();
-  const { unreadCount, clearUnread } = useXMTPClient();
 
   const homeRoutes = [
     '/contracts/current-contract',
@@ -55,9 +53,6 @@ const FloatingNav = () => {
   };
 
   const handleNavClick = (item: typeof navItems[0]) => {
-    if (item.id === 'chat') {
-      clearUnread();
-    }
     router.push(item.target);
   };
 
@@ -75,11 +70,6 @@ const FloatingNav = () => {
             src={isActive(item.routes) ? item.iconSelected : item.icon}
             alt={item.title}
           />
-          {item.id === 'chat' && unreadCount > 0 && (
-            <span className={styles.badge}>
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
         </button>
       ))}
     </div>

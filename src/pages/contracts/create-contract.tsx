@@ -39,7 +39,7 @@ const CreateContract = () => {
   const [creationError, setCreationError] = useState("");
   const contractSectionRef = useRef<any>(null);
 
-  // Contract proposal state (XMTP)
+  // Contract proposal state
   const [activeProposal, setActiveProposal] = useState<ContractProposalMessage | null>(null);
   const [revisionNumber, setRevisionNumber] = useState(1);
   const [isSendingProposal, setIsSendingProposal] = useState(false);
@@ -95,7 +95,7 @@ const CreateContract = () => {
     setTicketRowsToAdd,
   };
 
-  // Derive XMTP peer address — must always be the OTHER party, never yourself
+  // Derive the DM peer address — must always be the OTHER party, never yourself
   // After the first proposal exchange, reply to whoever last sent us a proposal
   const peerAddress = useMemo(() => {
     const myAddr = address?.toLowerCase();
@@ -176,7 +176,7 @@ const CreateContract = () => {
     setSelected("contract");
   }, []);
 
-  // Send contract proposal to Party2 via XMTP
+  // Send contract proposal to Party2 over Waku
   const handleSendProposal = async () => {
     if (!peerAddress) {
       setCreationError("Please enter both party addresses (one must match your wallet)");
@@ -399,7 +399,7 @@ const CreateContract = () => {
         alert(`Contract signed successfully on blockchain!\nContract: ${contractAddrToShare}`);
         router.push("/dashboard");
 
-        // Send XMTP proposal and cleanup in background (non-blocking)
+        // Send proposal and cleanup in background (non-blocking)
         try {
           deleteProposalImageGroup(contractSectionRef);
         } catch (err) {
@@ -572,7 +572,7 @@ const CreateContract = () => {
                   </div>
                 )}
 
-                {/* Send Proposal Button (XMTP) */}
+                {/* Send Proposal Button */}
                 <button
                   type="button"
                   onClick={handleSendProposal}

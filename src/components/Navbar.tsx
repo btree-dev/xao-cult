@@ -5,7 +5,6 @@ import styles from './Navbar.module.css';
 import { useWeb3 } from '../hooks/useWeb3';
 import { useReadContract } from 'wagmi';
 import { USDC_ADDRESS_TESTNET, USDC_ADDRESS_MAINNET } from '../lib/web3/chains';
-import { useXMTPClient } from '../contexts/XMTPContext';
 
 const ERC20_BALANCE_ABI = [
   {
@@ -45,7 +44,6 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
   });
 
   const formattedUSDC = usdcBalance != null ? (Number(usdcBalance) / 1e6).toFixed(2) : '0.00';
-  const { unreadCount } = useXMTPClient();
 
   // Format date for short display (e.g., "27 Jan...")
   const formatDateShort = (dateString: string): string => {
@@ -242,11 +240,6 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
                     width={24}
                     height={24}
                   />
-                  {unreadCount > 0 && (
-                    <span className={styles.notificationBadge}>
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
                 </button>
               )}
             </div>

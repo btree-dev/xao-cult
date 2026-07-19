@@ -2,7 +2,6 @@ import React from 'react';
 import { DynamicContextProvider } from '@dynamic-labs/sdk-react-core';
 import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
 import { DynamicWagmiConnector } from '@dynamic-labs/wagmi-connector';
-import { XMTPProvider } from '../contexts/XMTPContext';
 import { ProfileCacheProvider } from '../contexts/ProfileCacheContext';
 
 interface DynamicProvidersProps {
@@ -94,11 +93,9 @@ const DynamicProviders: React.FC<DynamicProvidersProps> = ({ children }) => {
   return (
     <DynamicContextProvider theme="dark" settings={DYNAMIC_SETTINGS}>
       <DynamicWagmiConnector>
-        <XMTPProvider>
-          <ProfileCacheProvider>
-            {children}
-          </ProfileCacheProvider>
-        </XMTPProvider>
+        <ProfileCacheProvider>
+          {children}
+        </ProfileCacheProvider>
       </DynamicWagmiConnector>
     </DynamicContextProvider>
   );

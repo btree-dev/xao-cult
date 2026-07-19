@@ -116,7 +116,19 @@ export async function queryInboxNotices(
   onDmNotice: (notice: DmNotice) => void,
 ): Promise<void> {
   await queryHistory(inboxTopicForAddress(myAddress), async (bytes) => {
-    const n = await tryDecodeDmNotice(bytes, mySessionPrivHex);
-    if (n) onDmNotice(n);
+    try {
+      const n = await tryDecodeDmNotice(bytes, mySessionPrivHex);
+      if (
+        n &&
+        typeof n.threadId === 'string' &&
+        typeof n.convKeyB64 === 'string' &&
+        typeof n.from === 'string' &&
+        typeof n.ts === 'number'
+      ) {
+        onDmNotice(n);
+      }
+    } catch (err) {
+      console.warn('[xaomsg] failed to process inbox notice; skipping', err);
+    }
   });
 }

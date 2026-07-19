@@ -21,6 +21,7 @@ import {
 } from './inbox';
 import { createSessionKeypair, mintSessionCert } from './session';
 import { queryHistory, subscribeToTopic } from './waku';
+import { wrapBytes } from './ecies';
 import type { SessionCert } from './types';
 
 const hex = (b: Uint8Array) => '0x' + Array.from(b).map((x) => x.toString(16).padStart(2, '0')).join('');
@@ -284,5 +285,78 @@ describe('queryInboxNotices completeness', () => {
     expect(onDmNotice).toHaveBeenCalledWith(notice1);
     expect(onDmNotice).toHaveBeenCalledWith(notice2);
     expect(onDmNotice).toHaveBeenCalledWith(notice3);
+  });
+});
+
+// ---- queryInboxNotices isolation from malformed decrypted notices ----
+//
+// ECIES only requires knowing the recipient's PUBLIC session key to encrypt
+// something that decrypts cleanly — there is no signature binding the
+// decrypted plaintext's shape to a legitimate DmNotice. An attacker can
+// therefore post a payload that decrypts successfully but is malformed
+// (e.g. threadId missing/non-string). Pre-fix, `queryInboxNotices`'s
+// callback has no try/catch and no shape check, so `n.threadId` reaching a
+// downstream consumer like `.toLowerCase()` would throw — and even here,
+// the malformed decode's failure/absence of validation could abort
+// `queryHistory`'s per-message await, preventing delivery of any notice
+// scheduled after it in the same batch. This test asserts both well-formed
+// notices — including the one ordered AFTER the malformed one — are
+// delivered, and that `queryInboxNotices` itself does not throw.
+describe('queryInboxNotices isolation from malformed decrypted notices', () => {
+  const testEnc = new TextEncoder();
+
+  /** Build on-wire bytes with the same {t:'dm', spk, enc} framing as
+   *  encodeDmNotice, but wrapping an arbitrary (possibly non-conforming)
+   *  plaintext instead of a well-formed DmNotice. */
+  async function encodeMalformedDmNotice(
+    malformedPlaintext: unknown,
+    ownerSessionPubHex: string,
+    mySessionPrivHex: string,
+    mySessionPubHex: string,
+  ): Promise<Uint8Array> {
+    const encBlob = await wrapBytes(testEnc.encode(JSON.stringify(malformedPlaintext)), ownerSessionPubHex, mySessionPrivHex);
+    return testEnc.encode(JSON.stringify({ t: 'dm', spk: mySessionPubHex, enc: encBlob }));
+  }
+
+  it('delivers both well-formed notices even when a malformed-but-decryptable one sits between them', async () => {
+    const owner = keypair(); // "my" session — the inbox owner decrypting
+    const sender1 = keypair();
+    const attacker = keypair();
+    const sender2 = keypair();
+
+    const notice1: DmNotice = {
+      from: '0x1111111111111111111111111111111111111111',
+      threadId: ('0x' + '11'.repeat(32)) as any,
+      convKeyB64: 'a2V5b25l',
+      ts: 100,
+    };
+    // Decrypts cleanly (attacker only needs owner's PUBLIC session key) but
+    // has no threadId at all — same {t:'dm', spk, enc} on-wire framing.
+    const malformed = { from: '0x9999999999999999999999999999999999999999', convKeyB64: 'bad', ts: 999 };
+    const notice2: DmNotice = {
+      from: '0x2222222222222222222222222222222222222222',
+      threadId: ('0x' + '22'.repeat(32)) as any,
+      convKeyB64: 'a2V5dHdv',
+      ts: 200,
+    };
+
+    const bytes1 = await encodeDmNotice(notice1, owner.pubHex, sender1.privHex, sender1.pubHex);
+    const malformedBytes = await encodeMalformedDmNotice(malformed, owner.pubHex, attacker.privHex, attacker.pubHex);
+    const bytes2 = await encodeDmNotice(notice2, owner.pubHex, sender2.privHex, sender2.pubHex);
+
+    vi.mocked(queryHistory).mockImplementation(async (_topic, onMessage) => {
+      for (const m of [bytes1, malformedBytes, bytes2]) {
+        await onMessage(m);
+      }
+    });
+
+    const onDmNotice = vi.fn();
+    const myAddress = '0x1111111111111111111111111111111111111111' as const;
+
+    await expect(queryInboxNotices(myAddress, owner.privHex, onDmNotice)).resolves.toBeUndefined();
+
+    expect(onDmNotice).toHaveBeenCalledTimes(2);
+    expect(onDmNotice).toHaveBeenCalledWith(notice1);
+    expect(onDmNotice).toHaveBeenCalledWith(notice2);
   });
 });

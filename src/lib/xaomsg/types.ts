@@ -8,6 +8,7 @@ export enum ContentType {
   ACCEPT = 3,
   REJECT = 4,
   SYSTEM = 5,
+  CONTACT_CARD = 6,
 }
 
 export interface TextPayload { kind: 'text'; text: string; }
@@ -19,7 +20,25 @@ export interface ProposalPayload {
 export interface AcceptPayload { kind: 'accept'; proposalHash: Hex; }
 export interface RejectPayload { kind: 'reject'; proposalHash: Hex; reason?: string; }
 
-export type MessagePayload = TextPayload | ProposalPayload | AcceptPayload | RejectPayload;
+export interface ContactCardPayload {
+  kind: 'contact-card';
+  walletAddress: Address;
+  username: string;
+  profilePictureUrl?: string;
+  sentAt: number;
+}
+
+/** `event: 'minted'` is the only case Plan 2 needs — a new ShowContract was
+ *  deployed on-chain for an off-chain draft. Extend with more `event` values
+ *  if a future phase needs other announcements on this channel. */
+export interface SystemPayload {
+  kind: 'system';
+  event: 'minted';
+  draftId: string;
+  contractAddress: Address;
+}
+
+export type MessagePayload = TextPayload | ProposalPayload | AcceptPayload | RejectPayload | ContactCardPayload | SystemPayload;
 
 /**
  * SessionCert authorises a session keypair on behalf of a wallet for a 24h window.

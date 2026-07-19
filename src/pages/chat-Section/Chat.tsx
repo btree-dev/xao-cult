@@ -44,7 +44,6 @@ const Chat: React.FC = () => {
   };
 
   // Handle contract proposal selection - navigate to create-contract page
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleContractProposalSelect = useCallback((proposal: ContractProposalMessage) => {
     console.log("[Chat] Contract proposal selected:", proposal);
     // Store proposal in sessionStorage for the create-contract page to read

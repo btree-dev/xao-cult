@@ -34,16 +34,27 @@ const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({ showContract = null, 
     return () => cancelAnimationFrame(id);
   }, [messages]);
 
+  // The real message list lives in .chatMain > .messagesContainer, whose
+  // `position: relative; top: 80px` is what clears the (position: absolute)
+  // BackNavbar. A bare .RecievedMessage div outside that wrapper renders at
+  // the very top of the page flow and overlaps the navbar — so every
+  // standalone guard message below is wrapped the same way.
+  const panel = (content: React.ReactNode) => (
+    <div className={embedded ? styles.chatContainer : styles.chatMain}>
+      <div className={styles.messagesContainer}>{content}</div>
+    </div>
+  );
+
   if (!showContract && !peer) {
-    return <div className={styles.RecievedMessage}>Open this chat from a contract or a wallet address to use XaoMsg.</div>;
+    return panel(<div className={styles.RecievedMessage}>Open this chat from a contract or a wallet address to use XaoMsg.</div>);
   }
 
   if (peer && !isAddress(peer)) {
-    return <div className={styles.RecievedMessage}>This isn&apos;t a valid wallet address.</div>;
+    return panel(<div className={styles.RecievedMessage}>This isn&apos;t a valid wallet address.</div>);
   }
 
   if (!session) {
-    return (
+    return panel(
       <div className={styles.RecievedMessage}>
         <div style={{ marginBottom: 12 }}>
           XaoMsg unlocks for 24 hours with a single wallet signature.
@@ -64,23 +75,23 @@ const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({ showContract = null, 
         >
           {isUnlocking ? 'Signing…' : 'Unlock chat for 24h'}
         </button>
-      </div>
+      </div>,
     );
   }
 
   if (isDm && dmStatus === 'no-peer-key') {
-    return (
+    return panel(
       <div className={styles.RecievedMessage}>
         This user hasn&apos;t joined XaoMsg yet, so messages can&apos;t be encrypted to them.
         Ask them to open XaoMsg once, then try again.
-      </div>
+      </div>,
     );
   }
   if (isDm && (dmStatus === 'negotiating' || dmStatus === 'idle')) {
-    return <div className={styles.RecievedMessage}>Setting up a secure channel…</div>;
+    return panel(<div className={styles.RecievedMessage}>Setting up a secure channel…</div>);
   }
   if (isDm && dmStatus === 'error') {
-    return <div className={styles.RecievedMessage} style={{ color: '#ff8080' }}>Couldn&apos;t set up the secure channel. Please retry.</div>;
+    return panel(<div className={styles.RecievedMessage} style={{ color: '#ff8080' }}>Couldn&apos;t set up the secure channel. Please retry.</div>);
   }
 
   const handleSend = async () => {

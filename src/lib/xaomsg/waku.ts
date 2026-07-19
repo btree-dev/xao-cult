@@ -32,8 +32,16 @@ export async function publishToTopic(contentTopic: string, payload: Uint8Array):
   const node = await getWakuClient();
   const encoder = createEncoder({ contentTopic });
   const result = await node.lightPush.send(encoder, { payload });
-  if (result.failures && result.failures.length > 0) {
+  // `successes`/`failures` are independent: light-push can (and does, e.g.
+  // when a peer requires an RLN proof this client never generates) fail on
+  // some peers while succeeding on others. Only a total failure — no peer
+  // accepted the message — should throw; a partial failure alongside at
+  // least one success means the message genuinely reached the network.
+  if (!result.successes || result.successes.length === 0) {
     throw new Error(`Waku light-push failed: ${JSON.stringify(result.failures)}`);
+  }
+  if (result.failures && result.failures.length > 0) {
+    console.warn('[xaomsg] light-push partially failed (message still delivered to at least one peer):', result.failures);
   }
 }
 

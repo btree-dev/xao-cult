@@ -3,17 +3,25 @@ import { type Address } from 'viem';
 import { useAccount } from 'wagmi';
 import styles from '../../styles/CreateContract.module.css';
 import { useXaoMsg } from '../../hooks/useXaoMsg';
+import { useXaoDm } from '../../hooks/useXaoDm';
 import { useXaoMsgSession } from '../../hooks/useXaoMsgSession';
 import { ContentType, type ResolvedMessage } from '../../lib/xaomsg/types';
 
 export interface XaoMsgComponentProps {
-  showContract: Address | null;
+  showContract?: Address | null;
+  peer?: Address | null;
   embedded?: boolean;
 }
 
-const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({ showContract, embedded = false }) => {
+const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({ showContract = null, peer = null, embedded = false }) => {
   const { session, isUnlocking, error: sessionError, unlock } = useXaoMsgSession();
-  const { messages, isLoading, error, postText } = useXaoMsg({ showContract, session });
+  const isDm = !!peer;
+
+  const contractThread = useXaoMsg({ showContract: isDm ? null : showContract, session });
+  const dmThread = useXaoDm({ peer: isDm ? peer : null, session });
+  const { messages, isLoading, error, postText } = isDm ? dmThread : contractThread;
+  const dmStatus = isDm ? dmThread.status : null;
+
   const { address: myAddress } = useAccount();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -26,8 +34,8 @@ const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({ showContract, embedde
     return () => cancelAnimationFrame(id);
   }, [messages]);
 
-  if (!showContract) {
-    return <div className={styles.RecievedMessage}>Open this chat from a contract to use XaoMsg.</div>;
+  if (!showContract && !peer) {
+    return <div className={styles.RecievedMessage}>Open this chat from a contract or a wallet address to use XaoMsg.</div>;
   }
 
   if (!session) {
@@ -54,6 +62,21 @@ const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({ showContract, embedde
         </button>
       </div>
     );
+  }
+
+  if (isDm && dmStatus === 'no-peer-key') {
+    return (
+      <div className={styles.RecievedMessage}>
+        This user hasn&apos;t joined XaoMsg yet, so messages can&apos;t be encrypted to them.
+        Ask them to open XaoMsg once, then try again.
+      </div>
+    );
+  }
+  if (isDm && (dmStatus === 'negotiating' || dmStatus === 'idle')) {
+    return <div className={styles.RecievedMessage}>Setting up a secure channel…</div>;
+  }
+  if (isDm && dmStatus === 'error') {
+    return <div className={styles.RecievedMessage} style={{ color: '#ff8080' }}>Couldn&apos;t set up the secure channel. Please retry.</div>;
   }
 
   const handleSend = async () => {

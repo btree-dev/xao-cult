@@ -4,7 +4,7 @@ import BackNavbar from "../../components/BackNav";
 import Layout from "../../components/Layout";
 import Head from "next/head";
 import styles from "../../styles/CreateContract.module.css";
-import { ChatComponent } from "../../components/Chat";
+import XaoMsgComponent from "../../components/Chat/XaoMsgComponent";
 import { ContractProposalMessage } from "../../types/contractMessage";
 import { useProfileCache } from "../../contexts/ProfileCacheContext";
 
@@ -44,6 +44,7 @@ const Chat: React.FC = () => {
   };
 
   // Handle contract proposal selection - navigate to create-contract page
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleContractProposalSelect = useCallback((proposal: ContractProposalMessage) => {
     console.log("[Chat] Contract proposal selected:", proposal);
     // Store proposal in sessionStorage for the create-contract page to read
@@ -67,12 +68,7 @@ const Chat: React.FC = () => {
           onBackClick={handleBack}
         />
 
-        <ChatComponent
-          peerAddress={peerAddress}
-          onBack={handleBack}
-          embedded={false}
-          onContractProposalSelect={handleContractProposalSelect}
-        />
+        <XaoMsgComponent peer={(peerAddress as `0x${string}`) ?? null} />
       </div>
     </Layout>
   );

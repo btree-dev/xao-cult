@@ -115,7 +115,8 @@ export async function queryInboxNotices(
   mySessionPrivHex: string,
   onDmNotice: (notice: DmNotice) => void,
 ): Promise<void> {
-  await queryHistory(inboxTopicForAddress(myAddress), (bytes) => {
-    void tryDecodeDmNotice(bytes, mySessionPrivHex).then((n) => { if (n) onDmNotice(n); });
+  await queryHistory(inboxTopicForAddress(myAddress), async (bytes) => {
+    const n = await tryDecodeDmNotice(bytes, mySessionPrivHex);
+    if (n) onDmNotice(n);
   });
 }

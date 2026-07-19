@@ -74,12 +74,16 @@ export function useXaoDm({ peer, session }: { peer: Address | null; session: Per
         if (!peerCert) { if (!cancelled) setStatus('no-peer-key'); return; }
 
         const raw = generateRawConversationKey();
-        saveConversationKeyRaw(threadId, raw);
         const notice: DmNotice = { from: myAddress, threadId, convKeyB64: b64encode(raw), ts: Date.now() };
         const noticeBytes = await encodeDmNotice(
           notice, peerCert.sessionPublicKeyHex, session.privateKeyHex, session.cert.sessionPublicKeyHex,
         );
         await publishDmNotice(peer, noticeBytes);
+        // Only cache the key locally once the peer has actually been notified —
+        // if publish throws above, nothing is cached, so a retry re-runs the
+        // full initiator path instead of finding an orphaned "ready" key that
+        // the peer can never decrypt.
+        saveConversationKeyRaw(threadId, raw);
         upsertConversation(myAddress, { threadId, peer, lastActivityUnixMs: notice.ts });
         const key = await importAesKey(raw);
         if (!cancelled) { setThreadKey(key); setStatus('ready'); }

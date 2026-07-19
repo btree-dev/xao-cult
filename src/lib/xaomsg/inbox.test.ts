@@ -16,6 +16,7 @@ import {
   tryDecodeDmNotice,
   queryPeerKeyBundle,
   subscribeInbox,
+  queryInboxNotices,
   type DmNotice,
 } from './inbox';
 import { createSessionKeypair, mintSessionCert } from './session';
@@ -219,5 +220,69 @@ describe('subscribeInbox key-bundle verification', () => {
     expect(onKeyBundle).toHaveBeenCalledTimes(1);
     expect(onKeyBundle).toHaveBeenCalledWith(mine);
     expect(onDmNotice).not.toHaveBeenCalled();
+  });
+});
+
+// ---- queryInboxNotices completeness (Finding 1) ----
+//
+// The mocked `queryHistory` here emulates the FIXED waku.ts contract: it
+// awaits whatever `onMessage` returns before moving to the next message,
+// same as `node.store.queryWithOrderedCallback`'s real per-message await
+// will after the fix. This isolates the assertion to `queryInboxNotices`
+// itself (the real, unmocked implementation under test): does its callback
+// actually return a promise that resolves only once the ECIES decrypt has
+// finished? Pre-fix, `queryInboxNotices` fires `tryDecodeDmNotice(...).then(...)`
+// without returning that promise from the callback, so awaiting it here is a
+// no-op and this test fails (onDmNotice not yet called for all notices by
+// the time `queryInboxNotices` resolves). Post-fix, the callback is `async`
+// and awaits the decode itself, so this correctly waits.
+describe('queryInboxNotices completeness', () => {
+  it('does not resolve until every matching, decodable notice has been delivered', async () => {
+    const owner = keypair(); // "my" session — the inbox owner decrypting
+    const sender1 = keypair();
+    const sender2 = keypair();
+    const sender3 = keypair();
+
+    const notice1: DmNotice = {
+      from: '0x1111111111111111111111111111111111111111',
+      threadId: ('0x' + '11'.repeat(32)) as any,
+      convKeyB64: 'a2V5b25l', // "keyone" base64
+      ts: 100,
+    };
+    const notice2: DmNotice = {
+      from: '0x2222222222222222222222222222222222222222',
+      threadId: ('0x' + '22'.repeat(32)) as any,
+      convKeyB64: 'a2V5dHdv', // "keytwo" base64
+      ts: 200,
+    };
+    const notice3: DmNotice = {
+      from: '0x3333333333333333333333333333333333333333',
+      threadId: ('0x' + '33'.repeat(32)) as any,
+      convKeyB64: 'a2V5dGhyZWU=', // "keythree" base64
+      ts: 300,
+    };
+
+    const bytes1 = await encodeDmNotice(notice1, owner.pubHex, sender1.privHex, sender1.pubHex);
+    const bytes2 = await encodeDmNotice(notice2, owner.pubHex, sender2.privHex, sender2.pubHex);
+    const bytes3 = await encodeDmNotice(notice3, owner.pubHex, sender3.privHex, sender3.pubHex);
+
+    vi.mocked(queryHistory).mockImplementation(async (_topic, onMessage) => {
+      // Real store replay is ordered; await each message's handler in turn —
+      // exactly the contract the Finding-1 fix establishes in waku.ts.
+      for (const m of [bytes1, bytes2, bytes3]) {
+        await onMessage(m);
+      }
+    });
+
+    const onDmNotice = vi.fn();
+    const myAddress = '0x1111111111111111111111111111111111111111' as const;
+    await queryInboxNotices(myAddress, owner.privHex, onDmNotice);
+
+    // By the time queryInboxNotices's promise resolves, ALL three notices
+    // must already have been delivered — no post-await stragglers.
+    expect(onDmNotice).toHaveBeenCalledTimes(3);
+    expect(onDmNotice).toHaveBeenCalledWith(notice1);
+    expect(onDmNotice).toHaveBeenCalledWith(notice2);
+    expect(onDmNotice).toHaveBeenCalledWith(notice3);
   });
 });

@@ -82,17 +82,17 @@ System lines are non-bubble, centered, muted, and **not** persisted as chat cont
 ## 7. Off-chain contracts → Negotiation page
 
 ### Lifecycle (decided)
-1. **Compose & send.** A party composes a contract and sends a `CONTRACT_PROPOSAL` (carrying `Partial<IContract>` + `revisionNumber`). It is upserted into a local **off-chain contract store** and appears in Negotiation as an off-chain draft; a system line fires.
-2. **Negotiate off-chain.** While unsigned, **either party may modify** and send a `COUNTER_PROPOSAL` (same draft, bumped `revisionNumber`). Latest revision wins in the store.
+1. **Compose & send.** A party composes a contract and sends a `CONTRACT_PROPOSAL` carrying `Partial<IContract>` + `revisionNumber` + a stable client-generated **`draftId`**. It is upserted into a local **off-chain contract store** and appears in Negotiation as an off-chain draft; a system line fires.
+2. **Negotiate off-chain.** While unsigned, **either party may modify** and send a `COUNTER_PROPOSAL` (same `draftId`, bumped `revisionNumber`). Latest revision wins in the store.
 3. **Approve.** Both parties signal approval by signing/approving (`ACCEPT`). Approval state is tracked per draft.
-4. **Mint on-chain.** **Either party** may mint the contract on-chain (existing minting flow). On success they send a `SYSTEM` "minted on-chain" message referencing the new contract.
-5. **Promote & dedup.** Once an on-chain ShowContract exists for the pair, the off-chain draft is **dropped** and the UI refers to the on-chain contract. **Dedup key: `(party1, party2, eventName)`** (case-insensitive, party order-independent) — no Solidity change required.
+4. **Mint on-chain.** **Either party** may mint the contract on-chain (existing minting flow). On success they send a `SYSTEM` "minted on-chain" message carrying **`{ draftId, contractAddress }`** — the address of the newly deployed ShowContract.
+5. **Promote & dedup (exact).** On receiving the mint message, the peer looks up the draft by `draftId`, **drops it**, and records the on-chain `contractAddress`; the UI now refers to the on-chain contract. Because both are parties to the contract, they'd surface it via on-chain reads anyway — the mint message just retires the right draft immediately and unambiguously. **Fallback:** if a draft has no corresponding mint message (e.g. minted on another device before this client synced), dedup falls back to matching an on-chain summary by `(party1, party2, eventName)`.
 
 ### Negotiation page merge
-`Negotiation.tsx` currently lists only on-chain summaries (`useAllContractsWithSummaries`). It will render **`merge(onChainSummaries, offChainDraftsNotYetMinted)`**, where a draft is "minted" (and hidden) if an on-chain summary matches its dedup key. Off-chain drafts show a distinct label (e.g. "Draft — off-chain"); the existing on-chain "Requires Attention" / "Waiting" sections are unchanged.
+`Negotiation.tsx` currently lists only on-chain summaries (`useAllContractsWithSummaries`). It will render **`merge(onChainSummaries, offChainDraftsNotYetMinted)`**, where a draft is "minted" (and hidden) if it has a recorded on-chain `contractAddress` (exact) or an on-chain summary matches its `(party1, party2, eventName)` fallback key. Off-chain drafts show a distinct label (e.g. "Draft — off-chain"); the existing on-chain "Requires Attention" / "Waiting" sections are unchanged.
 
 ### Off-chain contract store
-A new localStorage cache `xao-cult-offchain-contracts`, keyed by dedup key (or a draftId), holding `{ parties, terms (Partial<IContract>), revisionNumber, approvals, lastActivityTs }`. Populated by `CONTRACT_PROPOSAL`/`COUNTER_PROPOSAL`/`ACCEPT` envelopes; entries pruned when a matching on-chain contract appears.
+A new localStorage cache `xao-cult-offchain-contracts`, keyed by `draftId`, holding `{ draftId, parties, terms (Partial<IContract>), revisionNumber, approvals, mintedContractAddress?, lastActivityTs }`. Populated by `CONTRACT_PROPOSAL`/`COUNTER_PROPOSAL`/`ACCEPT` envelopes; an entry is pruned when its mint message arrives (exact) or a matching on-chain contract appears (fallback).
 
 ## 8. XMTP removal
 
@@ -161,7 +161,7 @@ Delete the XMTP stack; keep the reusable **payload type shapes** (`ContactCardMe
 
 - **Fresh-device history after rotation.** `K` cached locally, wrapped to the *current* session pubkey; on a new device after both parties rotated, old `K` may be unrecoverable until a peer re-wraps it (KEY_OFFER auto re-wrap deferred).
 - **Inbox metadata leak.** An observer who knows your address can compute `inboxTopic(you)` and see *that* you receive DMs + timing/volume (not sender/content). Publishing a key bundle reveals you use XaoMsg.
-- **Contract dedup is heuristic.** `(party1, party2, eventName)` can mis-merge two genuinely different contracts with the same event name between the same parties, or fail to merge if `eventName` was edited between draft and mint. Acceptable for Phase-2; a draftId-on-chain reference is future work.
+- **Contract dedup — exact via mint message, heuristic only as fallback.** The mint `SYSTEM` message carries `{ draftId, contractAddress }`, so the normal path retires exactly the right draft. The `(party1, party2, eventName)` heuristic is used **only** when a client sees an on-chain contract with no corresponding mint message; that fallback can still mis-merge same-name contracts between the same parties.
 - **No cold-DM spam control.** Anyone can post a notice to your inbox topic. Proof-of-work / allowlist is future work.
 - **Store retention.** Cold notices and history live only within Waku store retention; the localStorage caches are the durable layer.
 - **Single 1:1 model.** Group DMs out of scope.
@@ -175,5 +175,5 @@ Delete the XMTP stack; keep the reusable **payload type shapes** (`ContactCardMe
 - Surface: **existing Search page**, reusing its address-paste entry point. ✅
 - **Waku is the only channel; XMTP removed entirely** (built first, deleted last). ✅
 - **Contact cards** ride Waku → update the existing profile cache; no chat bubble, muted system line. ✅
-- **Contracts** negotiated off-chain over Waku → appear in Negotiation; either party mints; system line on mint; draft dropped after mint; **dedup by (party1, party2, eventName)**; both edit while unsigned; both sign to approve. ✅
+- **Contracts** negotiated off-chain over Waku → appear in Negotiation; either party mints; **mint SYSTEM message carries `{ draftId, contractAddress }`** so the peer drops exactly that draft and refers to the on-chain contract (heuristic `(party1,party2,eventName)` only as fallback); both edit while unsigned; both sign to approve. ✅
 - Scope: **plumbing + minimal UI** (Search list, Chat view, Negotiation merge, contact-card/contract side-channels); no contacts/unread/notification polish or spam control this pass. ✅

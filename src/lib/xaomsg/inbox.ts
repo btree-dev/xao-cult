@@ -60,19 +60,28 @@ export async function publishDmNotice(ownerAddress: Address, noticeBytes: Uint8A
 /** Fetch the peer's most recent valid, unexpired key bundle (their session pubkey).
  *  Returns null if the peer has never published one (→ caller blocks the cold DM). */
 export async function queryPeerKeyBundle(peer: Address): Promise<SessionCert | null> {
-  let best: SessionCert | null = null;
+  // The inbox topic is publicly writable, so any bundle in history is
+  // attacker-controlled until its wallet signature verifies. Collect every
+  // shape-valid, unexpired candidate, then verify newest-first — a forged
+  // bundle with an inflated expiry must not mask the peer's real one.
+  const candidates: SessionCert[] = [];
   await queryHistory(inboxTopicForAddress(peer), (bytes) => {
     const cert = tryDecodeKeyBundle(bytes);
     if (!cert) return;
+    if (typeof cert.expiresAtUnixMs !== 'number') return;
     if (isExpired(cert)) return;
-    if (!best || cert.expiresAtUnixMs > best.expiresAtUnixMs) best = cert;
+    candidates.push(cert);
   });
-  if (best && (await verifySessionCert(best))) return best;
+  candidates.sort((a, b) => b.expiresAtUnixMs - a.expiresAtUnixMs);
+  for (const cert of candidates) {
+    if (await verifySessionCert(cert)) return cert;
+  }
   return null;
 }
 
 /** Subscribe to my inbox. Returns an unsubscribe fn. Routes each message to the
- *  right callback; ignores anything that isn't a valid bundle or a notice I can read. */
+ *  right callback; ignores anything that isn't a signature-verified, unexpired
+ *  bundle or a notice I can read. */
 export async function subscribeInbox(
   myAddress: Address,
   mySessionPrivHex: string,
@@ -81,7 +90,12 @@ export async function subscribeInbox(
 ): Promise<() => Promise<void>> {
   return subscribeToTopic(inboxTopicForAddress(myAddress), (bytes) => {
     const cert = tryDecodeKeyBundle(bytes);
-    if (cert) { onKeyBundle(cert); return; }
+    if (cert) {
+      // Never surface an unverified cert — the topic is publicly writable.
+      if (isExpired(cert)) return;
+      void verifySessionCert(cert).then((ok) => { if (ok) onKeyBundle(cert); });
+      return;
+    }
     void tryDecodeDmNotice(bytes, mySessionPrivHex).then((n) => { if (n) onDmNotice(n); });
   });
 }

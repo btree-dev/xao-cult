@@ -1,7 +1,25 @@
 // src/lib/xaomsg/inbox.test.ts
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as secp from '@noble/secp256k1';
-import { encodeKeyBundle, tryDecodeKeyBundle, encodeDmNotice, tryDecodeDmNotice, type DmNotice } from './inbox';
+import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts';
+
+vi.mock('./waku', () => ({
+  publishToTopic: vi.fn(async () => {}),
+  subscribeToTopic: vi.fn(),
+  queryHistory: vi.fn(async () => {}),
+}));
+
+import {
+  encodeKeyBundle,
+  tryDecodeKeyBundle,
+  encodeDmNotice,
+  tryDecodeDmNotice,
+  queryPeerKeyBundle,
+  subscribeInbox,
+  type DmNotice,
+} from './inbox';
+import { createSessionKeypair, mintSessionCert } from './session';
+import { queryHistory, subscribeToTopic } from './waku';
 import type { SessionCert } from './types';
 
 const hex = (b: Uint8Array) => '0x' + Array.from(b).map((x) => x.toString(16).padStart(2, '0')).join('');
@@ -48,5 +66,119 @@ describe('inbox dm notice', () => {
     const notice: DmNotice = { from: '0x2222222222222222222222222222222222222222', threadId: ('0x' + '33'.repeat(32)) as any, convKeyB64: 'x', ts: 1 };
     const bytes = await encodeDmNotice(notice, owner.pubHex, sender.privHex, sender.pubHex);
     expect(await tryDecodeDmNotice(bytes, mallory.privHex)).toBeNull();
+  });
+});
+
+// ---- key-bundle trust logic (mocked Waku layer) ----
+
+/** Real, signature-verifiable cert minted the same way the app does. */
+async function makeGenuineCert(expiresAtUnixMs = Date.now() + 60 * 60 * 1000): Promise<SessionCert> {
+  const account = privateKeyToAccount(generatePrivateKey());
+  const kp = await createSessionKeypair();
+  return mintSessionCert({
+    walletAddress: account.address,
+    sessionPublicKeyHex: kp.publicKey,
+    expiresAtUnixMs,
+    chainId: 84532,
+    signMessage: (message) => account.signMessage({ message }),
+  });
+}
+
+/** Attacker-shaped cert: valid JSON shape, unexpired, but the signature never recovers to walletAddress. */
+function forgeCert(base: SessionCert, expiresAtUnixMs: number): SessionCert {
+  return { ...base, expiresAtUnixMs, walletSignature: ('0x' + 'cd'.repeat(65)) as `0x${string}` };
+}
+
+const flush = () => new Promise((r) => setTimeout(r, 0));
+
+beforeEach(() => {
+  vi.mocked(queryHistory).mockReset().mockImplementation(async () => {});
+  vi.mocked(subscribeToTopic).mockReset();
+});
+
+function scriptHistory(messages: Uint8Array[]) {
+  vi.mocked(queryHistory).mockImplementation(async (_topic, onMessage) => {
+    for (const m of messages) onMessage(m);
+  });
+}
+
+describe('queryPeerKeyBundle', () => {
+  it('returns the genuine bundle even when a forged bundle with higher expiry is in history', async () => {
+    const genuine = await makeGenuineCert();
+    const forged = forgeCert(genuine, genuine.expiresAtUnixMs + 1_000_000);
+    scriptHistory([encodeKeyBundle(forged), encodeKeyBundle(genuine)]);
+    const out = await queryPeerKeyBundle(genuine.walletAddress);
+    expect(out).toEqual(genuine);
+  });
+
+  it('is not locked out by a malformed bundle with undefined expiry appearing first', async () => {
+    const genuine = await makeGenuineCert();
+    const malformed = { ...genuine, expiresAtUnixMs: undefined } as unknown as SessionCert;
+    scriptHistory([encodeKeyBundle(malformed), encodeKeyBundle(genuine)]);
+    const out = await queryPeerKeyBundle(genuine.walletAddress);
+    expect(out).toEqual(genuine);
+  });
+
+  it('returns null when only forged/invalid bundles exist', async () => {
+    const genuine = await makeGenuineCert();
+    const forged1 = forgeCert(genuine, genuine.expiresAtUnixMs + 5000);
+    const malformed = { ...genuine, expiresAtUnixMs: undefined } as unknown as SessionCert;
+    scriptHistory([encodeKeyBundle(forged1), encodeKeyBundle(malformed)]);
+    const out = await queryPeerKeyBundle(genuine.walletAddress);
+    expect(out).toBeNull();
+  });
+
+  it('returns null on an empty history', async () => {
+    scriptHistory([]);
+    const out = await queryPeerKeyBundle('0x1111111111111111111111111111111111111111');
+    expect(out).toBeNull();
+  });
+});
+
+describe('subscribeInbox key-bundle verification', () => {
+  function captureSubscription() {
+    let deliver: ((bytes: Uint8Array) => void) | undefined;
+    vi.mocked(subscribeToTopic).mockImplementation(async (_topic, onMessage) => {
+      deliver = onMessage;
+      return async () => {};
+    });
+    return () => deliver!;
+  }
+
+  it('does not invoke onKeyBundle for a shape-valid but unverified cert', async () => {
+    const getDeliver = captureSubscription();
+    const onKeyBundle = vi.fn();
+    const onDmNotice = vi.fn();
+    const genuine = await makeGenuineCert();
+    const forged = forgeCert(genuine, genuine.expiresAtUnixMs + 1000);
+    await subscribeInbox(genuine.walletAddress, '0x' + '11'.repeat(32), onKeyBundle, onDmNotice);
+    getDeliver()(encodeKeyBundle(forged));
+    await flush();
+    expect(onKeyBundle).not.toHaveBeenCalled();
+    expect(onDmNotice).not.toHaveBeenCalled();
+  });
+
+  it('invokes onKeyBundle for a genuine cert', async () => {
+    const getDeliver = captureSubscription();
+    const onKeyBundle = vi.fn();
+    const onDmNotice = vi.fn();
+    const genuine = await makeGenuineCert();
+    await subscribeInbox(genuine.walletAddress, '0x' + '11'.repeat(32), onKeyBundle, onDmNotice);
+    getDeliver()(encodeKeyBundle(genuine));
+    await flush();
+    expect(onKeyBundle).toHaveBeenCalledTimes(1);
+    expect(onKeyBundle).toHaveBeenCalledWith(genuine);
+    expect(onDmNotice).not.toHaveBeenCalled();
+  });
+
+  it('does not invoke onKeyBundle for an expired but genuinely signed cert', async () => {
+    const getDeliver = captureSubscription();
+    const onKeyBundle = vi.fn();
+    const onDmNotice = vi.fn();
+    const expired = await makeGenuineCert(Date.now() - 1000);
+    await subscribeInbox(expired.walletAddress, '0x' + '11'.repeat(32), onKeyBundle, onDmNotice);
+    getDeliver()(encodeKeyBundle(expired));
+    await flush();
+    expect(onKeyBundle).not.toHaveBeenCalled();
   });
 });

@@ -5,6 +5,7 @@ import { inboxTopicForAddress } from './inboxTopic';
 import { wrapBytes, unwrapBytes } from './ecies';
 import { publishToTopic, subscribeToTopic, queryHistory } from './waku';
 import { verifySessionCert, isExpired } from './session';
+import { dmThreadId } from './dmThreadId';
 
 export interface DmNotice {
   from: Address;
@@ -29,22 +30,38 @@ export function tryDecodeKeyBundle(bytes: Uint8Array): SessionCert | null {
   } catch { return null; }
 }
 
-// ---- DM notice (ECIES-encrypted to owner) ----
+// ---- DM notice (ECIES-encrypted to owner, authenticated by sender's session cert) ----
 export async function encodeDmNotice(
   notice: DmNotice,
   ownerSessionPubHex: string,
   mySessionPrivHex: string,
-  mySessionPubHex: string,
+  myCert: SessionCert,
 ): Promise<Uint8Array> {
   const encBlob = await wrapBytes(enc.encode(JSON.stringify(notice)), ownerSessionPubHex, mySessionPrivHex);
-  return enc.encode(JSON.stringify({ t: 'dm', spk: mySessionPubHex, enc: encBlob }));
+  return enc.encode(JSON.stringify({ t: 'dm', cert: myCert, enc: encBlob }));
 }
+
 export async function tryDecodeDmNotice(bytes: Uint8Array, mySessionPrivHex: string): Promise<DmNotice | null> {
   try {
     const o = JSON.parse(dec.decode(bytes));
-    if (o?.t !== 'dm' || !o.spk || !o.enc) return null;
-    const plain = await unwrapBytes(o.enc, o.spk, mySessionPrivHex);
-    return JSON.parse(dec.decode(plain)) as DmNotice;
+    if (o?.t !== 'dm' || !o.cert || !o.enc) return null;
+    const senderCert = o.cert as SessionCert;
+    // The cert proves senderCert.sessionPublicKeyHex is wallet-attested to
+    // senderCert.walletAddress. Without this, ECIES alone authenticates
+    // nothing about who the sender claims to be — any throwaway keypair can
+    // encrypt to our known public key and produce a notice that decrypts
+    // cleanly but lies about `from`.
+    if (!(await verifySessionCert(senderCert))) return null;
+    if (isExpired(senderCert)) return null;
+    const plain = await unwrapBytes(o.enc, senderCert.sessionPublicKeyHex, mySessionPrivHex);
+    const notice = JSON.parse(dec.decode(plain)) as DmNotice;
+    // Bind the plaintext's claimed sender to the wallet-verified cert — a
+    // genuinely-signed cert for wallet X can never be used to forge a
+    // notice claiming `from: Y` for any Y != X.
+    if (typeof notice.from !== 'string' || notice.from.toLowerCase() !== senderCert.walletAddress.toLowerCase()) {
+      return null;
+    }
+    return notice;
   } catch { return null; }
 }
 
@@ -105,7 +122,13 @@ export async function subscribeInbox(
       void verifySessionCert(cert).then((ok) => { if (ok) onKeyBundle(cert); });
       return;
     }
-    void tryDecodeDmNotice(bytes, mySessionPrivHex).then((n) => { if (n) onDmNotice(n); });
+    void tryDecodeDmNotice(bytes, mySessionPrivHex).then((n) => {
+      if (!n) return;
+      // Authenticated (verified above), but still confirm the notice is for
+      // *this* pair, not some other thread the sender is (mis)labeling.
+      if (n.threadId.toLowerCase() !== dmThreadId(myAddress, n.from as Address).toLowerCase()) return;
+      onDmNotice(n);
+    });
   });
 }
 
@@ -123,7 +146,8 @@ export async function queryInboxNotices(
         typeof n.threadId === 'string' &&
         typeof n.convKeyB64 === 'string' &&
         typeof n.from === 'string' &&
-        typeof n.ts === 'number'
+        typeof n.ts === 'number' &&
+        n.threadId.toLowerCase() === dmThreadId(myAddress, n.from as Address).toLowerCase()
       ) {
         onDmNotice(n);
       }

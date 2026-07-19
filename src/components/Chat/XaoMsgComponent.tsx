@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { type Address } from 'viem';
+import { type Address, isAddress } from 'viem';
 import { useAccount } from 'wagmi';
 import styles from '../../styles/CreateContract.module.css';
 import { useXaoMsg } from '../../hooks/useXaoMsg';
@@ -36,6 +36,10 @@ const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({ showContract = null, 
 
   if (!showContract && !peer) {
     return <div className={styles.RecievedMessage}>Open this chat from a contract or a wallet address to use XaoMsg.</div>;
+  }
+
+  if (peer && !isAddress(peer)) {
+    return <div className={styles.RecievedMessage}>This isn&apos;t a valid wallet address.</div>;
   }
 
   if (!session) {

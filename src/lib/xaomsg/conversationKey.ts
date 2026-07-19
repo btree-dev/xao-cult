@@ -33,5 +33,5 @@ export function loadConversationKeyRaw(threadId: Hex): Uint8Array | null {
 }
 
 export function importAesKey(raw: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey('raw', raw, 'AES-GCM', true, ['encrypt', 'decrypt']);
+  return crypto.subtle.importKey('raw', new Uint8Array(raw), 'AES-GCM', true, ['encrypt', 'decrypt']);
 }

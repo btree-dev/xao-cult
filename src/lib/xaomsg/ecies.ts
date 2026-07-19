@@ -25,7 +25,7 @@ function b64decode(s: string): Uint8Array {
 async function deriveKek(mySessionPrivHex: string, theirSessionPubHex: string): Promise<CryptoKey> {
   const shared = secp.getSharedSecret(hexToBytes(mySessionPrivHex), hexToBytes(theirSessionPubHex)); // 33 bytes
   const ikm = shared.slice(1); // 32-byte x-coordinate
-  const raw = hkdf(sha256, ikm, KEK_SALT, KEK_INFO, 32);
+  const raw = new Uint8Array(hkdf(sha256, ikm, KEK_SALT, KEK_INFO, 32));
   return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
 }
 
@@ -36,7 +36,7 @@ export async function wrapBytes(
 ): Promise<string> {
   const kek = await deriveKek(mySessionPrivHex, theirSessionPubHex);
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, kek, plaintext));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, kek, new Uint8Array(plaintext)));
   const merged = new Uint8Array(iv.length + ct.length);
   merged.set(iv, 0);
   merged.set(ct, iv.length);

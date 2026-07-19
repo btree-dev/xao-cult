@@ -6,11 +6,15 @@ import styles from "../../styles/CreateContract.module.css";
 import { useAllContractsWithSummaries } from "../../hooks/useGetContracts";
 import { useWeb3 } from "../../hooks/useWeb3";
 import { useRouter } from "next/router";
+import { useOffchainContracts } from "../../hooks/useOffchainContracts";
+import type { OffchainContractDraft } from "../../lib/xaomsg/offchainContracts";
+import { CONTRACT_MESSAGE_VERSION, type ContractProposalMessage } from "../../types/contractMessage";
 
 const Negotiation: React.FC = () => {
   const router = useRouter();
   const { address, chain } = useWeb3();
   const { contracts, isLoading } = useAllContractsWithSummaries(chain?.id);
+  const { drafts } = useOffchainContracts(contracts);
 
   console.log("=== NEGOTIATION DEBUG ===");
   console.log("Connected address:", address);
@@ -51,6 +55,21 @@ const Negotiation: React.FC = () => {
         party2: item.party2Address,
       },
     });
+  };
+
+  const handleDraftClick = (draft: OffchainContractDraft) => {
+    const myAddr = address?.toLowerCase();
+    const peer = draft.party1.toLowerCase() === myAddr ? draft.party2 : draft.party1;
+    const proposal: ContractProposalMessage = {
+      type: "contract-proposal",
+      version: CONTRACT_MESSAGE_VERSION,
+      data: draft.terms,
+      sentAt: draft.lastActivityUnixMs,
+      proposedBy: peer,
+      revisionNumber: draft.revisionNumber,
+    };
+    sessionStorage.setItem("selectedContractProposal", JSON.stringify(proposal));
+    router.push(`/contracts/create-contract?peer=${encodeURIComponent(peer)}`);
   };
 
   return (
@@ -102,6 +121,28 @@ const Negotiation: React.FC = () => {
               </div>
             </div>
           ))}
+          {drafts.map((draft) => {
+            const eventName = (draft.terms as { promotion?: { value?: string } }).promotion?.value || "Untitled draft";
+            const imageUri = (draft.terms as { eventImageUri?: string }).eventImageUri;
+            return (
+              <div
+                key={draft.draftId}
+                className={styles.ImageContainer}
+                style={{ cursor: "pointer" }}
+                onClick={() => handleDraftClick(draft)}
+              >
+                <div className={styles.waitingTitle}>Draft — off-chain</div>
+                <img
+                  src={imageUri || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80"}
+                  alt={eventName}
+                  className={styles.waitingImage}
+                />
+                <div className={styles.AttentionDetailsOverlay}>
+                  <h2 className={styles.promotionTitle}>{eventName}</h2>
+                </div>
+              </div>
+            );
+          })}
           {waitingContracts.map((waiting) => (
             <div
               key={waiting.contractAddress}

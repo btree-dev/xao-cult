@@ -7,7 +7,7 @@ import Image from "next/image";
 import { useRouter } from "next/router";
 import CreateContractsection from "./create-contract-section";
 import Scrollbar from "../../components/Scrollbar";
-import { ChatComponent, XaoMsgComponent } from "../../components/Chat";
+import { XaoMsgComponent } from "../../components/Chat";
 import { useCreateEventContract } from "../../hooks/useCreateContract";
 import { useSignEventContract } from "../../hooks/useSignEventContract";
 import { useAddTicketType, useAddTierToXAOTicket, dollarToWei, dateTimeToTimestamp } from "../../hooks/useAddTicketType";
@@ -17,7 +17,8 @@ import { useReadContract } from "wagmi";
 import { SHOW_CONTRACT_ABI } from "../../lib/web3/eventcontract";
 import { readContract } from "@wagmi/core";
 import { config } from "../../wagmi";
-import { useXMTPConversation } from "../../hooks/useXMTPConversation";
+import { useXaoDm } from "../../hooks/useXaoDm";
+import { useXaoMsgSession } from "../../hooks/useXaoMsgSession";
 import { ContractProposalMessage } from "../../types/contractMessage";
 import { handleSaveContract, handleSignContract, addTicketsToContract, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
 import { TicketRow } from "./TicketsSection";
@@ -46,6 +47,12 @@ const CreateContract = () => {
   const [savedContractAddress, setSavedContractAddress] = useState<string | null>(null);
   // Track the address of whoever last sent us a proposal (for reply-to logic)
   const [lastProposalSender, setLastProposalSender] = useState<string | null>(null);
+
+  // Stable per-negotiation identifier the off-chain draft store keys on.
+  // Regenerated when the user manually points party2 at a new counterparty
+  // (see the party2 input's onChange below); reloaded from a stored/incoming
+  // proposal's own draftId so counter-proposals stay attached to the same draft.
+  const [draftId, setDraftId] = useState<string>(() => crypto.randomUUID());
 
   const { address, isConnected, chain } = useWeb3();
   const { currentUserProfile } = useProfileCache();
@@ -119,6 +126,11 @@ const CreateContract = () => {
         console.log("[CreateContract] Loaded proposal from sessionStorage:", proposal);
         setActiveProposal(proposal);
         setRevisionNumber(proposal.revisionNumber + 1);
+        // IContract has no draftId field (it's a Waku-only addition on top of
+        // the shared contract-terms shape), so read it via a narrow cast —
+        // same pattern useXaoDm.ts uses for the same field on the same type.
+        const storedDraftId = (proposal.data as { draftId?: unknown }).draftId;
+        if (storedDraftId) setDraftId(String(storedDraftId));
         if (proposal.data.party1) setParty1(proposal.data.party1);
         if (proposal.data.party2) setParty2(proposal.data.party2);
         if (proposal.data.contractAddress) setSavedContractAddress(proposal.data.contractAddress);
@@ -132,21 +144,28 @@ const CreateContract = () => {
     }
   }, [peerParam, party1, party2]);
 
-  // XMTP for sending contract proposals
-  const { sendContractProposal, isClientReady } = useXMTPConversation({
-    peerAddress,
+  // Waku session + DM thread for sending contract proposals
+  const { session } = useXaoMsgSession();
+  const dmThread = useXaoDm({
+    peer: peerAddress && peerAddress.startsWith('0x') ? (peerAddress as `0x${string}`) : null,
+    session,
   });
+  const isClientReady = dmThread.status === 'ready';
 
-  // Keep a ref to the latest sendContractProposal so useEffect closures always use the current version
-  const sendProposalRef = useRef(sendContractProposal);
-  useEffect(() => {
-    sendProposalRef.current = sendContractProposal;
-  }, [sendContractProposal]);
+  // Keep refs to the latest postProposal/postSystem so useEffect closures
+  // (below) always use the current DM thread instead of a stale one captured
+  // when the effect was first set up.
+  const postProposalRef = useRef(dmThread.postProposal);
+  postProposalRef.current = dmThread.postProposal;
+  const postSystemRef = useRef(dmThread.postSystem);
+  postSystemRef.current = dmThread.postSystem;
 
   // Handle receiving a contract proposal from chat
   const handleContractProposalSelect = useCallback((proposal: ContractProposalMessage) => {
     setActiveProposal(proposal);
     setRevisionNumber(proposal.revisionNumber + 1);
+    const incomingDraftId = (proposal.data as { draftId?: unknown }).draftId;
+    if (incomingDraftId) setDraftId(String(incomingDraftId));
     // Pre-fill party addresses from proposal if available
     if (proposal.data.party1) setParty1(proposal.data.party1);
     if (proposal.data.party2) setParty2(proposal.data.party2);
@@ -185,7 +204,7 @@ const CreateContract = () => {
         setImageUri(termsObject.eventImageUri);
       }
 
-      // Remove base64 imageData before sending over XMTP
+      // Remove base64 imageData before sending over Waku
       if (termsObject.promotion) {
         delete termsObject.promotion.imageData;
       }
@@ -194,9 +213,14 @@ const CreateContract = () => {
       if (savedContractAddress) {
         termsObject.contractAddress = savedContractAddress;
       }
+      termsObject.draftId = draftId;
 
       // Send the proposal
-      await sendContractProposal(termsObject, revisionNumber);
+      await dmThread.postProposal({
+        kind: activeProposal ? 'counter-proposal' : 'proposal',
+        revisionNumber,
+        data: termsObject,
+      });
 
       // Update revision number for next edit
       setRevisionNumber((prev) => prev + 1);
@@ -260,25 +284,34 @@ const CreateContract = () => {
 
           setIsContractCreating(false);
 
-          // Send proposal with contract address to party2 via XMTP
-          // Use sendProposalRef.current to avoid stale closure capturing an old sendContractProposal
-          if (isClientReady && sendProposalRef.current) {
+          // Send proposal with the new contract address, then the SYSTEM
+          // "minted" message — deploying this ShowContract is the design's
+          // "mint on-chain" step (see docs/superpowers/specs/2026-07-19-xaomsg-direct-dm-design.md §7);
+          // the SYSTEM message is what lets the peer's off-chain draft store
+          // retire this draftId exactly, without relying on the fallback heuristic.
+          if (isClientReady && postProposalRef.current && postSystemRef.current) {
             try {
               const termsObject = contractSectionRef.current?.getContractData
                 ? contractSectionRef.current.getContractData()
                 : { party1, party2 };
 
-              // Remove base64 imageData before sending over XMTP
               if (termsObject.promotion) {
                 delete termsObject.promotion.imageData;
               }
-
-              // Include the created contract address
               termsObject.contractAddress = newContractAddress;
+              termsObject.draftId = draftId;
 
-              await sendProposalRef.current(termsObject, revisionNumber);
+              await postProposalRef.current({
+                kind: activeProposal ? 'counter-proposal' : 'proposal',
+                revisionNumber,
+                data: termsObject,
+              });
               setRevisionNumber((prev) => prev + 1);
-              console.log("[CreateContract] Sent draft contract proposal with address to party2");
+
+              await postSystemRef.current({
+                kind: 'system', event: 'minted', draftId, contractAddress: newContractAddress,
+              });
+              console.log("[CreateContract] Sent draft contract proposal + minted notice to party2");
             } catch (err) {
               console.warn("Failed to send draft proposal to party2:", err);
             }
@@ -373,7 +406,7 @@ const CreateContract = () => {
           console.warn("Failed to delete proposal image group:", err);
         }
 
-        if (isClientReady && contractAddrToShare && sendProposalRef.current) {
+        if (isClientReady && contractAddrToShare && postProposalRef.current) {
           try {
             const termsObject = contractSectionRef.current?.getContractData
               ? contractSectionRef.current.getContractData()
@@ -384,8 +417,13 @@ const CreateContract = () => {
             }
 
             termsObject.contractAddress = contractAddrToShare;
+            termsObject.draftId = draftId;
 
-            sendProposalRef.current(termsObject, revisionNumber)
+            postProposalRef.current({
+              kind: activeProposal ? 'counter-proposal' : 'proposal',
+              revisionNumber,
+              data: termsObject,
+            })
               .then(() => {
                 setRevisionNumber((prev) => prev + 1);
                 console.log("[CreateContract] Sent signed contract proposal to party2");
@@ -453,18 +491,11 @@ const CreateContract = () => {
           </div>
           <div className={styles.content}>
             {selected === "chat" ? (
-              process.env.NEXT_PUBLIC_USE_XAOMSG === '1' ? (
-                <XaoMsgComponent
-                  showContract={(savedContractAddress ?? newContractAddress ?? null) as `0x${string}` | null}
-                  embedded={true}
-                />
-              ) : (
-                <ChatComponent
-                  peerAddress={peerAddress}
-                  embedded={true}
-                  onContractProposalSelect={handleContractProposalSelect}
-                />
-              )
+              <XaoMsgComponent
+                peer={peerAddress && peerAddress.startsWith('0x') ? (peerAddress as `0x${string}`) : null}
+                embedded={true}
+                onContractProposalSelect={handleContractProposalSelect}
+              />
             ) : (
               <>
                 <div className={styles.docContainer}>
@@ -506,9 +537,10 @@ const CreateContract = () => {
                         value={party2}
                         onChange={(e) => {
                           setParty2(e.target.value);
-                          // User manually entered a new party2 address — reset reply-to tracking
-                          // so the first proposal goes to this new address
+                          // User manually entered a new party2 address — reset reply-to
+                          // tracking and start a fresh off-chain draft for this negotiation.
                           setLastProposalSender(null);
+                          setDraftId(crypto.randomUUID());
                         }}
                         placeholder="Party2"
                         className={styles.input}

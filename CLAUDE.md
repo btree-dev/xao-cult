@@ -12,7 +12,7 @@ The app helps create contracts for events. These contracts facilitate negotiatio
 - **Artists/Bands**: Performers looking to book events
 - **Venues**: Event spaces looking to host performances
 
-The chat/messaging feature (powered by XMTP) allows these parties to negotiate event details, terms, and conditions before finalizing a contract. Once agreed upon, contracts are minted as NFTs on the blockchain, providing an immutable record of the agreement.
+The chat/messaging feature (powered by Waku, via the in-house XaoMsg layer) allows these parties to negotiate event details, terms, and conditions before finalizing a contract. Once agreed upon, contracts are minted as NFTs on the blockchain, providing an immutable record of the agreement.
 
 **Key Workflows:**
 1. User connects wallet via Dynamic.xyz

@@ -4,7 +4,7 @@ const nextConfig = {
   webpack: (config, { isServer, dev }) => {
     config.externals.push('pino-pretty', 'lokijs', 'encoding');
 
-    // Enable WebAssembly support (required for @xmtp/wasm-bindings)
+    // Enable WebAssembly support (required for @waku/sdk's WASM bindings)
     config.experiments = {
       ...config.experiments,
       asyncWebAssembly: true,
@@ -30,7 +30,7 @@ const nextConfig = {
   async headers() {
     return [
       {
-        // Only apply cross-origin isolation to chat pages that need XMTP WASM/SharedArrayBuffer
+        // Only apply cross-origin isolation to chat pages that need Waku's WASM/SharedArrayBuffer
         source: "/chat-Section/:path*",
         headers: [
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },

@@ -43,12 +43,17 @@ export function useXaoThread({ threadId, contentTopic, threadKey, session }: Use
 
     (async () => {
       try {
+        // Shared decode → decrypt → verify → merge pipeline for every inbound
+        // byte payload, whether it arrives live via filter or as store history.
         const onBytes = async (bytes: Uint8Array) => {
           try {
             const b64 = new TextDecoder().decode(bytes);
             const plaintext = await decryptBody(b64, threadKey);
             const envelope = JSON.parse(plaintext) as OnWireEnvelope;
-            if (!(await verifyEnvelope(envelope))) return;
+            if (!(await verifyEnvelope(envelope))) {
+              console.warn('[xaomsg] envelope verification failed; dropping');
+              return;
+            }
             if (envelope.body.threadId !== threadId) return;
             const resolved: ResolvedMessage = {
               envelope, bodyHash: computeBodyHash(envelope), receivedAtUnixMs: Date.now(),
@@ -60,6 +65,9 @@ export function useXaoThread({ threadId, contentTopic, threadKey, session }: Use
           }
         };
 
+        // Subscribe to live messages BEFORE backfilling history, so nothing
+        // published during the store query is missed (mergeResolved dedupes any
+        // overlap between the two sources).
         const unsub = await subscribeToTopic(contentTopic, (bytes) => { void onBytes(bytes); });
         if (cancelled) { await unsub(); return; }
         unsubRef.current = unsub;
@@ -84,8 +92,9 @@ export function useXaoThread({ threadId, contentTopic, threadKey, session }: Use
   const post = useCallback(
     async (contentType: ContentType, payload: TextPayload | ProposalPayload, parentHash: Hex): Promise<ResolvedMessage> => {
       if (!session) throw new Error('No session — call unlock() first');
-      if (!threadId || !contentTopic) throw new Error('No thread context');
+      if (!threadId) throw new Error('No thread context');
       if (!threadKey) throw new Error('Thread key not ready');
+      if (!contentTopic) throw new Error('No content topic');
 
       const body = buildUnsignedBody({
         threadId, contentType, payload, parentHash, sender: session.cert.walletAddress,
@@ -97,6 +106,10 @@ export function useXaoThread({ threadId, contentTopic, threadKey, session }: Use
       const resolved: ResolvedMessage = {
         envelope, bodyHash: computeBodyHash(envelope), receivedAtUnixMs: Date.now(),
       };
+      // Optimistic insert. Waku echoes this message back through our own filter
+      // subscription, and that echo can arrive *before* this line runs — so we
+      // dedupe here too (mergeResolved) rather than blindly append, otherwise
+      // the sender sees their message twice.
       setMessages((prev) => mergeResolved(prev, resolved));
       return resolved;
     },

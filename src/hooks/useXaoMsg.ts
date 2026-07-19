@@ -21,12 +21,17 @@ export function useXaoMsg({ showContract, session }: UseXaoMsgOptions): UseXaoMs
   const contentTopic = useMemo(() => (threadId ? contentTopicForThread(threadId) : null), [threadId]);
 
   const [threadKey, setThreadKey] = useState<CryptoKey | null>(null);
+  const [keyLoadError, setKeyLoadError] = useState<string | null>(null);
   useEffect(() => {
+    setKeyLoadError(null);
     if (!showContract) { setThreadKey(null); return; }
     let cancelled = false;
-    loadThreadKey(showContract).then((k) => { if (!cancelled) setThreadKey(k); }).catch(() => {});
+    loadThreadKey(showContract)
+      .then((k) => { if (!cancelled) setThreadKey(k); })
+      .catch((err) => { if (!cancelled) setKeyLoadError(err instanceof Error ? err.message : String(err)); });
     return () => { cancelled = true; };
   }, [showContract]);
 
-  return useXaoThread({ threadId, contentTopic, threadKey, session });
+  const thread = useXaoThread({ threadId, contentTopic, threadKey, session });
+  return { ...thread, error: keyLoadError ?? thread.error };
 }

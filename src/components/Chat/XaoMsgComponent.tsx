@@ -5,15 +5,23 @@ import styles from '../../styles/CreateContract.module.css';
 import { useXaoMsg } from '../../hooks/useXaoMsg';
 import { useXaoDm } from '../../hooks/useXaoDm';
 import { useXaoMsgSession } from '../../hooks/useXaoMsgSession';
-import { ContentType, type ResolvedMessage } from '../../lib/xaomsg/types';
+import {
+  ContentType,
+  type ContactCardPayload, type ProposalPayload, type RejectPayload,
+  type ResolvedMessage, type SystemPayload, type TextPayload,
+} from '../../lib/xaomsg/types';
+import { CONTRACT_MESSAGE_VERSION, type ContractProposalMessage } from '../../types/contractMessage';
 
 export interface XaoMsgComponentProps {
   showContract?: Address | null;
   peer?: Address | null;
   embedded?: boolean;
+  onContractProposalSelect?: (proposal: ContractProposalMessage) => void;
 }
 
-const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({ showContract = null, peer = null, embedded = false }) => {
+const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({
+  showContract = null, peer = null, embedded = false, onContractProposalSelect,
+}) => {
   const { session, isUnlocking, error: sessionError, unlock } = useXaoMsgSession();
   const isDm = !!peer;
 
@@ -116,7 +124,7 @@ const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({ showContract = null, 
         {!isLoading && messages.length === 0 && (
           <div className={styles.RecievedMessage}>No messages yet. Start the negotiation.</div>
         )}
-        {messages.map((m) => renderMessage(m, myAddress, styles))}
+        {messages.map((m) => renderMessage(m, myAddress, styles, onContractProposalSelect))}
       </div>
       <div className={styles.messageInputContainer}>
         <div className={styles.messageInput}>
@@ -142,25 +150,73 @@ const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({ showContract = null, 
   );
 };
 
-function renderMessage(m: ResolvedMessage, myAddress: Address | undefined, styles: Record<string, string>) {
+function shortWho(addr: string, myAddress: Address | undefined): string {
+  return myAddress && addr.toLowerCase() === myAddress.toLowerCase() ? 'You' : `${addr.slice(0, 6)}…`;
+}
+
+function toContractProposalMessage(m: ResolvedMessage): ContractProposalMessage {
+  const p = m.envelope.body.payload as ProposalPayload;
+  return {
+    type: 'contract-proposal',
+    version: CONTRACT_MESSAGE_VERSION,
+    data: p.data,
+    sentAt: m.envelope.body.sentAt,
+    proposedBy: m.envelope.body.sender,
+    revisionNumber: p.revisionNumber,
+  };
+}
+
+function renderMessage(
+  m: ResolvedMessage,
+  myAddress: Address | undefined,
+  styles: Record<string, string>,
+  onContractProposalSelect?: (proposal: ContractProposalMessage) => void,
+) {
   const { body } = m.envelope;
   const isMine = !!myAddress && body.sender.toLowerCase() === myAddress.toLowerCase();
   const cls = isMine ? styles.sentMessage : styles.RecievedMessage;
   const key = body.messageId;
 
   if (body.contentType === ContentType.TEXT) {
-    const t = body.payload as { kind: 'text'; text: string };
+    const t = body.payload as TextPayload;
     return <div key={key} className={cls}>{t.text}</div>;
   }
+  if (body.contentType === ContentType.CONTACT_CARD) {
+    const c = body.payload as ContactCardPayload;
+    return <div key={key} className={styles.systemLine}>{shortWho(c.walletAddress, myAddress)} updated their profile details</div>;
+  }
   if (body.contentType === ContentType.PROPOSAL || body.contentType === ContentType.COUNTER_PROPOSAL) {
-    const p = body.payload as { revisionNumber: number };
-    return <div key={key} className={cls}>📋 Proposal (rev {p.revisionNumber}) — Phase 1 placeholder; full DAG ships in Plan 3</div>;
+    const p = body.payload as ProposalPayload;
+    const verb = body.contentType === ContentType.PROPOSAL ? 'sent a contract' : 'sent an updated contract';
+    const clickable = !!onContractProposalSelect;
+    return (
+      <div
+        key={key}
+        className={clickable ? `${styles.systemLine} ${styles.systemLineClickable}` : styles.systemLine}
+        onClick={clickable ? () => onContractProposalSelect!(toContractProposalMessage(m)) : undefined}
+      >
+        📋 {shortWho(body.sender, myAddress)} {verb} (rev {p.revisionNumber})
+      </div>
+    );
   }
   if (body.contentType === ContentType.ACCEPT) {
-    return <div key={key} style={{ color: '#80ff80' }}>✓ Accepted by {body.sender.slice(0, 6)}…</div>;
+    return <div key={key} className={styles.systemLine}>✓ {shortWho(body.sender, myAddress)} approved the contract</div>;
   }
   if (body.contentType === ContentType.REJECT) {
-    return <div key={key} style={{ color: '#ff8080' }}>✗ Rejected by {body.sender.slice(0, 6)}…</div>;
+    const r = body.payload as RejectPayload;
+    return (
+      <div key={key} className={styles.systemLine}>
+        ✗ {shortWho(body.sender, myAddress)} rejected the contract{r.reason ? `: ${r.reason}` : ''}
+      </div>
+    );
+  }
+  if (body.contentType === ContentType.SYSTEM) {
+    const s = body.payload as SystemPayload;
+    return (
+      <div key={key} className={styles.systemLine}>
+        Contract minted on-chain{s.contractAddress ? ` (${s.contractAddress.slice(0, 6)}…)` : ''}
+      </div>
+    );
   }
   return <div key={key} className={cls}>(unknown content type)</div>;
 }

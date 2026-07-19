@@ -67,7 +67,10 @@ const Chat: React.FC = () => {
           onBackClick={handleBack}
         />
 
-        <XaoMsgComponent peer={(peerAddress as `0x${string}`) ?? null} />
+        <XaoMsgComponent
+          peer={(peerAddress as `0x${string}`) ?? null}
+          onContractProposalSelect={handleContractProposalSelect}
+        />
       </div>
     </Layout>
   );

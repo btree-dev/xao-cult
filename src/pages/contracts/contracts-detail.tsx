@@ -9,7 +9,7 @@ import {
 } from "../../backend/contract-services/negotiation";
 import { currentcontracts } from "../../backend/contract-services/currentcontract";
 import CreateContractsection from "./create-contract-section";
-import { ChatComponent, XaoMsgComponent } from "../../components/Chat";
+import { XaoMsgComponent } from "../../components/Chat";
 import { useRouter } from "next/router";
 import Scrollbar from "../../components/Scrollbar";
 import BlankNavbar from "../../components/BackNav";
@@ -39,14 +39,6 @@ const Contractsdetail: React.FC = () => {
   const { id, ticketsold, totalrevenue, source } = router.query;
   const party1 = router.query.party1 as string | undefined;
   const party2 = router.query.party2 as string | undefined;
-
-  // Counterparty wallet for the legacy XMTP chat: whichever party isn't me.
-  const peerAddress = useMemo<string | null>(() => {
-    const me = address?.toLowerCase();
-    if (party1 && party1.toLowerCase() !== me) return party1;
-    if (party2 && party2.toLowerCase() !== me) return party2;
-    return null;
-  }, [address, party1, party2]);
 
   const { signContractAsync, isLoading } = useSignEventContract();
   const { addTicketTypeAsync, isLoading: isAddingTicket } = useAddTicketType();
@@ -573,11 +565,7 @@ const Contractsdetail: React.FC = () => {
           </div>
           {selected === "chat" ? (
             <div className={styles.content}>
-              {process.env.NEXT_PUBLIC_USE_XAOMSG === "1" ? (
-                <XaoMsgComponent showContract={contractAddr ?? null} embedded={true} />
-              ) : (
-                <ChatComponent peerAddress={peerAddress} embedded={true} />
-              )}
+              <XaoMsgComponent showContract={contractAddr ?? null} embedded={true} />
             </div>
           ) : (
           <>

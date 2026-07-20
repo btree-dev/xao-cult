@@ -67,6 +67,40 @@ describe('envelope', () => {
     expect(await verifyEnvelope(tampered)).toBe(false);
   });
 
+  it('verifies after a JSON round-trip even when the payload has undefined-valued keys', async () => {
+    // Reproduces the real wire path: post() signs payloadDigest(body) against
+    // the in-memory body, then JSON.stringify(envelope)s it for encryption;
+    // the receiver JSON.parses the decrypted plaintext before verifying. A
+    // payload built from a large, partially-filled form (e.g. a contract
+    // proposal) routinely has explicit `undefined` values for unset fields.
+    const pk = generatePrivateKey();
+    const account = privateKeyToAccount(pk);
+    const { privateKey: sk, publicKey: spk } = await createSessionKeypair();
+    const cert = await mintSessionCert({
+      walletAddress: account.address,
+      sessionPublicKeyHex: spk,
+      expiresAtUnixMs: Date.now() + SESSION_DURATION_MS,
+      chainId: 84532,
+      signMessage: async (m) => account.signMessage({ message: m }),
+    });
+    const body = buildUnsignedBody({
+      threadId: ('0x' + 'aa'.repeat(32)) as Hex,
+      contentType: ContentType.PROPOSAL,
+      payload: {
+        kind: 'proposal',
+        revisionNumber: 1,
+        data: { eventName: 'Show', venueName: undefined, tickets: undefined, party1: account.address },
+      },
+      parentHash: ('0x' + '00'.repeat(32)) as Hex,
+      sender: account.address,
+    });
+    const envelope = await buildEnvelope(body, sk, cert);
+    // Simulate the wire transport's JSON.stringify -> JSON.parse round-trip
+    // (the encrypt/decrypt in between is opaque to this concern).
+    const roundTripped = JSON.parse(JSON.stringify(envelope));
+    expect(await verifyEnvelope(roundTripped)).toBe(true);
+  });
+
   it('payloadDigest is stable across object key ordering', () => {
     const a = buildUnsignedBody({
       threadId: ('0x' + 'aa'.repeat(32)) as Hex,

@@ -2,11 +2,25 @@ import { keccak256, toBytes, type Hex, type Address } from 'viem';
 import type { MessageBody, MessagePayload, OnWireEnvelope, SessionCert } from './types';
 import { signWithSession, verifyWithSession, verifySessionCert, isExpired } from './session';
 
+// Must match how a real JSON.stringify/parse round-trip treats `undefined` —
+// the wire transport always does exactly one such round-trip (post() calls
+// JSON.stringify(envelope) before encrypting; the receiver JSON.parses the
+// decrypted plaintext) between the sender signing payloadDigest(body) and the
+// receiver recomputing it in verifyEnvelope. JSON.stringify drops
+// undefined-valued object keys entirely and turns undefined array elements
+// into null; if canonicalStringify didn't mirror that, any payload containing
+// an explicit `undefined` (routine in a large, partially-filled form object,
+// e.g. a contract proposal's data) would hash differently before and after
+// the round-trip, so a genuine, untampered message would fail verification
+// and get silently dropped on the receiving end.
 function canonicalStringify(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return '[' + value.map(canonicalStringify).join(',') + ']';
-  const keys = Object.keys(value as Record<string, unknown>).sort();
-  return '{' + keys.map((k) => JSON.stringify(k) + ':' + canonicalStringify((value as Record<string, unknown>)[k])).join(',') + '}';
+  if (Array.isArray(value)) {
+    return '[' + value.map((v) => (v === undefined ? 'null' : canonicalStringify(v))).join(',') + ']';
+  }
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj).filter((k) => obj[k] !== undefined).sort();
+  return '{' + keys.map((k) => JSON.stringify(k) + ':' + canonicalStringify(obj[k])).join(',') + '}';
 }
 
 function randomHex32(): Hex {

@@ -52,15 +52,28 @@ export function buildUnsignedBody(input: {
   };
 }
 
+// Normalizes a value through an actual JSON.stringify/parse round-trip before
+// canonicalStringify sees it — the same round-trip the wire transport always
+// performs. This makes the undefined-key fix above belt-and-suspenders rather
+// than the only defense: it also covers every other value JSON.stringify
+// treats specially in ways a raw structural walk wouldn't (e.g. a `Date`
+// becomes an ISO string via its own toJSON(), not the `{}` a naive walk of
+// its own enumerable properties would produce). Hashing the same normalized
+// shape on both ends is what guarantees a genuine, untampered message
+// verifies regardless of what value types happen to be in its payload.
+function hashableStringify(value: unknown): string {
+  return canonicalStringify(JSON.parse(JSON.stringify(value)));
+}
+
 export function payloadDigest(body: MessageBody): Hex {
-  return keccak256(toBytes(canonicalStringify(body)));
+  return keccak256(toBytes(hashableStringify(body)));
 }
 
 export function computeBodyHash(envelope: OnWireEnvelope): Hex {
   // Hash of the on-wire object EXCLUDING signature — child messages reference
   // this as parentHash, so it must be stable across re-signings of the same body.
   const { signature: _ignored, ...rest } = envelope;
-  return keccak256(toBytes(canonicalStringify(rest)));
+  return keccak256(toBytes(hashableStringify(rest)));
 }
 
 export async function buildEnvelope(

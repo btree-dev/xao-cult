@@ -101,6 +101,38 @@ describe('envelope', () => {
     expect(await verifyEnvelope(roundTripped)).toBe(true);
   });
 
+  it('verifies after a JSON round-trip when the payload contains a Date object', async () => {
+    // A raw Date has no own enumerable properties, so a naive structural walk
+    // (canonicalStringify without the JSON-round-trip normalization) would
+    // hash it as `{}` — but the real wire transport's JSON.stringify calls
+    // Date.prototype.toJSON() and encodes it as an ISO string, so the
+    // receiver would decode a string, not `{}`, and the hashes would diverge.
+    const pk = generatePrivateKey();
+    const account = privateKeyToAccount(pk);
+    const { privateKey: sk, publicKey: spk } = await createSessionKeypair();
+    const cert = await mintSessionCert({
+      walletAddress: account.address,
+      sessionPublicKeyHex: spk,
+      expiresAtUnixMs: Date.now() + SESSION_DURATION_MS,
+      chainId: 84532,
+      signMessage: async (m) => account.signMessage({ message: m }),
+    });
+    const body = buildUnsignedBody({
+      threadId: ('0x' + 'aa'.repeat(32)) as Hex,
+      contentType: ContentType.PROPOSAL,
+      payload: {
+        kind: 'proposal',
+        revisionNumber: 1,
+        data: { eventDate: new Date('2026-08-01T00:00:00.000Z') as unknown as string },
+      },
+      parentHash: ('0x' + '00'.repeat(32)) as Hex,
+      sender: account.address,
+    });
+    const envelope = await buildEnvelope(body, sk, cert);
+    const roundTripped = JSON.parse(JSON.stringify(envelope));
+    expect(await verifyEnvelope(roundTripped)).toBe(true);
+  });
+
   it('payloadDigest is stable across object key ordering', () => {
     const a = buildUnsignedBody({
       threadId: ('0x' + 'aa'.repeat(32)) as Hex,

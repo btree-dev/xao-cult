@@ -214,6 +214,15 @@ const CreateContract = () => {
         termsObject.contractAddress = savedContractAddress;
       }
       termsObject.draftId = draftId;
+      // Force party1/party2 to ground truth (my own wallet / the resolved
+      // counterparty) rather than trusting getContractData()'s echoed-back
+      // party1/party2 props — those can be corrupted by a previously
+      // *received* proposal's own party1/party2 (see handleContractProposalSelect
+      // and the sessionStorage-load effect below, which copy the sender's
+      // party1/party2 verbatim into local state with no re-validation), and
+      // an outgoing send must never re-broadcast that corruption.
+      termsObject.party1 = address;
+      termsObject.party2 = peerAddress;
 
       // Send the proposal
       await dmThread.postProposal({
@@ -300,6 +309,10 @@ const CreateContract = () => {
               }
               termsObject.contractAddress = newContractAddress;
               termsObject.draftId = draftId;
+              // See the identical comment in handleSendProposal — never
+              // re-broadcast a possibly-corrupted party1/party2.
+              termsObject.party1 = address;
+              termsObject.party2 = peerAddress;
 
               await postProposalRef.current({
                 kind: activeProposal ? 'counter-proposal' : 'proposal',
@@ -418,6 +431,10 @@ const CreateContract = () => {
 
             termsObject.contractAddress = contractAddrToShare;
             termsObject.draftId = draftId;
+            // See the identical comment in handleSendProposal — never
+            // re-broadcast a possibly-corrupted party1/party2.
+            termsObject.party1 = address;
+            termsObject.party2 = peerAddress;
 
             postProposalRef.current({
               kind: activeProposal ? 'counter-proposal' : 'proposal',

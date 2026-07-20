@@ -106,18 +106,25 @@ const CreateContract = () => {
 
   // Load a stored proposal (if navigating from Chat/Negotiation) — or, if
   // there isn't one, fall back to the connected-wallet/URL-param defaults.
-  // These two concerns are deliberately ONE effect, not two separate ones:
-  // splitting them (as this used to) raced. On a client-side navigation
-  // (e.g. clicking a draft on the Negotiation page), wagmi's `address` is
-  // already synchronously available from the persisted connection — unlike
-  // a hard page load, where it arrives asynchronously after mount — so a
-  // separate "auto-fill party1 from address" effect could fire in the same
-  // commit as this one, in an unpredictable order, and set party1 to the
-  // viewer's own address instead of the proposal's actual party1. Observed
-  // live as both Party1 and Party2 ending up as the viewer's own address.
-  // Loading a stored proposal (when one exists) must be the only thing that
-  // sets party1/party2 in that pass — the defaults below apply only when
-  // there's no proposal to load at all.
+  // These two concerns are deliberately ONE effect, not two separate ones —
+  // splitting them raced (see git history). But merging them into one effect
+  // wasn't sufficient by itself: this app has `reactStrictMode: true`
+  // (next.config.js), which deliberately double-invokes every effect in dev
+  // (mount → cleanup → mount again) to surface exactly this class of bug.
+  // Invocation 1 reads sessionStorage, applies the proposal's party1/party2,
+  // and clears it. Invocation 2 runs immediately after, in the same commit,
+  // against the SAME stale render closure — sessionStorage is now empty (a
+  // real synchronous side effect invocation 1 already made, not something
+  // React can "undo" between the two invocations), so invocation 2 falls
+  // into the defaults branch. If that branch reads `party1`/`party2`
+  // straight from the closure (which still shows their pre-effect values,
+  // since no new render has happened between the two invocations), it
+  // clobbers invocation 1's correct values with the viewer's own address —
+  // observed live as both Party1 and Party2 showing the same address.
+  // Functional state updates fix this: React threads each queued update's
+  // `prev` through the next one in the same batch, so by the time
+  // invocation 2's updater runs, `prev` already reflects invocation 1's
+  // result — not the stale closure.
   useEffect(() => {
     const storedProposal = sessionStorage.getItem("selectedContractProposal");
     if (storedProposal) {
@@ -144,9 +151,16 @@ const CreateContract = () => {
       }
     }
 
-    // No stored proposal this pass — apply the connected-wallet/URL-param defaults.
-    if (peerParam && typeof peerParam === "string" && !party2) setParty2(peerParam);
-    if (address && !party1) setParty1(address);
+    // No stored proposal this pass — apply the connected-wallet/URL-param
+    // defaults, but only if nothing already set a value (functional form —
+    // see the comment above this effect for why the condition can't safely
+    // read `party1`/`party2` from the closure).
+    if (peerParam && typeof peerParam === "string") {
+      setParty2((prev) => prev || String(peerParam));
+    }
+    if (address) {
+      setParty1((prev) => prev || address);
+    }
   }, [address, peerParam, party1, party2]);
 
   // Waku session + DM thread for sending contract proposals

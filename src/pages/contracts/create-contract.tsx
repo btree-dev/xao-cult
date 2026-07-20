@@ -57,13 +57,6 @@ const CreateContract = () => {
   const { address, isConnected, chain } = useWeb3();
   const { currentUserProfile } = useProfileCache();
 
-  // Party 1 is always the wallet creating the contract — auto-fill once the
-  // connected address is known. Doesn't override values loaded from an
-  // existing proposal (those flow in via a separate effect).
-  useEffect(() => {
-    if (address && !party1) setParty1(address);
-  }, [address, party1]);
-
   // Contract creation hooks
   const { createEventContract, isLoading, isSuccess, error, transactionHash, contractAddress: newContractAddress } = useCreateEventContract(chain?.id);
   const { signContractAsync, isLoading: isSignLoading, isSuccess: isSignSuccess, error: signError, transactionHash: signTxHash } = useSignEventContract();
@@ -111,14 +104,21 @@ const CreateContract = () => {
     return peerParam ? String(peerParam) : null;
   }, [address, party1, party2, peerParam, lastProposalSender]);
 
-  // Load proposal from sessionStorage if navigating from Chat page
+  // Load a stored proposal (if navigating from Chat/Negotiation) — or, if
+  // there isn't one, fall back to the connected-wallet/URL-param defaults.
+  // These two concerns are deliberately ONE effect, not two separate ones:
+  // splitting them (as this used to) raced. On a client-side navigation
+  // (e.g. clicking a draft on the Negotiation page), wagmi's `address` is
+  // already synchronously available from the persisted connection — unlike
+  // a hard page load, where it arrives asynchronously after mount — so a
+  // separate "auto-fill party1 from address" effect could fire in the same
+  // commit as this one, in an unpredictable order, and set party1 to the
+  // viewer's own address instead of the proposal's actual party1. Observed
+  // live as both Party1 and Party2 ending up as the viewer's own address.
+  // Loading a stored proposal (when one exists) must be the only thing that
+  // sets party1/party2 in that pass — the defaults below apply only when
+  // there's no proposal to load at all.
   useEffect(() => {
-    // Set party2 from URL param if provided
-    if (peerParam && typeof peerParam === "string" && !party2) {
-      setParty2(peerParam);
-    }
-
-    // Check for stored proposal from Chat page
     const storedProposal = sessionStorage.getItem("selectedContractProposal");
     if (storedProposal) {
       try {
@@ -137,12 +137,17 @@ const CreateContract = () => {
         if (proposal.proposedBy) setLastProposalSender(proposal.proposedBy);
         // Clear the stored proposal after loading
         sessionStorage.removeItem("selectedContractProposal");
+        return;
       } catch (err) {
         console.error("[CreateContract] Failed to parse stored proposal:", err);
         sessionStorage.removeItem("selectedContractProposal");
       }
     }
-  }, [peerParam, party1, party2]);
+
+    // No stored proposal this pass — apply the connected-wallet/URL-param defaults.
+    if (peerParam && typeof peerParam === "string" && !party2) setParty2(peerParam);
+    if (address && !party1) setParty1(address);
+  }, [address, peerParam, party1, party2]);
 
   // Waku session + DM thread for sending contract proposals
   const { session } = useXaoMsgSession();

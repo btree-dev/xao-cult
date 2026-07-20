@@ -11,6 +11,7 @@ import {
   type ResolvedMessage, type SystemPayload, type TextPayload,
 } from '../../lib/xaomsg/types';
 import { CONTRACT_MESSAGE_VERSION, type ContractProposalMessage } from '../../types/contractMessage';
+import { loadDraft } from '../../lib/xaomsg/offchainContracts';
 
 export interface XaoMsgComponentProps {
   showContract?: Address | null;
@@ -156,6 +157,25 @@ function shortWho(addr: string, myAddress: Address | undefined): string {
 
 function toContractProposalMessage(m: ResolvedMessage): ContractProposalMessage {
   const p = m.envelope.body.payload as ProposalPayload;
+  // A chat thread keeps every past revision's system line around, so the
+  // message someone clicks is not necessarily the negotiation's current
+  // state. Resolve to the latest known revision of the same draftId (from
+  // the local off-chain store, which upsertDraft always keeps at the
+  // highest revisionNumber) rather than this specific message's own
+  // snapshot — clicking any revision of a negotiation should open where it
+  // actually stands now.
+  const draftId = (p.data as { draftId?: unknown }).draftId;
+  const latest = draftId ? loadDraft(String(draftId)) : null;
+  if (latest && latest.revisionNumber >= p.revisionNumber) {
+    return {
+      type: 'contract-proposal',
+      version: CONTRACT_MESSAGE_VERSION,
+      data: latest.terms,
+      sentAt: latest.lastActivityUnixMs,
+      proposedBy: m.envelope.body.sender,
+      revisionNumber: latest.revisionNumber,
+    };
+  }
   return {
     type: 'contract-proposal',
     version: CONTRACT_MESSAGE_VERSION,

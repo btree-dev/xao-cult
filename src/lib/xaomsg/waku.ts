@@ -18,7 +18,13 @@ let nodeP: Promise<LightNode> | null = null;
 export async function getWakuClient(): Promise<LightNode> {
   if (!nodeP) {
     nodeP = (async () => {
-      const node = await createLightNode({ defaultBootstrap: true });
+      // Default light-push peer count is 1 — if that one peer enforces an
+      // RLN anti-spam proof (which this client doesn't generate), every send
+      // fails outright with zero successes ("Proof generation failed"),
+      // observed live even though publishToTopic already tolerates *partial*
+      // per-peer failure. Asking for more peers means one RLN-requiring peer
+      // no longer has to be the single point of failure for every send.
+      const node = await createLightNode({ defaultBootstrap: true, lightPush: { numPeersToUse: 3 } });
       await node.start();
       await waitForRemotePeer(node, [Protocols.LightPush, Protocols.Filter], 30_000);
       return node;

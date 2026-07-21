@@ -57,43 +57,11 @@ npx eslint .          # Run ESLint (extends next/core-web-vitals)
 
 ## Architecture
 
-### Tech Stack
-- **Frontend**: Next.js 15 (Pages Router), React 19, TypeScript, TailwindCSS
-- **Web3**: Wagmi + Dynamic.xyz for wallet connection, Viem for Ethereum interactions
-- **Smart Contracts**: Solidity 0.8.20, Hardhat, deployed to Base blockchain (ERC721 NFTs)
-- **Backend**: Supabase (PostgreSQL), MongoDB/Mongoose as alternative
-- **State**: Redux Toolkit (minimal), React Query for server state
-
-### Key Directories
-```
-src/
-├── pages/              # Next.js pages (routing)
-│   ├── contracts/      # Contract creation, negotiation, details
-│   ├── event/[id]/     # Event pages with ticket purchase
-│   ├── stats/          # Financial/token statistics
-│   └── TicketAuthenticate/  # QR ticket scanning
-├── components/         # Reusable UI components
-├── hooks/              # Custom hooks (useWeb3, useMintContractNFT, useContractNFT)
-├── lib/web3/           # Chain configs, contract ABIs, IPFS utils
-├── backend/            # API services and mock data
-│   └── services/       # Axios API client and typed services
-└── store/              # Redux store setup
-
-contracts/              # Solidity smart contracts
-scripts/                # Hardhat deployment scripts
-```
-
 ### Web3 Integration Flow
 1. Wallet connection via Dynamic.xyz (`src/wagmi.ts` configures supported chains)
 2. Custom hooks in `src/hooks/` handle contract interactions
 3. Contract NFT minting stores agreement terms on-chain (Base blockchain)
 4. Supported chains: Ethereum, Polygon, Optimism, Arbitrum, Base, Base Sepolia
-
-### Smart Contract (`contracts/ContractNFT.sol`)
-- `mintContractNFT(party1, party2, terms)` - Mint new contract NFT
-- `getUserNFTs(user)` - Get user's token IDs
-- `getContractData(tokenId)` - Get contract metadata
-- `signContract(tokenId)` - Mark contract as signed
 
 ## Environment Variables
 
@@ -151,20 +119,4 @@ Deployed via Vercel.
 
 ## Supabase Docs
 
-Before working on a Supabase feature, check the docs via `ssh supabase.sh <command>`.
-
-```bash
-# Search for a topic
-ssh supabase.sh grep -rl 'auth' /supabase/docs/
-
-# Read a specific guide
-ssh supabase.sh cat /supabase/docs/guides/auth/passwords.md
-
-# Find all guides in a section
-ssh supabase.sh find /supabase/docs/guides/database -name '*.md'
-
-# Search with context
-ssh supabase.sh grep -r 'RLS' /supabase/docs/guides/auth --include='*.md' -l
-```
-
-All docs live under `/supabase/docs/` as markdown files. You can use any standard Unix tools (grep, find, cat, etc.) to search and read them.
+See the `supabase-docs` skill for how to search and read the mirrored Supabase docs.

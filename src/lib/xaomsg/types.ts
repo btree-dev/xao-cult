@@ -41,7 +41,8 @@ export interface SystemPayload {
 export type MessagePayload = TextPayload | ProposalPayload | AcceptPayload | RejectPayload | ContactCardPayload | SystemPayload;
 
 /**
- * SessionCert authorises a session keypair on behalf of a wallet for a 24h window.
+ * SessionCert authorises a session keypair on behalf of a wallet until
+ * `expiresAtUnixMs` (minted for `SESSION_DURATION_MS` — see session.ts).
  * The wallet signs a fixed-format challenge string; verifiers ecrecover it.
  */
 export interface SessionCert {

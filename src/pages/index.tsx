@@ -13,7 +13,7 @@ const Home: NextPage = () => {
   // Redirect when Dynamic user is authenticated
   useEffect(() => {
     if (dynamicUser) {
-      router.push('/dashboard');
+      router.push('/unlock-chat');
     }
   }, [dynamicUser, router]);
 

@@ -13,7 +13,7 @@ const UnlockChat: NextPage = () => {
   const router = useRouter();
   const { user: dynamicUser } = useDynamicContext();
   const { address } = useAccount();
-  const { session, isUnlocking, error, unlock } = useXaoMsgSession();
+  const { session, isUnlocking, error, unlock, isWalletReady } = useXaoMsgSession();
   const attemptedRef = useRef(false);
   const syncStartedRef = useRef(false);
 
@@ -23,13 +23,18 @@ const UnlockChat: NextPage = () => {
   }, [dynamicUser, router]);
 
   // Auto-fire the unlock signature exactly once, for any wallet type, as
-  // soon as we know there's no already-valid session to reuse.
+  // soon as we know there's no already-valid session to reuse. Gated on
+  // isWalletReady (not just `address`): wagmi's wallet client hydrates a
+  // render or two after `address` appears, and calling unlock() before it's
+  // ready silently no-ops — without this gate, attemptedRef would already be
+  // true by the time the client became ready, permanently stalling the page
+  // with no error and no retry.
   useEffect(() => {
-    if (!address || session) return;
+    if (!address || !isWalletReady || session) return;
     if (attemptedRef.current || isUnlocking) return;
     attemptedRef.current = true;
     void unlock();
-  }, [address, session, isUnlocking, unlock]);
+  }, [address, isWalletReady, session, isUnlocking, unlock]);
 
   // Once a session is ready — whether it was already valid on mount or was
   // just freshly signed above — kick off the background sync once and move

@@ -14,6 +14,13 @@ export interface UseXaoMsgSessionResult {
   isUnlocking: boolean;
   error: string | null;
   unlock: () => Promise<void>;
+  /** True once wagmi's wallet client has hydrated for the connected account.
+   *  `useWalletClient()` resolves asynchronously — `address`/`chainId` can be
+   *  populated a render or two before this flips true, so callers that need
+   *  to know unlock() will actually attempt a signature (rather than silently
+   *  no-op on a not-yet-ready client) should gate on this instead of just
+   *  `address`. */
+  isWalletReady: boolean;
 }
 
 export function useXaoMsgSession(): UseXaoMsgSessionResult {
@@ -57,5 +64,5 @@ export function useXaoMsgSession(): UseXaoMsgSessionResult {
     }
   }, [walletClient, address, chainId]);
 
-  return { session, isUnlocking, error, unlock };
+  return { session, isUnlocking, error, unlock, isWalletReady: !!walletClient };
 }

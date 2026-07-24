@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts';
 import {
   createSessionKeypair,
@@ -9,7 +9,12 @@ import {
   signWithSession,
   verifyWithSession,
   SESSION_DURATION_MS,
+  loadSession,
+  saveSession,
+  clearSession,
+  type PersistedSession,
 } from './session';
+import type { Address } from 'viem';
 
 describe('session', () => {
   it('createSessionKeypair generates a valid 32/33 byte secp256k1 pair', async () => {
@@ -75,5 +80,97 @@ describe('session', () => {
     expect(await verifyWithSession(digest, sig, publicKey)).toBe(true);
     const wrongPub = (await createSessionKeypair()).publicKey;
     expect(await verifyWithSession(digest, sig, wrongPub)).toBe(false);
+  });
+});
+
+describe('session storage (localStorage-backed, 30-day duration)', () => {
+  const WALLET = '0x000000000000000000000000000000000000dead' as Address;
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  it('SESSION_DURATION_MS is 30 days', () => {
+    expect(SESSION_DURATION_MS).toBe(30 * 24 * 60 * 60 * 1000);
+  });
+
+  it('loadSession returns null when nothing is stored', () => {
+    expect(loadSession(WALLET)).toBeNull();
+  });
+
+  it('saveSession + loadSession round-trip via localStorage', () => {
+    const persisted: PersistedSession = {
+      cert: {
+        v: 1,
+        walletAddress: WALLET,
+        sessionPublicKeyHex: '0x02' + 'ab'.repeat(32),
+        expiresAtUnixMs: Date.now() + SESSION_DURATION_MS,
+        chainId: 84532,
+        walletSignature: ('0x' + 'cd'.repeat(65)) as `0x${string}`,
+      },
+      privateKeyHex: ('0x' + '11'.repeat(32)) as `0x${string}`,
+    };
+    saveSession(WALLET, persisted);
+    expect(loadSession(WALLET)).toEqual(persisted);
+    // Persisted in localStorage specifically, not sessionStorage.
+    expect(localStorage.getItem(`xao-msg-session-${WALLET}`)).not.toBeNull();
+    expect(sessionStorage.getItem(`xao-msg-session-${WALLET}`)).toBeNull();
+  });
+
+  it('loadSession returns null for an expired persisted session', () => {
+    const persisted: PersistedSession = {
+      cert: {
+        v: 1,
+        walletAddress: WALLET,
+        sessionPublicKeyHex: '0x02' + 'ab'.repeat(32),
+        expiresAtUnixMs: Date.now() - 1000,
+        chainId: 84532,
+        walletSignature: ('0x' + 'cd'.repeat(65)) as `0x${string}`,
+      },
+      privateKeyHex: ('0x' + '11'.repeat(32)) as `0x${string}`,
+    };
+    saveSession(WALLET, persisted);
+    expect(loadSession(WALLET)).toBeNull();
+  });
+
+  it('clearSession removes the persisted entry', () => {
+    const persisted: PersistedSession = {
+      cert: {
+        v: 1,
+        walletAddress: WALLET,
+        sessionPublicKeyHex: '0x02' + 'ab'.repeat(32),
+        expiresAtUnixMs: Date.now() + SESSION_DURATION_MS,
+        chainId: 84532,
+        walletSignature: ('0x' + 'cd'.repeat(65)) as `0x${string}`,
+      },
+      privateKeyHex: ('0x' + '11'.repeat(32)) as `0x${string}`,
+    };
+    saveSession(WALLET, persisted);
+    clearSession(WALLET);
+    expect(loadSession(WALLET)).toBeNull();
+  });
+
+  it('falls back to an in-memory session when localStorage.setItem throws', () => {
+    const persisted: PersistedSession = {
+      cert: {
+        v: 1,
+        walletAddress: WALLET,
+        sessionPublicKeyHex: '0x02' + 'ab'.repeat(32),
+        expiresAtUnixMs: Date.now() + SESSION_DURATION_MS,
+        chainId: 84532,
+        walletSignature: ('0x' + 'cd'.repeat(65)) as `0x${string}`,
+      },
+      privateKeyHex: ('0x' + '11'.repeat(32)) as `0x${string}`,
+    };
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('SecurityError: storage disabled');
+    });
+    try {
+      saveSession(WALLET, persisted);
+      expect(loadSession(WALLET)).toEqual(persisted);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

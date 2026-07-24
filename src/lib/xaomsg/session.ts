@@ -2,7 +2,7 @@ import * as secp from '@noble/secp256k1';
 import { recoverMessageAddress, type Address, type Hex } from 'viem';
 import type { SessionCert } from './types';
 
-export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+export const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 
 function bytesToHex(bytes: Uint8Array): string {
   let out = '';
@@ -103,25 +103,45 @@ export interface PersistedSession {
   privateKeyHex: Hex;
 }
 
+// Some private-browsing modes throw on localStorage.setItem/getItem rather
+// than just no-opping. This in-memory map keeps the session usable for the
+// rest of the tab's lifetime in that case, instead of unlock() silently
+// failing to persist and re-prompting on every navigation.
+const memoryFallback = new Map<string, PersistedSession>();
+
 export function loadSession(wallet: Address): PersistedSession | null {
   if (typeof window === 'undefined') return null;
-  const raw = sessionStorage.getItem(STORAGE_KEY(wallet));
-  if (!raw) return null;
+  const key = wallet.toLowerCase();
   try {
+    const raw = localStorage.getItem(STORAGE_KEY(wallet));
+    if (!raw) {
+      const fallback = memoryFallback.get(key);
+      return fallback && !isExpired(fallback.cert) ? fallback : null;
+    }
     const parsed = JSON.parse(raw) as PersistedSession;
     if (isExpired(parsed.cert)) return null;
     return parsed;
   } catch {
-    return null;
+    const fallback = memoryFallback.get(key);
+    return fallback && !isExpired(fallback.cert) ? fallback : null;
   }
 }
 
 export function saveSession(wallet: Address, session: PersistedSession): void {
   if (typeof window === 'undefined') return;
-  sessionStorage.setItem(STORAGE_KEY(wallet), JSON.stringify(session));
+  try {
+    localStorage.setItem(STORAGE_KEY(wallet), JSON.stringify(session));
+  } catch {
+    memoryFallback.set(wallet.toLowerCase(), session);
+  }
 }
 
 export function clearSession(wallet: Address): void {
   if (typeof window === 'undefined') return;
-  sessionStorage.removeItem(STORAGE_KEY(wallet));
+  memoryFallback.delete(wallet.toLowerCase());
+  try {
+    localStorage.removeItem(STORAGE_KEY(wallet));
+  } catch {
+    // best-effort — nothing further to clean up if storage itself is unusable
+  }
 }

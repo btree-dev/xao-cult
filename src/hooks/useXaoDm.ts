@@ -14,9 +14,9 @@ import { upsertConversation } from '../lib/xaomsg/conversationStore';
 import {
   buildContactCardPayload, applyContactCard, hasSentContactCard, markContactCardSent,
 } from '../lib/xaomsg/contactCard';
-import { upsertDraft, recordApproval, recordMint } from '../lib/xaomsg/offchainContracts';
+import { applyDraftMessage, type ProposalHashIndex } from '../lib/xaomsg/draftSync';
 import {
-  ContentType, type AcceptPayload, type ContactCardPayload, type ProposalPayload, type ResolvedMessage, type SystemPayload,
+  ContentType, type ContactCardPayload, type ResolvedMessage,
 } from '../lib/xaomsg/types';
 import { useXaoThread, type UseXaoThreadResult } from './useXaoThread';
 import { useProfileCache } from '../contexts/ProfileCacheContext';
@@ -136,62 +136,30 @@ export function useXaoDm({ peer, session }: { peer: Address | null; session: Per
   // can only ever reference a proposal that already exists, and Waku store
   // replay returns messages in order, so the map is always populated before
   // a referencing ACCEPT is processed.
-  const draftByProposalHash = useRef(new Map<Hex, string>());
+  const draftByProposalHash = useRef<ProposalHashIndex>(new Map());
 
   const onMessage = (resolved: ResolvedMessage) => {
     if (!myAddress || !peer) return;
-    const { body, cert } = resolved.envelope;
-    switch (body.contentType) {
-      case ContentType.CONTACT_CARD: {
-        const card = body.payload as ContactCardPayload;
-        // Two independent checks, both required: `body.sender` is the
-        // wallet-verified signer (verifyEnvelope already confirmed it matches
-        // cert.walletAddress) — checking it against `peer` rejects a message
-        // from anyone who isn't actually our DM counterparty. Checking the
-        // *payload's own* claimed `walletAddress` against that same verified
-        // sender stops a genuine-but-third-party sender from putting a
-        // different wallet's address inside the card and having it cached
-        // under that other wallet's identity.
-        if (
-          body.sender.toLowerCase() === peer.toLowerCase() &&
-          card.walletAddress.toLowerCase() === body.sender.toLowerCase()
-        ) {
-          setProfile(applyContactCard(card));
-        }
-        break;
+    const { body } = resolved.envelope;
+    if (body.contentType === ContentType.CONTACT_CARD) {
+      const card = body.payload as ContactCardPayload;
+      // Two independent checks, both required: `body.sender` is the
+      // wallet-verified signer (verifyEnvelope already confirmed it matches
+      // cert.walletAddress) — checking it against `peer` rejects a message
+      // from anyone who isn't actually our DM counterparty. Checking the
+      // *payload's own* claimed `walletAddress` against that same verified
+      // sender stops a genuine-but-third-party sender from putting a
+      // different wallet's address inside the card and having it cached
+      // under that other wallet's identity.
+      if (
+        body.sender.toLowerCase() === peer.toLowerCase() &&
+        card.walletAddress.toLowerCase() === body.sender.toLowerCase()
+      ) {
+        setProfile(applyContactCard(card));
       }
-      case ContentType.PROPOSAL:
-      case ContentType.COUNTER_PROPOSAL: {
-        const p = body.payload as ProposalPayload;
-        const draftId = String((p.data as { draftId?: unknown }).draftId || '');
-        if (!draftId) break;
-        draftByProposalHash.current.set(resolved.bodyHash, draftId);
-        const [party1, party2] = ([myAddress, peer] as Address[]).sort(
-          (a, b) => a.toLowerCase().localeCompare(b.toLowerCase()),
-        ) as [Address, Address];
-        upsertDraft({
-          draftId, party1, party2, terms: p.data, revisionNumber: p.revisionNumber,
-          approvals: [], lastActivityUnixMs: body.sentAt,
-        });
-        break;
-      }
-      case ContentType.ACCEPT: {
-        const a = body.payload as AcceptPayload;
-        const draftId = draftByProposalHash.current.get(a.proposalHash);
-        if (draftId) recordApproval(draftId, cert.walletAddress);
-        break;
-      }
-      case ContentType.SYSTEM: {
-        const s = body.payload as SystemPayload;
-        // Fires for both the sender's own optimistic send and the recipient's
-        // inbound copy (record() invokes onMessage either way) — recordMint
-        // is a plain overwrite, so both sides converge on the same state.
-        if (s.event === 'minted') recordMint(s.draftId, s.contractAddress);
-        break;
-      }
-      default:
-        break;
+      return;
     }
+    applyDraftMessage(resolved, myAddress, peer, draftByProposalHash.current);
   };
 
   const thread = useXaoThread({ threadId, contentTopic, threadKey, session, onMessage });

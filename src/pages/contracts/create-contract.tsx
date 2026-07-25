@@ -104,6 +104,34 @@ const CreateContract = () => {
     return peerParam ? String(peerParam) : null;
   }, [address, party1, party2, peerParam, lastProposalSender]);
 
+  // Which role (Party1 or Party2) I actually hold in this negotiation.
+  // Compared case-insensitively since addresses can arrive checksummed from
+  // one side and lowercased from the other (wallet libs aren't consistent
+  // about this), which used to make strict `===` comparisons fall through.
+  // Defaults to null (treated as Party1) for a brand-new contract before the
+  // party1 effect has populated from `address`.
+  const myRole = useMemo<'party1' | 'party2' | null>(() => {
+    const myAddr = address?.toLowerCase();
+    if (!myAddr) return null;
+    if (party1 && party1.toLowerCase() === myAddr) return 'party1';
+    if (party2 && party2.toLowerCase() === myAddr) return 'party2';
+    return null;
+  }, [address, party1, party2]);
+
+  // Write party1/party2 onto an outgoing contract payload using whichever
+  // role I actually hold in this negotiation — never assume "I am Party1"
+  // just because I'm the one clicking Send. Party1 is whoever created the
+  // contract; that never changes, even when Party2 sends a counter-proposal.
+  const applyPartyRoles = useCallback((formData: any) => {
+    if (myRole === 'party2') {
+      formData.party1 = peerAddress;
+      formData.party2 = address;
+    } else {
+      formData.party1 = address;
+      formData.party2 = peerAddress;
+    }
+  }, [myRole, address, peerAddress]);
+
   // Load a stored proposal (if navigating from Chat/Negotiation) — or, if
   // there isn't one, fall back to the connected-wallet/URL-param defaults.
   // These two concerns are deliberately ONE effect, not two separate ones —
@@ -239,9 +267,10 @@ const CreateContract = () => {
       // *received* proposal's own party1/party2 (see handleContractProposalSelect
       // and the sessionStorage-load effect below, which copy the sender's
       // party1/party2 verbatim into local state with no re-validation), and
-      // an outgoing send must never re-broadcast that corruption.
-      termsObject.party1 = address;
-      termsObject.party2 = peerAddress;
+      // an outgoing send must never re-broadcast that corruption. Preserve
+      // whichever role I actually hold (see applyPartyRoles) instead of
+      // always forcing myself into Party1.
+      applyPartyRoles(termsObject);
 
       // Send the proposal
       await dmThread.postProposal({
@@ -329,9 +358,9 @@ const CreateContract = () => {
               termsObject.contractAddress = newContractAddress;
               termsObject.draftId = draftId;
               // See the identical comment in handleSendProposal — never
-              // re-broadcast a possibly-corrupted party1/party2.
-              termsObject.party1 = address;
-              termsObject.party2 = peerAddress;
+              // re-broadcast a possibly-corrupted party1/party2, and preserve
+              // whichever role I actually hold.
+              applyPartyRoles(termsObject);
 
               await postProposalRef.current({
                 kind: activeProposal ? 'counter-proposal' : 'proposal',
@@ -451,9 +480,9 @@ const CreateContract = () => {
             termsObject.contractAddress = contractAddrToShare;
             termsObject.draftId = draftId;
             // See the identical comment in handleSendProposal — never
-            // re-broadcast a possibly-corrupted party1/party2.
-            termsObject.party1 = address;
-            termsObject.party2 = peerAddress;
+            // re-broadcast a possibly-corrupted party1/party2, and preserve
+            // whichever role I actually hold.
+            applyPartyRoles(termsObject);
 
             postProposalRef.current({
               kind: activeProposal ? 'counter-proposal' : 'proposal',
@@ -621,7 +650,7 @@ const CreateContract = () => {
                 >
                   {isSendingProposal
                     ? "Sending..."
-                    : `Send to ${peerAddress === party1 ? "Party 1" : peerAddress === party2 ? "Party 2" : "Peer"} (Rev. ${revisionNumber})`}
+                    : `Send to ${myRole === 'party2' ? "Party 1" : "Party 2"} (Rev. ${revisionNumber})`}
                 </button>
 
                 {/* Contract already exists notice */}

@@ -9,12 +9,18 @@ vi.mock('./waku', () => ({
 }));
 vi.mock('./inbox', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./inbox')>();
-  return { ...actual, publishKeyBundle: vi.fn(async () => {}), queryInboxNotices: vi.fn(async () => {}) };
+  return {
+    ...actual,
+    publishKeyBundle: vi.fn(async () => {}),
+    queryInboxNotices: vi.fn(async () => {}),
+    queryPeerKeyBundle: vi.fn(async () => null),
+  };
 });
 
 import { syncAllKnownThreads } from './sync';
 import { queryHistory } from './waku';
-import { publishKeyBundle, queryInboxNotices } from './inbox';
+import { publishKeyBundle, queryInboxNotices, queryPeerKeyBundle } from './inbox';
+import { deriveDmConversationKeyRaw } from './ecies';
 import { dmThreadId } from './dmThreadId';
 import { contentTopicForThread } from './topicId';
 import { saveConversationKeyRaw, generateRawConversationKey, importAesKey } from './conversationKey';
@@ -72,6 +78,7 @@ describe('syncAllKnownThreads', () => {
     vi.mocked(queryHistory).mockReset().mockImplementation(async () => {});
     vi.mocked(publishKeyBundle).mockReset().mockImplementation(async () => {});
     vi.mocked(queryInboxNotices).mockReset().mockImplementation(async () => {});
+    vi.mocked(queryPeerKeyBundle).mockReset().mockImplementation(async () => null);
     myAccount = privateKeyToAccount(generatePrivateKey());
     peerAccount = privateKeyToAccount(generatePrivateKey());
     MY = myAccount.address;
@@ -101,14 +108,21 @@ describe('syncAllKnownThreads', () => {
   });
 
   it('discovers a new peer via an inbox notice and backfills its thread too', async () => {
+    // No key travels in the notice anymore — the thread key is whatever
+    // ECDH(mySession, peerSession) derives, and ensureConversationKey gets
+    // there by resolving the peer's key bundle, mocked below.
     const threadId = dmThreadId(MY, PEER);
-    const rawKey = generateRawConversationKey();
+    const session = await makeSession(myAccount);
+    const peerSession = await makeSession(peerAccount);
+    const rawKey = await deriveDmConversationKeyRaw(session.privateKeyHex, peerSession.cert.sessionPublicKeyHex);
     const threadKey = await importAesKey(rawKey);
-    const b64key = btoa(String.fromCharCode(...Array.from(rawKey)));
 
     vi.mocked(queryInboxNotices).mockImplementation(async (_addr, _priv, onDmNotice) => {
-      onDmNotice({ from: PEER, threadId, convKeyB64: b64key, ts: Date.now() });
+      onDmNotice({ from: PEER, threadId, convKeyB64: 'unused', ts: Date.now() });
     });
+    vi.mocked(queryPeerKeyBundle).mockImplementation(async (peer) => (
+      peer.toLowerCase() === PEER.toLowerCase() ? peerSession.cert : null
+    ));
 
     const bytes = await encryptedProposalBytes(threadId, threadKey, peerAccount, 'd2', 1);
     const targetTopic = contentTopicForThread(threadId);
@@ -116,7 +130,6 @@ describe('syncAllKnownThreads', () => {
       if (topic === targetTopic) await onMessage(bytes);
     });
 
-    const session = await makeSession(myAccount);
     await syncAllKnownThreads(MY, session);
 
     expect(loadConversations(MY).some((c) => c.peer.toLowerCase() === PEER.toLowerCase())).toBe(true);

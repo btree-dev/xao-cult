@@ -6,14 +6,13 @@ import { queryHistory } from './waku';
 import { decryptBody } from './crypto';
 import { verifyEnvelope, computeBodyHash } from './envelope';
 import { loadConversationKeyRaw, saveConversationKeyRaw, importAesKey } from './conversationKey';
-import { publishKeyBundle, queryInboxNotices } from './inbox';
+import { publishKeyBundle, queryInboxNotices, queryPeerKeyBundle } from './inbox';
+import { deriveDmConversationKeyRaw } from './ecies';
 import { upsertConversation } from './conversationStore';
 import { listDrafts } from './offchainContracts';
 import { applyDraftMessage, type ProposalHashIndex } from './draftSync';
 import type { OnWireEnvelope, ResolvedMessage } from './types';
 import type { PersistedSession } from './session';
-
-function b64decode(s: string): Uint8Array { return Uint8Array.from(atob(s), (c) => c.charCodeAt(0)); }
 
 /** Same decode -> decrypt -> verify pipeline useXaoThread uses for live/store
  *  messages, lifted out so the headless sync can reuse it without mounting
@@ -34,10 +33,23 @@ async function decodeResolvedMessage(
   }
 }
 
+/** Derives and caches a peer's DM conversation key via ECDH if we don't
+ *  already have it cached — no-ops (leaving nothing cached) if the peer has
+ *  never published a session key bundle, mirroring useXaoDm's negotiateKey. */
+async function ensureConversationKey(myAddress: Address, peer: Address, session: PersistedSession): Promise<void> {
+  const threadId = dmThreadId(myAddress, peer);
+  if (loadConversationKeyRaw(threadId)) return;
+  const peerCert = await queryPeerKeyBundle(peer);
+  if (!peerCert) return;
+  const raw = await deriveDmConversationKeyRaw(session.privateKeyHex, peerCert.sessionPublicKeyHex);
+  saveConversationKeyRaw(threadId, raw);
+}
+
 /** Backfills one DM thread's store history into the off-chain draft store.
  *  No-ops if we don't have the conversation key locally yet (nothing to
- *  decrypt with) — this only ever happens for a thread neither the inbox
- *  replay nor a prior live session has negotiated on this device. */
+ *  decrypt with) — this only ever happens for a peer who has never
+ *  published a session key bundle (ensureConversationKey couldn't derive
+ *  a key either). */
 async function backfillThread(myAddress: Address, peer: Address): Promise<void> {
   const threadId = dmThreadId(myAddress, peer);
   const rawKey = loadConversationKeyRaw(threadId);
@@ -68,10 +80,9 @@ export async function syncAllKnownThreads(myAddress: Address, session: Persisted
 
   try {
     await publishKeyBundle(session.cert);
+    // Key material no longer travels in the notice — it's derived below via
+    // ECDH for every discovered peer, uniformly, before backfilling.
     await queryInboxNotices(myAddress, session.privateKeyHex, (notice) => {
-      if (!loadConversationKeyRaw(notice.threadId)) {
-        saveConversationKeyRaw(notice.threadId, b64decode(notice.convKeyB64));
-      }
       upsertConversation(myAddress, {
         threadId: notice.threadId, peer: notice.from, lastActivityUnixMs: notice.ts, lastPreview: notice.preview,
       });
@@ -91,9 +102,11 @@ export async function syncAllKnownThreads(myAddress: Address, session: Persisted
 
   await Promise.all(
     Array.from(peers).map((peer) =>
-      backfillThread(myAddress, peer as Address).catch((err) => {
-        console.warn(`[xaomsg] sync: thread backfill failed for peer ${peer}:`, err);
-      }),
+      ensureConversationKey(myAddress, peer as Address, session)
+        .then(() => backfillThread(myAddress, peer as Address))
+        .catch((err) => {
+          console.warn(`[xaomsg] sync: thread backfill failed for peer ${peer}:`, err);
+        }),
     ),
   );
 }

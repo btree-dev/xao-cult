@@ -5,6 +5,10 @@ import { sha256 } from '@noble/hashes/sha256';
 
 const KEK_INFO = 'xao-dm-kek-v1';
 const KEK_SALT = new TextEncoder().encode('xao-dm-v1');
+// Distinct info string from KEK_INFO so the two derived keys are
+// cryptographically domain-separated — exposure of one must never help
+// recover the other, even though both come from the same ECDH secret.
+const CONVKEY_INFO = 'xao-dm-convkey-v1';
 
 function hexToBytes(hex: string): Uint8Array {
   const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
@@ -19,14 +23,28 @@ function b64decode(s: string): Uint8Array {
   return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 }
 
-/** Derive a 32-byte AES-GCM key-encryption-key from the ECDH shared secret.
- *  getSharedSecret returns a 33-byte compressed point; we HKDF the 32-byte
- *  x-coordinate (drop the parity prefix byte). */
-async function deriveKek(mySessionPrivHex: string, theirSessionPubHex: string): Promise<CryptoKey> {
+/** ECDH(mine, theirs) is symmetric — both parties land on the same shared
+ *  secret from nothing but public keys, so any key HKDF'd from it needs no
+ *  transport or negotiation. getSharedSecret returns a 33-byte compressed
+ *  point; we HKDF the 32-byte x-coordinate (drop the parity prefix byte). */
+async function deriveSharedRaw(mySessionPrivHex: string, theirSessionPubHex: string, info: string): Promise<Uint8Array> {
   const shared = secp.getSharedSecret(hexToBytes(mySessionPrivHex), hexToBytes(theirSessionPubHex)); // 33 bytes
   const ikm = shared.slice(1); // 32-byte x-coordinate
-  const raw = new Uint8Array(hkdf(sha256, ikm, KEK_SALT, KEK_INFO, 32));
-  return crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+  return new Uint8Array(hkdf(sha256, ikm, KEK_SALT, info, 32));
+}
+
+/** Derive a 32-byte AES-GCM key-encryption-key from the ECDH shared secret. */
+async function deriveKek(mySessionPrivHex: string, theirSessionPubHex: string): Promise<CryptoKey> {
+  const raw = await deriveSharedRaw(mySessionPrivHex, theirSessionPubHex, KEK_INFO);
+  return crypto.subtle.importKey('raw', new Uint8Array(raw), 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+
+/** Deterministic DM conversation key: both sides derive the identical raw
+ *  32-byte key locally from ECDH(myPriv, theirPub) — no transport, no
+ *  negotiation, no race between who "wins" generating the key. Domain-
+ *  separated from the notice-wrapping KEK via CONVKEY_INFO. */
+export async function deriveDmConversationKeyRaw(mySessionPrivHex: string, theirSessionPubHex: string): Promise<Uint8Array> {
+  return deriveSharedRaw(mySessionPrivHex, theirSessionPubHex, CONVKEY_INFO);
 }
 
 export async function wrapBytes(

@@ -8,10 +8,7 @@ import {
 import {
   loadConversations, upsertConversation, type ConversationRecord,
 } from '../lib/xaomsg/conversationStore';
-import { loadConversationKeyRaw, saveConversationKeyRaw } from '../lib/xaomsg/conversationKey';
 import type { PersistedSession } from '../lib/xaomsg/session';
-
-function b64decode(s: string): Uint8Array { return Uint8Array.from(atob(s), (c) => c.charCodeAt(0)); }
 
 export interface UseXaoInboxResult { conversations: ConversationRecord[]; }
 
@@ -29,9 +26,12 @@ export function useXaoInbox(session: PersistedSession | null): UseXaoInboxResult
     let cancelled = false;
     let unsub: (() => Promise<void>) | null = null;
 
+    // Key material no longer travels in the notice — useXaoDm derives it
+    // on-demand via ECDH when the user opens the thread, and syncAllKnownThreads
+    // backfills it in the background. This hook only needs the notice to
+    // populate the conversation list.
     const applyNotice = (n: DmNotice) => {
       const owner = address as Address;
-      if (!loadConversationKeyRaw(n.threadId)) saveConversationKeyRaw(n.threadId, b64decode(n.convKeyB64));
       const next = upsertConversation(owner, {
         threadId: n.threadId, peer: n.from, lastActivityUnixMs: n.ts, lastPreview: n.preview,
       });

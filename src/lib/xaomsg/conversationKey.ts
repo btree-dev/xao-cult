@@ -1,7 +1,11 @@
 // src/lib/xaomsg/conversationKey.ts
 import type { Hex } from 'viem';
 
-const LS_KEY = 'xao-cult-dm-convkeys';
+// v2: the pre-ECDH scheme could cache a key one side generated independently
+// of the other (see useXaoDm's old negotiateKey), permanently diverging the
+// two sides' views of a thread. Renaming the storage key orphans any such
+// stale/divergent v1 entries rather than trusting them.
+const LS_KEY = 'xao-cult-dm-convkeys-v2';
 
 type ConvKeyMap = Record<string, string>; // threadId -> base64 raw 32-byte key
 

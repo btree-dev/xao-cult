@@ -105,13 +105,16 @@ export function useXaoThread({ threadId, contentTopic, threadKey, session, onMes
         const unsub = await subscribeToTopic(contentTopic, (bytes) => { void onBytes(bytes); });
         if (cancelled) { await unsub(); return; }
         unsubRef.current = unsub;
-        setIsLoading(false);
+        // isLoading stays true through history backfill (not just subscribe)
+        // so the empty-thread message never flashes before history arrives —
+        // messages already merged in via onBytes still render live underneath.
         await queryHistory(contentTopic, (bytes) => { void onBytes(bytes); });
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : String(err));
-          setIsLoading(false);
         }
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     })();
 

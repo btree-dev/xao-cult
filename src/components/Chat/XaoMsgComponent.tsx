@@ -120,7 +120,7 @@ const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({
   return (
     <div className={embedded ? styles.chatContainer : styles.chatMain}>
       <div ref={containerRef} className={styles.messagesContainer}>
-        {isLoading && <div className={styles.RecievedMessage}>Connecting to Waku…</div>}
+        {isLoading && <div className={styles.RecievedMessage}>Loading messages…</div>}
         {error && <div className={styles.RecievedMessage} style={{ color: '#ff8080' }}>{error}</div>}
         {!isLoading && messages.length === 0 && (
           <div className={styles.RecievedMessage}>No messages yet. Start the negotiation.</div>

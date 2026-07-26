@@ -12,6 +12,7 @@ import {
 } from '../lib/xaomsg/inbox';
 import { deriveDmConversationKeyRaw } from '../lib/xaomsg/ecies';
 import { upsertConversation } from '../lib/xaomsg/conversationStore';
+import { formatMessagePreview } from '../lib/xaomsg/messagePreview';
 import {
   buildContactCardPayload, applyContactCard, hasSentContactCard, markContactCardSent,
 } from '../lib/xaomsg/contactCard';
@@ -139,6 +140,16 @@ export function useXaoDm({ peer, session }: { peer: Address | null; session: Per
       return;
     }
     applyDraftMessage(resolved, myAddress, peer, draftByProposalHash.current);
+
+    const preview = formatMessagePreview(resolved);
+    if (preview && threadId) {
+      upsertConversation(myAddress, {
+        threadId,
+        peer,
+        lastActivityUnixMs: resolved.envelope.body.sentAt,
+        lastPreview: preview,
+      });
+    }
   };
 
   const thread = useXaoThread({ threadId, contentTopic, threadKey, session, onMessage });

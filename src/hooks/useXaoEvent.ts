@@ -128,19 +128,11 @@ export function useXaoEvent(
     if (!myAddress || !peer || !draftId || !threadId || !session) return;
     const notice: ThreadNotice = { kind: 'event', from: myAddress, threadId, draftId, contractAddress, ts: Date.now() };
 
-    let peerCert = peerCertRef.current;
-    if (!peerCert) {
-      // The background fetch in negotiateKey's cache-hit path may not have
-      // resolved yet (a race), or the peer's session cert may genuinely be
-      // missing/expired — either way, give it one more explicit shot here
-      // rather than silently skipping the peer-publish below (see Fix-3's
-      // regression this addresses: a null peerCert used to mean the
-      // mint-pairing notice this whole design depends on just never went
-      // out, with no visible signal).
-      peerCert = await queryPeerKeyBundle(peer);
-      if (peerCert) peerCertRef.current = peerCert;
-    }
+    const peerCert = peerCertRef.current;
     if (peerCert) {
+      // Fast/common case: we already have a cert, publish to the peer now —
+      // this stays awaited, it doesn't block on the network beyond a single
+      // publish.
       try {
         const bytes = await encodeThreadNotice(notice, peerCert.sessionPublicKeyHex, session.privateKeyHex, session.cert);
         await publishThreadNotice(peer, bytes);
@@ -148,10 +140,34 @@ export function useXaoEvent(
         console.warn('[xaomsg] event notice publish to peer failed:', err);
       }
     } else {
-      console.warn('[xaomsg] event notice NOT published to peer inbox: no session cert found for peer (mint-pairing will not reach them via this path)', peer);
+      // No cert yet — the background fetch in negotiateKey's cache-hit path
+      // may not have resolved yet (a race), or the peer's session cert may
+      // genuinely be missing/expired. Don't await a fresh lookup here: it
+      // can take up to ~15s (queryPeerKeyBundle -> queryHistory ->
+      // waitForRemotePeer(..., 15_000)) when no Waku store peer is
+      // available, and notifyThread is itself awaited synchronously from
+      // create-contract.tsx's send/mint handlers — blocking here would add
+      // dead UI time to what should be a fast local action. Fire-and-forget
+      // instead: if it resolves, publish the notice to the peer then, and
+      // cache the cert for next time. Wrapped so a lookup failure here can
+      // never take down this call (or, before this fix, the self-publish
+      // below that used to run unconditionally after it).
+      console.warn('[xaomsg] event notice not yet published to peer inbox: no session cert cached for peer; retrying in background (mint-pairing will reach them once it resolves)', peer);
+      queryPeerKeyBundle(peer)
+        .then(async (cert) => {
+          if (!cert) return;
+          peerCertRef.current = cert;
+          const bytes = await encodeThreadNotice(notice, cert.sessionPublicKeyHex, session.privateKeyHex, session.cert);
+          await publishThreadNotice(peer, bytes);
+        })
+        .catch((err) => {
+          console.warn('[xaomsg] background peer cert retry / notice publish failed:', err);
+        });
     }
     // Also publish to my OWN inbox so any other device of mine discovers
-    // this thread (and, once minted, the contractAddress mapping) too.
+    // this thread (and, once minted, the contractAddress mapping) too. Kept
+    // synchronous and unconditional — it's fast, doesn't depend on the
+    // peer's cert, and must survive a peer-cert lookup failure above.
     try {
       const selfBytes = await encodeThreadNotice(notice, session.cert.sessionPublicKeyHex, session.privateKeyHex, session.cert);
       await publishThreadNotice(myAddress, selfBytes);

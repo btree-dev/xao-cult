@@ -17,7 +17,7 @@ vi.mock('./inbox', async (importOriginal) => {
   };
 });
 
-import { syncAllKnownThreads } from './sync';
+import { syncAllKnownThreads, backfillEventThreadFromNotice } from './sync';
 import { queryHistory } from './waku';
 import { publishKeyBundle, queryInboxNotices, queryPeerKeyBundle } from './inbox';
 import { deriveDmConversationKeyRaw, deriveEventConversationKeyRaw } from './ecies';
@@ -165,6 +165,43 @@ describe('syncAllKnownThreads', () => {
     vi.mocked(queryPeerKeyBundle).mockImplementation(async () => null);
 
     await syncAllKnownThreads(MY, session);
+
+    expect(loadDraft(draftId)?.mintedContractAddress?.toLowerCase()).toBe(contractAddress.toLowerCase());
+  });
+
+  it('does not record a mint pairing from a notice sent by a wallet that is not a party to the named local draft', async () => {
+    const draftId = 'draft-known';
+    const threadId = threadIdForDraft(draftId);
+    const contractAddress = '0x3333333333333333333333333333333333333333' as Address;
+    const attacker = privateKeyToAccount(generatePrivateKey());
+    // Local draft is between MY and PEER only — the attacker is not a party.
+    upsertDraft({
+      draftId, party1: MY, party2: PEER, terms: {}, revisionNumber: 1, approvals: [], lastActivityUnixMs: Date.now(),
+    });
+
+    const session = await makeSession(myAccount);
+    vi.mocked(queryInboxNotices).mockImplementation(async (_addr, _priv, onThreadNotice) => {
+      // Notice claims to mint this draft, but `from` is the attacker, not
+      // MY/PEER — the pairing must not be recorded.
+      onThreadNotice({ kind: 'event', from: attacker.address, threadId, draftId, contractAddress, ts: Date.now() });
+    });
+    vi.mocked(queryPeerKeyBundle).mockImplementation(async () => null);
+
+    await syncAllKnownThreads(MY, session);
+
+    expect(loadDraft(draftId)?.mintedContractAddress).toBeUndefined();
+  });
+
+  it('backfillEventThreadFromNotice records a mint pairing for a genuine party directly (Fix 6 reuse path)', async () => {
+    const draftId = 'draft-live';
+    const contractAddress = '0x4444444444444444444444444444444444444444' as Address;
+    upsertDraft({
+      draftId, party1: MY, party2: PEER, terms: {}, revisionNumber: 1, approvals: [], lastActivityUnixMs: Date.now(),
+    });
+    const session = await makeSession(myAccount);
+    vi.mocked(queryPeerKeyBundle).mockImplementation(async () => null);
+
+    await backfillEventThreadFromNotice(MY, session, { draftId, from: PEER, contractAddress });
 
     expect(loadDraft(draftId)?.mintedContractAddress?.toLowerCase()).toBe(contractAddress.toLowerCase());
   });

@@ -8,6 +8,7 @@ import {
 import {
   loadConversations, upsertConversation, type ConversationRecord,
 } from '../lib/xaomsg/conversationStore';
+import { backfillEventThreadFromNotice } from '../lib/xaomsg/sync';
 import type { PersistedSession } from '../lib/xaomsg/session';
 
 export interface UseXaoInboxResult { conversations: ConversationRecord[]; }
@@ -27,10 +28,22 @@ export function useXaoInbox(session: PersistedSession | null): UseXaoInboxResult
     let unsub: (() => Promise<void>) | null = null;
 
     // Only dm-kind notices populate the DM conversation list — event
-    // (draft/contract) notices are handled by useOffchainContracts /
-    // sync.ts instead, so a draft never appears as a conversation here.
+    // (draft/contract) notices never appear in `conversations`. They still
+    // need a live-delivery path though (Fix 6): without this, a
+    // counterparty already live in the app when you send a first proposal
+    // wouldn't see it until they reload from `/` (syncAllKnownThreads only
+    // runs once, at login). So an event notice fires the same
+    // backfillEventThreadFromNotice used at login, fire-and-forget, purely
+    // so the data lands in localStorage sooner — it never touches
+    // `conversations`.
     const applyNotice = (n: ThreadNotice) => {
-      if (n.kind !== 'dm') return;
+      if (n.kind === 'event') {
+        if (!n.draftId) return;
+        backfillEventThreadFromNotice(address as Address, session, {
+          draftId: n.draftId, from: n.from, contractAddress: n.contractAddress,
+        }).catch((err) => console.warn('[xaomsg] live event notice backfill failed:', err));
+        return;
+      }
       const owner = address as Address;
       const next = upsertConversation(owner, {
         threadId: n.threadId, peer: n.from, lastActivityUnixMs: n.ts, lastPreview: n.preview,

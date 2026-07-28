@@ -17,7 +17,7 @@ import { useReadContract } from "wagmi";
 import { SHOW_CONTRACT_ABI } from "../../lib/web3/eventcontract";
 import { readContract } from "@wagmi/core";
 import { config } from "../../wagmi";
-import { useXaoDm } from "../../hooks/useXaoDm";
+import { useXaoEvent } from "../../hooks/useXaoEvent";
 import { useXaoMsgSession } from "../../hooks/useXaoMsgSession";
 import { ContractProposalMessage } from "../../types/contractMessage";
 import { handleSaveContract, handleSignContract, addTicketsToContract, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
@@ -28,7 +28,7 @@ const ENABLE_DUMMY_DATA = true;
 
 const CreateContract = () => {
   const router = useRouter();
-  const { peer: peerParam } = router.query;
+  const { peer: peerParam, tab: tabParam } = router.query;
 
   const [selected, setSelected] = useState<"chat" | "contract">("contract");
   const [party1, setParty1] = useState(""); // Wallet address for Party 1 (contract creator)
@@ -191,21 +191,25 @@ const CreateContract = () => {
     }
   }, [address, peerParam, party1, party2]);
 
-  // Waku session + DM thread for sending contract proposals
+  // Waku session + event thread (this draft's own thread — never the DM
+  // thread) for sending contract proposals and the mint SYSTEM message.
   const { session } = useXaoMsgSession();
-  const dmThread = useXaoDm({
+  const eventThread = useXaoEvent({
+    draftId,
     peer: peerAddress && peerAddress.startsWith('0x') ? (peerAddress as `0x${string}`) : null,
     session,
   });
-  const isClientReady = dmThread.status === 'ready';
+  const isClientReady = eventThread.status === 'ready';
 
-  // Keep refs to the latest postProposal/postSystem so useEffect closures
-  // (below) always use the current DM thread instead of a stale one captured
-  // when the effect was first set up.
-  const postProposalRef = useRef(dmThread.postProposal);
-  postProposalRef.current = dmThread.postProposal;
-  const postSystemRef = useRef(dmThread.postSystem);
-  postSystemRef.current = dmThread.postSystem;
+  // Keep refs to the latest postProposal/postSystem/notifyThread so
+  // useEffect closures (below) always use the current event thread instead
+  // of a stale one captured when the effect was first set up.
+  const postProposalRef = useRef(eventThread.postProposal);
+  postProposalRef.current = eventThread.postProposal;
+  const postSystemRef = useRef(eventThread.postSystem);
+  postSystemRef.current = eventThread.postSystem;
+  const notifyThreadRef = useRef(eventThread.notifyThread);
+  notifyThreadRef.current = eventThread.notifyThread;
 
   // Handle receiving a contract proposal from chat
   const handleContractProposalSelect = useCallback((proposal: ContractProposalMessage) => {
@@ -273,10 +277,16 @@ const CreateContract = () => {
       applyPartyRoles(termsObject);
 
       // Send the proposal
-      await dmThread.postProposal({
+      await eventThread.postProposal({
         kind: activeProposal ? 'counter-proposal' : 'proposal',
         revisionNumber,
         data: termsObject,
+      });
+
+      // Let both parties discover this thread on next login even without
+      // opening anything (spec §7) — idempotent, safe to call on every send.
+      await eventThread.notifyThread().catch((err) => {
+        console.warn('[CreateContract] Failed to publish event discovery notice:', err);
       });
 
       // Update revision number for next edit
@@ -372,6 +382,14 @@ const CreateContract = () => {
               await postSystemRef.current({
                 kind: 'system', event: 'minted', draftId, contractAddress: newContractAddress,
               });
+
+              // Publish the mint pairing to both inboxes — this is what lets
+              // useResolveEventThread map this contract's address back to
+              // this same thread later, on any device (spec §5, §7).
+              await notifyThreadRef.current(newContractAddress).catch((err) => {
+                console.warn('[CreateContract] Failed to publish mint notice:', err);
+              });
+
               console.log("[CreateContract] Sent draft contract proposal + minted notice to party2");
             } catch (err) {
               console.warn("Failed to send draft proposal to party2:", err);
@@ -506,6 +524,14 @@ const CreateContract = () => {
     processSignSuccess();
   }, [isSignSuccess]);
 
+  // Honor an incoming tab=chat query param (used when Search links here to
+  // open the draft's chat directly, per spec §7).
+  useEffect(() => {
+    if (tabParam === "chat") {
+      setSelected("chat");
+    }
+  }, [tabParam]);
+
   // Handle create error
   useEffect(() => {
     if (error) {
@@ -557,6 +583,7 @@ const CreateContract = () => {
           <div className={styles.content}>
             {selected === "chat" ? (
               <XaoMsgComponent
+                draftId={draftId}
                 peer={peerAddress && peerAddress.startsWith('0x') ? (peerAddress as `0x${string}`) : null}
                 embedded={true}
                 onContractProposalSelect={handleContractProposalSelect}

@@ -114,6 +114,26 @@ describe('offchainContracts', () => {
       expect(result?.draftId).toBe('legitimate');
     });
 
+    it('an older legitimate draft (address+parties match) placed before a fresher poisoned draft (address-matches, parties do NOT match) — still returns the legitimate draft', () => {
+      const legitimate = makeDraft({
+        draftId: 'legitimate',
+        party1: ALICE,
+        party2: BOB,
+        mintedContractAddress: CONTRACT,
+        lastActivityUnixMs: 1000, // older
+      });
+      const poisoned = makeDraft({
+        draftId: 'poisoned',
+        party1: ALICE,
+        party2: MALLORY,
+        mintedContractAddress: CONTRACT,
+        lastActivityUnixMs: 2000, // fresher
+      });
+      // reverse ordering from the test above — legitimate first, poisoned second
+      const result = resolveDraftForContract([legitimate, poisoned], CONTRACT, ALICE, BOB);
+      expect(result?.draftId).toBe('legitimate');
+    });
+
     it('only a poisoned (address-matches, parties-do-not-match) draft exists — returns null', () => {
       const poisoned = makeDraft({
         draftId: 'poisoned',

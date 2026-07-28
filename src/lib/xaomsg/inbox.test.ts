@@ -17,6 +17,7 @@ import {
   queryPeerKeyBundle,
   subscribeInbox,
   queryInboxNotices,
+  eventBackfillDedupeKey,
   type ThreadNotice,
 } from './inbox';
 import { createSessionKeypair, mintSessionCert } from './session';
@@ -72,6 +73,45 @@ function forgeCert(base: SessionCert, expiresAtUnixMs: number): SessionCert {
 const flush = async () => {
   for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0));
 };
+
+// ---- eventBackfillDedupeKey (Fix-round-3 regression: dedupe-set must not
+// collapse a draft's pre-mint and mint notices onto the same slot) ----
+describe('eventBackfillDedupeKey', () => {
+  it('produces different keys for the same draftId with and without a contractAddress', () => {
+    const preMint = eventBackfillDedupeKey('draft-1', undefined);
+    const mint = eventBackfillDedupeKey('draft-1', '0x2222222222222222222222222222222222222222');
+    expect(preMint).not.toBe(mint);
+  });
+
+  it('reproduces the "honest user misses the mint notice" scenario: a dedupe Set seeded with the pre-mint key still admits the mint key for the same draftId', () => {
+    const seen = new Set<string>();
+    const draftId = 'draft-1';
+    const contractAddress = '0x2222222222222222222222222222222222222222';
+
+    // First notice observed live: the initial proposal send, no contractAddress yet.
+    const preMintKey = eventBackfillDedupeKey(draftId, undefined);
+    expect(seen.has(preMintKey)).toBe(false);
+    seen.add(preMintKey);
+
+    // Second notice for the SAME draftId, now carrying the mint's contractAddress.
+    const mintKey = eventBackfillDedupeKey(draftId, contractAddress);
+    // The bug this closes: with a draftId-only key, this would already be
+    // `true` (dropped) here, silently swallowing the mint notice.
+    expect(seen.has(mintKey)).toBe(false);
+  });
+
+  it('produces the same key for repeated calls with identical inputs (idempotent within one mint state)', () => {
+    const a = eventBackfillDedupeKey('draft-1', '0x2222222222222222222222222222222222222222');
+    const b = eventBackfillDedupeKey('draft-1', '0x2222222222222222222222222222222222222222');
+    expect(a).toBe(b);
+  });
+
+  it('produces different keys for different draftIds even with the same contractAddress presence', () => {
+    const a = eventBackfillDedupeKey('draft-1', undefined);
+    const b = eventBackfillDedupeKey('draft-2', undefined);
+    expect(a).not.toBe(b);
+  });
+});
 
 describe('inbox key bundle', () => {
   it('round-trips a key bundle', () => {

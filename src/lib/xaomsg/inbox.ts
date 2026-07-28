@@ -22,6 +22,19 @@ export interface ThreadNotice {
   contractAddress?: Address;
 }
 
+/** Dedupe key for live/replayed event-notice backfills (see useXaoInbox).
+ *  Keyed on draftId AND whether this notice carries a contractAddress —
+ *  NOT draftId alone — because `notifyThread` fires at least twice per
+ *  draft over its lifetime with the same draftId: once on the initial
+ *  proposal (no contractAddress) and again at mint (contractAddress set).
+ *  A draftId-only key lets the pre-mint notice claim the slot and silently
+ *  swallows the mint notice — the one `recordMint`/`useResolveEventThread`
+ *  actually depend on — on any session that already saw the pre-mint
+ *  notice live. */
+export function eventBackfillDedupeKey(draftId: string, contractAddress?: string): string {
+  return `${draftId}:${contractAddress ?? ''}`;
+}
+
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 

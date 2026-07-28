@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { type Address } from 'viem';
 import {
-  publishKeyBundle, queryInboxNotices, subscribeInbox, type ThreadNotice,
+  publishKeyBundle, queryInboxNotices, subscribeInbox, eventBackfillDedupeKey, type ThreadNotice,
 } from '../lib/xaomsg/inbox';
 import {
   loadConversations, upsertConversation, type ConversationRecord,
@@ -32,9 +32,13 @@ export function useXaoInbox(session: PersistedSession | null): UseXaoInboxResult
     // every historical event notice ever received would otherwise re-fire
     // an event-thread backfill (key derivation + a full queryHistory call
     // per draft), duplicating what syncAllKnownThreads already did once at
-    // login. This set bounds that to once per draftId per mount, live or
-    // replayed.
-    const queuedBackfillDraftIds = new Set<string>();
+    // login. This set bounds that to once per (draftId, mint-state) pair
+    // per mount, live or replayed — keyed via eventBackfillDedupeKey, NOT
+    // draftId alone, because notifyThread fires twice per draft (pre-mint,
+    // then again at mint with contractAddress set) and a draftId-only key
+    // would let the pre-mint notice claim the slot and silently swallow the
+    // mint notice that recordMint/useResolveEventThread depend on.
+    const queuedBackfillKeys = new Set<string>();
 
     // Only dm-kind notices populate the DM conversation list — event
     // (draft/contract) notices never appear in `conversations`. They still
@@ -49,8 +53,9 @@ export function useXaoInbox(session: PersistedSession | null): UseXaoInboxResult
       if (n.kind === 'event') {
         if (!n.draftId) return;
         if (cancelled) return;
-        if (queuedBackfillDraftIds.has(n.draftId)) return;
-        queuedBackfillDraftIds.add(n.draftId);
+        const key = eventBackfillDedupeKey(n.draftId, n.contractAddress);
+        if (queuedBackfillKeys.has(key)) return;
+        queuedBackfillKeys.add(key);
         backfillEventThreadFromNotice(address as Address, session, {
           draftId: n.draftId, from: n.from, contractAddress: n.contractAddress,
         }).catch((err) => console.warn('[xaomsg] live event notice backfill failed:', err));

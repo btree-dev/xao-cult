@@ -14,6 +14,7 @@ import { useRouter } from "next/router";
 import Scrollbar from "../../components/Scrollbar";
 import BlankNavbar from "../../components/BackNav";
 import { useWeb3 } from "../../hooks/useWeb3";
+import { useResolveEventThread } from "../../hooks/useResolveEventThread";
 import { useAllContractsWithSummaries } from "../../hooks/useGetContracts";
 import { useSignEventContract } from "../../hooks/useSignEventContract";
 import { useAddTicketType, useAddTierToXAOTicket, dollarToWei, weiToDollar, ETH_PRICE_USD } from "../../hooks/useAddTicketType";
@@ -47,6 +48,12 @@ const Contractsdetail: React.FC = () => {
   // Fetch all contract fields from on-chain for blockchain contracts
   const isBlockchain = id && typeof id === "string" && id.startsWith("0x");
   const contractAddr = isBlockchain ? (id as `0x${string}`) : undefined;
+
+  const resolvedThread = useResolveEventThread(contractAddr ?? null);
+  const myAddr = address?.toLowerCase();
+  const counterparty = party1 && party2
+    ? (party1.toLowerCase() === myAddr ? party2 : party1)
+    : undefined;
 
   // Read ticketCollection address from ShowContract
   const { data: ticketCollectionData } = useReadContract({
@@ -565,7 +572,15 @@ const Contractsdetail: React.FC = () => {
           </div>
           {selected === "chat" ? (
             <div className={styles.content}>
-              <XaoMsgComponent showContract={contractAddr ?? null} embedded={true} />
+              {resolvedThread?.mode === 'draft' ? (
+                <XaoMsgComponent
+                  draftId={resolvedThread.draftId}
+                  peer={counterparty && counterparty.startsWith('0x') ? (counterparty as `0x${string}`) : null}
+                  embedded={true}
+                />
+              ) : (
+                <XaoMsgComponent showContract={contractAddr ?? null} embedded={true} />
+              )}
             </div>
           ) : (
           <>

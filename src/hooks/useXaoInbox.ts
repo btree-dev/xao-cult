@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { type Address } from 'viem';
 import {
-  publishKeyBundle, queryInboxNotices, subscribeInbox, type DmNotice,
+  publishKeyBundle, queryInboxNotices, subscribeInbox, type ThreadNotice,
 } from '../lib/xaomsg/inbox';
 import {
   loadConversations, upsertConversation, type ConversationRecord,
@@ -26,11 +26,11 @@ export function useXaoInbox(session: PersistedSession | null): UseXaoInboxResult
     let cancelled = false;
     let unsub: (() => Promise<void>) | null = null;
 
-    // Key material no longer travels in the notice — useXaoDm derives it
-    // on-demand via ECDH when the user opens the thread, and syncAllKnownThreads
-    // backfills it in the background. This hook only needs the notice to
-    // populate the conversation list.
-    const applyNotice = (n: DmNotice) => {
+    // Only dm-kind notices populate the DM conversation list — event
+    // (draft/contract) notices are handled by useOffchainContracts /
+    // sync.ts instead, so a draft never appears as a conversation here.
+    const applyNotice = (n: ThreadNotice) => {
+      if (n.kind !== 'dm') return;
       const owner = address as Address;
       const next = upsertConversation(owner, {
         threadId: n.threadId, peer: n.from, lastActivityUnixMs: n.ts, lastPreview: n.preview,

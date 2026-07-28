@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { Address } from 'viem';
 import {
-  listDrafts, loadDraft, upsertDraft, recordApproval, recordMint, isMinted, type OffchainContractDraft,
+  listDrafts, loadDraft, upsertDraft, recordApproval, recordMint, isMinted, resolveDraftForContract, type OffchainContractDraft,
 } from './offchainContracts';
 
 const ALICE = '0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa' as Address;
@@ -88,5 +88,52 @@ describe('offchainContracts', () => {
   it('isMinted: false with no mint record, no matching summary, and no event name set', () => {
     const draft = makeDraft({ terms: {} });
     expect(isMinted(draft, [{ party1Address: ALICE, party2Address: BOB, eventName: 'anything' }])).toBe(false);
+  });
+
+  describe('resolveDraftForContract', () => {
+    const MALLORY = '0xCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCc' as Address;
+    const CONTRACT = '0xDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDdDd' as Address;
+
+    it('a fresher poisoned draft (address-matches, parties do NOT match) placed before an older legitimate draft (address+parties match) — returns the legitimate draft', () => {
+      const poisoned = makeDraft({
+        draftId: 'poisoned',
+        party1: ALICE,
+        party2: MALLORY,
+        mintedContractAddress: CONTRACT,
+        lastActivityUnixMs: 2000, // fresher
+      });
+      const legitimate = makeDraft({
+        draftId: 'legitimate',
+        party1: ALICE,
+        party2: BOB,
+        mintedContractAddress: CONTRACT,
+        lastActivityUnixMs: 1000, // older
+      });
+      // drafts passed pre-sorted newest-first, as listDrafts() would return
+      const result = resolveDraftForContract([poisoned, legitimate], CONTRACT, ALICE, BOB);
+      expect(result?.draftId).toBe('legitimate');
+    });
+
+    it('only a poisoned (address-matches, parties-do-not-match) draft exists — returns null', () => {
+      const poisoned = makeDraft({
+        draftId: 'poisoned',
+        party1: ALICE,
+        party2: MALLORY,
+        mintedContractAddress: CONTRACT,
+      });
+      const result = resolveDraftForContract([poisoned], CONTRACT, ALICE, BOB);
+      expect(result).toBeNull();
+    });
+
+    it('a genuinely matching draft (address + parties both match) is returned', () => {
+      const legitimate = makeDraft({
+        draftId: 'legitimate',
+        party1: BOB, // reversed order — should still match
+        party2: ALICE,
+        mintedContractAddress: CONTRACT,
+      });
+      const result = resolveDraftForContract([legitimate], CONTRACT, ALICE, BOB);
+      expect(result?.draftId).toBe('legitimate');
+    });
   });
 });

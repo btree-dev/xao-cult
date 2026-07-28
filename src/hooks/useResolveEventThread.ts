@@ -1,7 +1,7 @@
 // src/hooks/useResolveEventThread.ts
 import { useMemo } from 'react';
 import type { Address } from 'viem';
-import { listDrafts } from '../lib/xaomsg/offchainContracts';
+import { listDrafts, resolveDraftForContract } from '../lib/xaomsg/offchainContracts';
 
 export type ResolvedEventThread =
   | { mode: 'draft'; draftId: string }
@@ -28,16 +28,23 @@ export type ResolvedEventThread =
  * `{draftId, contractAddress}` claim (applyDraftMessage / a mint-notice
  * replay) — anyone who can get a message into *some* draft's thread with
  * you (e.g. by starting their own throwaway draft with you) can claim any
- * real contract address as "minted" for that draft. Without a further
- * check, that draft's thread/key would silently be used to show a real
- * contract's chat, handing your side of that conversation to whoever
- * controls the attacker's draft. `onChainParty1`/`onChainParty2` — the
- * contract's real on-chain parties, read from the chain itself, not from
- * anything Waku-transported — are the authoritative source; a local match
- * is only trusted when the draft's own party1/party2 agree with them
- * (either order, case-insensitive). A draft between you and an unrelated
- * third party can never satisfy this check against a real contract you
- * hold with someone else.
+ * real contract address as "minted" for that draft. `onChainParty1`/
+ * `onChainParty2` — the contract's real on-chain parties, read from the
+ * chain itself, not from anything Waku-transported — are the authoritative
+ * source. Critically, the parties check gates CANDIDACY itself (inside
+ * `resolveDraftForContract`), not just which candidate is preferred: a
+ * draft is never even considered a match unless both its
+ * `mintedContractAddress` AND its own party1/party2 (either order,
+ * case-insensitive) agree with the real contract. An earlier version of
+ * this check only filtered the address match, then verified parties
+ * afterward and fell through to legacy mode on failure — since
+ * `listDrafts()` is sorted by recent activity, an attacker's poisoned
+ * throwaway draft (fresher activity, address matches, parties don't) could
+ * shadow the victim's real, older, genuinely-matching draft, downgrading
+ * the chat onto the legacy thread (whose key is derivable by anyone who
+ * knows the public contract address). Gating candidacy on both conditions
+ * together means a poisoned draft can never suppress a real match, no
+ * matter its recency.
  */
 export function useResolveEventThread(
   contractAddress: Address | null | undefined,
@@ -46,15 +53,9 @@ export function useResolveEventThread(
 ): ResolvedEventThread | null {
   return useMemo(() => {
     if (!contractAddress) return null;
-    const lower = contractAddress.toLowerCase();
-    const match = listDrafts().find((d) => d.mintedContractAddress?.toLowerCase() === lower);
-    if (match && onChainParty1 && onChainParty2) {
-      const dp1 = match.party1.toLowerCase();
-      const dp2 = match.party2.toLowerCase();
-      const cp1 = onChainParty1.toLowerCase();
-      const cp2 = onChainParty2.toLowerCase();
-      const partiesMatch = (dp1 === cp1 && dp2 === cp2) || (dp1 === cp2 && dp2 === cp1);
-      if (partiesMatch) return { mode: 'draft', draftId: match.draftId };
+    if (onChainParty1 && onChainParty2) {
+      const match = resolveDraftForContract(listDrafts(), contractAddress, onChainParty1, onChainParty2);
+      if (match) return { mode: 'draft', draftId: match.draftId };
     }
     return { mode: 'legacy', showContract: contractAddress };
   }, [contractAddress, onChainParty1, onChainParty2]);

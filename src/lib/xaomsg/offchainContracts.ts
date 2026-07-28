@@ -78,6 +78,32 @@ export function recordMint(draftId: string, contractAddress: Address): OffchainC
   return updated;
 }
 
+/** Finds the local draft that is BOTH minted to `contractAddress` AND whose
+ *  own party1/party2 genuinely match the contract's real on-chain parties
+ *  (order-insensitive, case-insensitive) — the parties check gates candidacy
+ *  itself, not just which candidate wins, so a draft that only matches the
+ *  address (e.g. an attacker's own throwaway draft with a poisoned
+ *  mintedContractAddress claim) can never shadow a real match and force a
+ *  downgrade to the legacy (publicly-derivable-key) thread. `drafts` is
+ *  expected pre-sorted newest-first (as `listDrafts()` already returns) so
+ *  the freshest genuinely-matching draft wins ties. */
+export function resolveDraftForContract(
+  drafts: OffchainContractDraft[],
+  contractAddress: Address,
+  onChainParty1: string,
+  onChainParty2: string,
+): OffchainContractDraft | null {
+  const lower = contractAddress.toLowerCase();
+  const cp1 = onChainParty1.toLowerCase();
+  const cp2 = onChainParty2.toLowerCase();
+  return drafts.find((d) => {
+    if (d.mintedContractAddress?.toLowerCase() !== lower) return false;
+    const dp1 = d.party1.toLowerCase();
+    const dp2 = d.party2.toLowerCase();
+    return (dp1 === cp1 && dp2 === cp2) || (dp1 === cp2 && dp2 === cp1);
+  }) ?? null;
+}
+
 function draftEventName(draft: OffchainContractDraft): string {
   // IContract has no top-level `eventName`; the create-contract form nests it
   // under `promotion.value` (see backend/contract-services/createContract.ts).

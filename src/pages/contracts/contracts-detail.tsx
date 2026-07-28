@@ -36,7 +36,7 @@ const Contractsdetail: React.FC = () => {
   const [selected, setSelected] = useState<"contract" | "chat">("contract");
   const router = useRouter();
   const { address, chain } = useWeb3();
-  const { contracts } = useAllContractsWithSummaries(chain?.id);
+  const { contracts, isLoading: contractsLoading } = useAllContractsWithSummaries(chain?.id);
   const { id, ticketsold, totalrevenue, source } = router.query;
   const party1 = router.query.party1 as string | undefined;
   const party2 = router.query.party2 as string | undefined;
@@ -588,7 +588,18 @@ const Contractsdetail: React.FC = () => {
           </div>
           {selected === "chat" ? (
             <div className={styles.content}>
-              {resolvedThread?.mode === 'draft' ? (
+              {isBlockchain && contractsLoading ? (
+                // useAllContractsWithSummaries (and thus onChainMatch/
+                // effectiveParty1/2) hasn't loaded yet, so resolvedThread
+                // can only fall back to 'legacy' right now even for a
+                // contract that actually has a continuous draft thread —
+                // avoid a fast user briefly posting into the
+                // world-readable legacy thread before the real mode is
+                // known (see useResolveEventThread.ts SECURITY note).
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '40vh', color: 'white' }}>
+                  <p>Loading chat...</p>
+                </div>
+              ) : resolvedThread?.mode === 'draft' ? (
                 <XaoMsgComponent
                   draftId={resolvedThread.draftId}
                   peer={counterparty && counterparty.startsWith('0x') ? (counterparty as `0x${string}`) : null}

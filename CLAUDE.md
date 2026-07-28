@@ -22,6 +22,12 @@ The chat/messaging feature (powered by Waku, via the in-house XaoMsg layer) allo
 5. Both parties sign the contract on-chain
 6. Event tickets can be created and authenticated via QR codes
 
+## Architecture Docs — read before exploring the codebase
+
+`docs/architecture/` has one living, current-state doc per subsystem (web3/wallet, contracts-nft, xaomsg-messaging, events-tickets, financial-stats-tax, backend-data, frontend-app-shell). Read the relevant doc(s) via `docs/architecture/README.md` before grepping the codebase to get oriented — it's cheaper and current as of the last change to that subsystem. These are distinct from `docs/superpowers/specs/` and `docs/superpowers/plans/`, which are dated, point-in-time design proposals (useful for *why*, not *what's true now*) and are not updated after the fact.
+
+If you materially change a subsystem, update its doc in the same PR.
+
 ## Development Guidelines
 
 **IMPORTANT: Always create task lists for work to be done.** When working on features or fixes:
@@ -75,8 +81,14 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID=     # from app.dynamic.xyz/dashboard
 
 # Web3
-NEXT_PUBLIC_CONTRACT_NFT_TESTNET=       # Base Sepolia contract address
-NEXT_PUBLIC_CONTRACT_NFT_MAINNET=       # Base mainnet contract address
+NEXT_PUBLIC_CONTRACT_NFT_TESTNET=       # Base Sepolia contract address (legacy ContractNFT.sol)
+NEXT_PUBLIC_CONTRACT_NFT_MAINNET=       # Base mainnet contract address (legacy ContractNFT.sol)
+NEXT_PUBLIC_SHOW_CONTRACT_FACTORY_TESTNET=   # ShowContractFactory address, Base Sepolia (production contract system — see docs/architecture/contracts-nft.md)
+NEXT_PUBLIC_SHOW_CONTRACT_FACTORY_MAINNET=   # ShowContractFactory address, Base mainnet
+TREASURY_ADDRESS=                       # protocol treasury address used by ShowContract/XAOTicket
+
+# IPFS (contract/ticket metadata)
+PINATA_JWT=                             # Pinata API JWT for IPFS pinning (src/pages/api/upload-image.ts, deletegroup.ts)
 
 # Hardhat deployment
 PRIVATE_KEY=

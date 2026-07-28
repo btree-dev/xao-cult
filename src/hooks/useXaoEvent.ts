@@ -128,7 +128,18 @@ export function useXaoEvent(
     if (!myAddress || !peer || !draftId || !threadId || !session) return;
     const notice: ThreadNotice = { kind: 'event', from: myAddress, threadId, draftId, contractAddress, ts: Date.now() };
 
-    const peerCert = peerCertRef.current;
+    let peerCert = peerCertRef.current;
+    if (!peerCert) {
+      // The background fetch in negotiateKey's cache-hit path may not have
+      // resolved yet (a race), or the peer's session cert may genuinely be
+      // missing/expired — either way, give it one more explicit shot here
+      // rather than silently skipping the peer-publish below (see Fix-3's
+      // regression this addresses: a null peerCert used to mean the
+      // mint-pairing notice this whole design depends on just never went
+      // out, with no visible signal).
+      peerCert = await queryPeerKeyBundle(peer);
+      if (peerCert) peerCertRef.current = peerCert;
+    }
     if (peerCert) {
       try {
         const bytes = await encodeThreadNotice(notice, peerCert.sessionPublicKeyHex, session.privateKeyHex, session.cert);
@@ -136,6 +147,8 @@ export function useXaoEvent(
       } catch (err) {
         console.warn('[xaomsg] event notice publish to peer failed:', err);
       }
+    } else {
+      console.warn('[xaomsg] event notice NOT published to peer inbox: no session cert found for peer (mint-pairing will not reach them via this path)', peer);
     }
     // Also publish to my OWN inbox so any other device of mine discovers
     // this thread (and, once minted, the contractAddress mapping) too.

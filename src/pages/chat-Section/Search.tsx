@@ -417,15 +417,21 @@ export default function Search() {
                     } else {
                       const eventItem = item as EventPreview;
                       if (eventItem.isOffchainDraft && eventItem.draftId) {
+                        // Mirrors Negotiation.tsx's handleDraftClick: look up the
+                        // real draft object and use its actual terms/revision/
+                        // lastActivity, the same way create-contract's Contract
+                        // tab restores a prefilled proposal from sessionStorage.
+                        const draft = drafts.find((d) => d.draftId === eventItem.draftId);
+                        if (!draft) return;
                         const myAddr = address?.toLowerCase();
-                        const peer = eventItem.party1.toLowerCase() === myAddr ? eventItem.party2 : eventItem.party1;
+                        const peer = draft.party1.toLowerCase() === myAddr ? draft.party2 : draft.party1;
                         const proposal: ContractProposalMessage = {
                           type: "contract-proposal",
                           version: CONTRACT_MESSAGE_VERSION,
-                          data: {}, // XaoMsgComponent's draftId mode loads current terms from the draft store itself
-                          sentAt: Date.now(),
+                          data: draft.terms,
+                          sentAt: draft.lastActivityUnixMs,
                           proposedBy: peer,
-                          revisionNumber: 0,
+                          revisionNumber: draft.revisionNumber,
                         };
                         sessionStorage.setItem("selectedContractProposal", JSON.stringify(proposal));
                         router.push(`/contracts/create-contract?peer=${encodeURIComponent(peer)}&tab=chat`);

@@ -49,10 +49,26 @@ const Contractsdetail: React.FC = () => {
   const isBlockchain = id && typeof id === "string" && id.startsWith("0x");
   const contractAddr = isBlockchain ? (id as `0x${string}`) : undefined;
 
-  const resolvedThread = useResolveEventThread(contractAddr ?? null);
+  // The on-chain summary (from useAllContractsWithSummaries) is the
+  // authoritative source of this contract's real parties — unlike
+  // router.query's party1/party2, it can't be spoofed via URL and is
+  // available even on entry points that never pass those query params
+  // (e.g. past-contracts.tsx, a bookmarked link). useResolveEventThread
+  // needs these real parties to cross-check a locally-matched draft before
+  // trusting it (see useResolveEventThread.ts for why).
+  const onChainMatch = useMemo(
+    () => contracts.find((c) => contractAddr && c.contractAddress.toLowerCase() === contractAddr.toLowerCase()),
+    [contracts, contractAddr],
+  );
+  // Prefer real on-chain parties; fall back to router.query (e.g. while
+  // `contracts` is still loading, or for non-blockchain/mock-data entries).
+  const effectiveParty1 = onChainMatch?.party1Address ?? party1;
+  const effectiveParty2 = onChainMatch?.party2Address ?? party2;
+
+  const resolvedThread = useResolveEventThread(contractAddr ?? null, onChainMatch?.party1Address, onChainMatch?.party2Address);
   const myAddr = address?.toLowerCase();
-  const counterparty = party1 && party2
-    ? (party1.toLowerCase() === myAddr ? party2 : party1)
+  const counterparty = effectiveParty1 && effectiveParty2
+    ? (effectiveParty1.toLowerCase() === myAddr ? effectiveParty2 : effectiveParty1)
     : undefined;
 
   // Read ticketCollection address from ShowContract

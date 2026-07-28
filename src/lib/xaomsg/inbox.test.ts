@@ -12,17 +12,18 @@ vi.mock('./waku', () => ({
 import {
   encodeKeyBundle,
   tryDecodeKeyBundle,
-  encodeDmNotice,
-  tryDecodeDmNotice,
+  encodeThreadNotice,
+  tryDecodeThreadNotice,
   queryPeerKeyBundle,
   subscribeInbox,
   queryInboxNotices,
-  type DmNotice,
+  type ThreadNotice,
 } from './inbox';
 import { createSessionKeypair, mintSessionCert } from './session';
 import { queryHistory, subscribeToTopic } from './waku';
 import { wrapBytes } from './ecies';
 import { dmThreadId } from './dmThreadId';
+import { threadIdForDraft } from './threadId';
 import type { SessionCert } from './types';
 
 const hex = (b: Uint8Array) => '0x' + Array.from(b).map((x) => x.toString(16).padStart(2, '0')).join('');
@@ -39,9 +40,6 @@ const cert: SessionCert = {
   walletSignature: ('0x' + 'cd'.repeat(65)) as `0x${string}`,
 };
 
-/** Real, signature-verifiable cert minted the same way the app does, plus the
- *  raw session private key it was minted with — needed by callers that must
- *  encrypt (via wrapBytes/encodeDmNotice) as the cert's holder. */
 async function makeGenuineCertWithKey(
   expiresAtUnixMs = Date.now() + 60 * 60 * 1000,
 ): Promise<{ cert: SessionCert; privateKeyHex: string }> {
@@ -57,41 +55,47 @@ async function makeGenuineCertWithKey(
   return { cert: genuineCert, privateKeyHex: kp.privateKey };
 }
 
-/** Real, signature-verifiable cert minted the same way the app does. */
 async function makeGenuineCert(expiresAtUnixMs = Date.now() + 60 * 60 * 1000): Promise<SessionCert> {
   return (await makeGenuineCertWithKey(expiresAtUnixMs)).cert;
 }
 
-/** Attacker-shaped cert: valid JSON shape, unexpired, but the signature never recovers to walletAddress. */
 function forgeCert(base: SessionCert, expiresAtUnixMs: number): SessionCert {
   return { ...base, expiresAtUnixMs, walletSignature: ('0x' + 'cd'.repeat(65)) as `0x${string}` };
 }
 
-const flush = () => new Promise((r) => setTimeout(r, 0));
+// A single macrotask tick isn't always enough here: tryDecodeThreadNotice's
+// chain (verifySessionCert, then ECIES unwrapBytes -> crypto.subtle
+// importKey + decrypt) can take multiple event-loop turns to settle under
+// happy-dom's WebCrypto, empirically measured at up to ~3 ticks. Loop a
+// handful of ticks so subscribeInbox's fire-and-forget async callback has
+// settled before assertions run.
+const flush = async () => {
+  for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0));
+};
 
 describe('inbox key bundle', () => {
   it('round-trips a key bundle', () => {
     const out = tryDecodeKeyBundle(encodeKeyBundle(cert));
     expect(out?.sessionPublicKeyHex).toBe(cert.sessionPublicKeyHex);
   });
-  it('returns null for a dm message', async () => {
+  it('returns null for a thread-notice message', async () => {
     const owner = keypair();
     const sender = await makeGenuineCertWithKey();
-    const notice: DmNotice = { from: sender.cert.walletAddress, threadId: ('0x' + '33'.repeat(32)) as any, convKeyB64: 'AAAA', ts: 1 };
-    const bytes = await encodeDmNotice(notice, owner.pubHex, sender.privateKeyHex, sender.cert);
+    const notice: ThreadNotice = { kind: 'dm', from: sender.cert.walletAddress, threadId: ('0x' + '33'.repeat(32)) as any, ts: 1 };
+    const bytes = await encodeThreadNotice(notice, owner.pubHex, sender.privateKeyHex, sender.cert);
     expect(tryDecodeKeyBundle(bytes)).toBeNull();
   });
 });
 
-describe('inbox dm notice', () => {
+describe('inbox thread notice (dm kind)', () => {
   it('round-trips an encrypted notice to the owner', async () => {
     const owner = keypair();
     const sender = await makeGenuineCertWithKey();
-    const notice: DmNotice = {
-      from: sender.cert.walletAddress, threadId: ('0x' + '33'.repeat(32)) as any, convKeyB64: 'S0VZBYTES', preview: 'hi', ts: 42,
+    const notice: ThreadNotice = {
+      kind: 'dm', from: sender.cert.walletAddress, threadId: ('0x' + '33'.repeat(32)) as any, preview: 'hi', ts: 42,
     };
-    const bytes = await encodeDmNotice(notice, owner.pubHex, sender.privateKeyHex, sender.cert);
-    const out = await tryDecodeDmNotice(bytes, owner.privHex);
+    const bytes = await encodeThreadNotice(notice, owner.pubHex, sender.privateKeyHex, sender.cert);
+    const out = await tryDecodeThreadNotice(bytes, owner.privHex);
     expect(out).toEqual(notice);
   });
 
@@ -99,40 +103,35 @@ describe('inbox dm notice', () => {
     const owner = keypair();
     const sender = await makeGenuineCertWithKey();
     const mallory = keypair();
-    const notice: DmNotice = { from: sender.cert.walletAddress, threadId: ('0x' + '33'.repeat(32)) as any, convKeyB64: 'x', ts: 1 };
-    const bytes = await encodeDmNotice(notice, owner.pubHex, sender.privateKeyHex, sender.cert);
-    expect(await tryDecodeDmNotice(bytes, mallory.privHex)).toBeNull();
+    const notice: ThreadNotice = { kind: 'dm', from: sender.cert.walletAddress, threadId: ('0x' + '33'.repeat(32)) as any, ts: 1 };
+    const bytes = await encodeThreadNotice(notice, owner.pubHex, sender.privateKeyHex, sender.cert);
+    expect(await tryDecodeThreadNotice(bytes, mallory.privHex)).toBeNull();
   });
 
   it("returns null when the cert's wallet does not match the claimed sender", async () => {
-    // Core C1 regression test: a genuinely-signed cert for wallet A must
-    // never authenticate a notice claiming `from: B`.
     const owner = keypair();
     const senderA = await makeGenuineCertWithKey();
     const walletB = privateKeyToAccount(generatePrivateKey()).address;
-    const notice: DmNotice = { from: walletB, threadId: ('0x' + '33'.repeat(32)) as any, convKeyB64: 'x', ts: 1 };
-    const bytes = await encodeDmNotice(notice, owner.pubHex, senderA.privateKeyHex, senderA.cert);
-    expect(await tryDecodeDmNotice(bytes, owner.privHex)).toBeNull();
+    const notice: ThreadNotice = { kind: 'dm', from: walletB, threadId: ('0x' + '33'.repeat(32)) as any, ts: 1 };
+    const bytes = await encodeThreadNotice(notice, owner.pubHex, senderA.privateKeyHex, senderA.cert);
+    expect(await tryDecodeThreadNotice(bytes, owner.privHex)).toBeNull();
   });
 
   it('returns null when the sender cert fails signature verification', async () => {
     const owner = keypair();
     const genuine = await makeGenuineCertWithKey();
     const forged = forgeCert(genuine.cert, genuine.cert.expiresAtUnixMs);
-    const notice: DmNotice = { from: forged.walletAddress, threadId: ('0x' + '33'.repeat(32)) as any, convKeyB64: 'x', ts: 1 };
-    // forged has the same sessionPublicKeyHex as genuine, so genuine's raw
-    // private key still produces a payload that decrypts cleanly — only the
-    // cert's wallet-signature check should reject it.
-    const bytes = await encodeDmNotice(notice, owner.pubHex, genuine.privateKeyHex, forged);
-    expect(await tryDecodeDmNotice(bytes, owner.privHex)).toBeNull();
+    const notice: ThreadNotice = { kind: 'dm', from: forged.walletAddress, threadId: ('0x' + '33'.repeat(32)) as any, ts: 1 };
+    const bytes = await encodeThreadNotice(notice, owner.pubHex, genuine.privateKeyHex, forged);
+    expect(await tryDecodeThreadNotice(bytes, owner.privHex)).toBeNull();
   });
 
   it('returns null when the sender cert is expired', async () => {
     const owner = keypair();
     const expired = await makeGenuineCertWithKey(Date.now() - 1000);
-    const notice: DmNotice = { from: expired.cert.walletAddress, threadId: ('0x' + '33'.repeat(32)) as any, convKeyB64: 'x', ts: 1 };
-    const bytes = await encodeDmNotice(notice, owner.pubHex, expired.privateKeyHex, expired.cert);
-    expect(await tryDecodeDmNotice(bytes, owner.privHex)).toBeNull();
+    const notice: ThreadNotice = { kind: 'dm', from: expired.cert.walletAddress, threadId: ('0x' + '33'.repeat(32)) as any, ts: 1 };
+    const bytes = await encodeThreadNotice(notice, owner.pubHex, expired.privateKeyHex, expired.cert);
+    expect(await tryDecodeThreadNotice(bytes, owner.privHex)).toBeNull();
   });
 });
 
@@ -182,8 +181,6 @@ describe('queryPeerKeyBundle', () => {
   });
 
   it('rejects a validly-signed cert for a different wallet posted on the peer topic', async () => {
-    // Attacker posts their OWN genuine (self-consistent) cert onto peer's topic.
-    // It passes verifySessionCert, but its walletAddress is not the peer's.
     const attacker = await makeGenuineCert();
     const peer = '0x9999999999999999999999999999999999999999' as const;
     scriptHistory([encodeKeyBundle(attacker)]);
@@ -193,8 +190,6 @@ describe('queryPeerKeyBundle', () => {
 
   it('still returns the peer bundle when an attacker cert for another wallet sorts first', async () => {
     const genuine = await makeGenuineCert();
-    // Attacker cert is genuinely signed by a different wallet and has a
-    // higher expiry so it sorts ahead of the peer's real bundle.
     const attacker = await makeGenuineCert(genuine.expiresAtUnixMs + 1_000_000);
     scriptHistory([encodeKeyBundle(attacker), encodeKeyBundle(genuine)]);
     const out = await queryPeerKeyBundle(genuine.walletAddress);
@@ -215,35 +210,35 @@ describe('subscribeInbox key-bundle verification', () => {
   it('does not invoke onKeyBundle for a shape-valid but unverified cert', async () => {
     const getDeliver = captureSubscription();
     const onKeyBundle = vi.fn();
-    const onDmNotice = vi.fn();
+    const onThreadNotice = vi.fn();
     const genuine = await makeGenuineCert();
     const forged = forgeCert(genuine, genuine.expiresAtUnixMs + 1000);
-    await subscribeInbox(genuine.walletAddress, '0x' + '11'.repeat(32), onKeyBundle, onDmNotice);
+    await subscribeInbox(genuine.walletAddress, '0x' + '11'.repeat(32), onKeyBundle, onThreadNotice);
     getDeliver()(encodeKeyBundle(forged));
     await flush();
     expect(onKeyBundle).not.toHaveBeenCalled();
-    expect(onDmNotice).not.toHaveBeenCalled();
+    expect(onThreadNotice).not.toHaveBeenCalled();
   });
 
   it('invokes onKeyBundle for a genuine cert', async () => {
     const getDeliver = captureSubscription();
     const onKeyBundle = vi.fn();
-    const onDmNotice = vi.fn();
+    const onThreadNotice = vi.fn();
     const genuine = await makeGenuineCert();
-    await subscribeInbox(genuine.walletAddress, '0x' + '11'.repeat(32), onKeyBundle, onDmNotice);
+    await subscribeInbox(genuine.walletAddress, '0x' + '11'.repeat(32), onKeyBundle, onThreadNotice);
     getDeliver()(encodeKeyBundle(genuine));
     await flush();
     expect(onKeyBundle).toHaveBeenCalledTimes(1);
     expect(onKeyBundle).toHaveBeenCalledWith(genuine);
-    expect(onDmNotice).not.toHaveBeenCalled();
+    expect(onThreadNotice).not.toHaveBeenCalled();
   });
 
   it('does not invoke onKeyBundle for an expired but genuinely signed cert', async () => {
     const getDeliver = captureSubscription();
     const onKeyBundle = vi.fn();
-    const onDmNotice = vi.fn();
+    const onThreadNotice = vi.fn();
     const expired = await makeGenuineCert(Date.now() - 1000);
-    await subscribeInbox(expired.walletAddress, '0x' + '11'.repeat(32), onKeyBundle, onDmNotice);
+    await subscribeInbox(expired.walletAddress, '0x' + '11'.repeat(32), onKeyBundle, onThreadNotice);
     getDeliver()(encodeKeyBundle(expired));
     await flush();
     expect(onKeyBundle).not.toHaveBeenCalled();
@@ -252,12 +247,10 @@ describe('subscribeInbox key-bundle verification', () => {
   it('ignores a validly-signed cert for a different wallet but accepts my own', async () => {
     const getDeliver = captureSubscription();
     const onKeyBundle = vi.fn();
-    const onDmNotice = vi.fn();
+    const onThreadNotice = vi.fn();
     const mine = await makeGenuineCert();
-    // Genuinely signed by someone else's wallet — passes verifySessionCert,
-    // but does not belong on my topic.
     const foreign = await makeGenuineCert();
-    await subscribeInbox(mine.walletAddress, '0x' + '11'.repeat(32), onKeyBundle, onDmNotice);
+    await subscribeInbox(mine.walletAddress, '0x' + '11'.repeat(32), onKeyBundle, onThreadNotice);
     getDeliver()(encodeKeyBundle(foreign));
     await flush();
     expect(onKeyBundle).not.toHaveBeenCalled();
@@ -265,99 +258,154 @@ describe('subscribeInbox key-bundle verification', () => {
     await flush();
     expect(onKeyBundle).toHaveBeenCalledTimes(1);
     expect(onKeyBundle).toHaveBeenCalledWith(mine);
-    expect(onDmNotice).not.toHaveBeenCalled();
+    expect(onThreadNotice).not.toHaveBeenCalled();
+  });
+
+  it('delivers a valid dm-kind notice via onThreadNotice', async () => {
+    const getDeliver = captureSubscription();
+    const onKeyBundle = vi.fn();
+    const onThreadNotice = vi.fn();
+    const me = keypair();
+    const myAddress = '0x1111111111111111111111111111111111111111' as const;
+    const sender = await makeGenuineCertWithKey();
+    const notice: ThreadNotice = { kind: 'dm', from: sender.cert.walletAddress, threadId: dmThreadId(myAddress, sender.cert.walletAddress), ts: 1 };
+    await subscribeInbox(myAddress, me.privHex, onKeyBundle, onThreadNotice);
+    getDeliver()(await encodeThreadNotice(notice, me.pubHex, sender.privateKeyHex, sender.cert));
+    await flush();
+    expect(onThreadNotice).toHaveBeenCalledWith(notice);
+  });
+
+  it('rejects a dm-kind notice whose threadId does not match dmThreadId(me, from)', async () => {
+    const getDeliver = captureSubscription();
+    const onKeyBundle = vi.fn();
+    const onThreadNotice = vi.fn();
+    const me = keypair();
+    const myAddress = '0x1111111111111111111111111111111111111111' as const;
+    const sender = await makeGenuineCertWithKey();
+    // threadId claims a completely unrelated pair.
+    const notice: ThreadNotice = { kind: 'dm', from: sender.cert.walletAddress, threadId: ('0x' + '99'.repeat(32)) as any, ts: 1 };
+    await subscribeInbox(myAddress, me.privHex, onKeyBundle, onThreadNotice);
+    getDeliver()(await encodeThreadNotice(notice, me.pubHex, sender.privateKeyHex, sender.cert));
+    await flush();
+    expect(onThreadNotice).not.toHaveBeenCalled();
+  });
+
+  it('delivers a valid event-kind notice via onThreadNotice, including a contractAddress mint pairing', async () => {
+    const getDeliver = captureSubscription();
+    const onKeyBundle = vi.fn();
+    const onThreadNotice = vi.fn();
+    const me = keypair();
+    const myAddress = '0x1111111111111111111111111111111111111111' as const;
+    const sender = await makeGenuineCertWithKey();
+    const draftId = 'draft-abc';
+    const notice: ThreadNotice = {
+      kind: 'event', from: sender.cert.walletAddress, threadId: threadIdForDraft(draftId), draftId,
+      contractAddress: '0x2222222222222222222222222222222222222222', ts: 1,
+    };
+    await subscribeInbox(myAddress, me.privHex, onKeyBundle, onThreadNotice);
+    getDeliver()(await encodeThreadNotice(notice, me.pubHex, sender.privateKeyHex, sender.cert));
+    await flush();
+    expect(onThreadNotice).toHaveBeenCalledWith(notice);
+  });
+
+  it('rejects an event-kind notice with a draftId/threadId mismatch', async () => {
+    const getDeliver = captureSubscription();
+    const onKeyBundle = vi.fn();
+    const onThreadNotice = vi.fn();
+    const me = keypair();
+    const myAddress = '0x1111111111111111111111111111111111111111' as const;
+    const sender = await makeGenuineCertWithKey();
+    // draftId says 'draft-abc' but threadId is for a different draft entirely.
+    const notice: ThreadNotice = {
+      kind: 'event', from: sender.cert.walletAddress, threadId: threadIdForDraft('draft-xyz'), draftId: 'draft-abc', ts: 1,
+    };
+    await subscribeInbox(myAddress, me.privHex, onKeyBundle, onThreadNotice);
+    getDeliver()(await encodeThreadNotice(notice, me.pubHex, sender.privateKeyHex, sender.cert));
+    await flush();
+    expect(onThreadNotice).not.toHaveBeenCalled();
+  });
+
+  it('rejects an event-kind notice with no draftId at all', async () => {
+    const getDeliver = captureSubscription();
+    const onKeyBundle = vi.fn();
+    const onThreadNotice = vi.fn();
+    const me = keypair();
+    const myAddress = '0x1111111111111111111111111111111111111111' as const;
+    const sender = await makeGenuineCertWithKey();
+    const notice = {
+      kind: 'event', from: sender.cert.walletAddress, threadId: threadIdForDraft('draft-abc'), ts: 1,
+    } as ThreadNotice;
+    await subscribeInbox(myAddress, me.privHex, onKeyBundle, onThreadNotice);
+    getDeliver()(await encodeThreadNotice(notice, me.pubHex, sender.privateKeyHex, sender.cert));
+    await flush();
+    expect(onThreadNotice).not.toHaveBeenCalled();
   });
 });
 
 // ---- queryInboxNotices completeness (Finding 1) ----
-//
-// The mocked `queryHistory` here emulates the FIXED waku.ts contract: it
-// awaits whatever `onMessage` returns before moving to the next message,
-// same as `node.store.queryWithOrderedCallback`'s real per-message await
-// will after the fix. This isolates the assertion to `queryInboxNotices`
-// itself (the real, unmocked implementation under test): does its callback
-// actually return a promise that resolves only once the ECIES decrypt has
-// finished? Pre-fix, `queryInboxNotices` fires `tryDecodeDmNotice(...).then(...)`
-// without returning that promise from the callback, so awaiting it here is a
-// no-op and this test fails (onDmNotice not yet called for all notices by
-// the time `queryInboxNotices` resolves). Post-fix, the callback is `async`
-// and awaits the decode itself, so this correctly waits.
 describe('queryInboxNotices completeness', () => {
   it('does not resolve until every matching, decodable notice has been delivered', async () => {
-    const owner = keypair(); // "my" session — the inbox owner decrypting
+    const owner = keypair();
     const myAddress = '0x1111111111111111111111111111111111111111' as const;
     const sender1 = await makeGenuineCertWithKey();
     const sender2 = await makeGenuineCertWithKey();
     const sender3 = await makeGenuineCertWithKey();
 
-    const notice1: DmNotice = {
-      from: sender1.cert.walletAddress,
-      threadId: dmThreadId(myAddress, sender1.cert.walletAddress),
-      convKeyB64: 'a2V5b25l', // "keyone" base64
-      ts: 100,
-    };
-    const notice2: DmNotice = {
-      from: sender2.cert.walletAddress,
-      threadId: dmThreadId(myAddress, sender2.cert.walletAddress),
-      convKeyB64: 'a2V5dHdv', // "keytwo" base64
-      ts: 200,
-    };
-    const notice3: DmNotice = {
-      from: sender3.cert.walletAddress,
-      threadId: dmThreadId(myAddress, sender3.cert.walletAddress),
-      convKeyB64: 'a2V5dGhyZWU=', // "keythree" base64
-      ts: 300,
-    };
+    const notice1: ThreadNotice = { kind: 'dm', from: sender1.cert.walletAddress, threadId: dmThreadId(myAddress, sender1.cert.walletAddress), ts: 100 };
+    const notice2: ThreadNotice = { kind: 'dm', from: sender2.cert.walletAddress, threadId: dmThreadId(myAddress, sender2.cert.walletAddress), ts: 200 };
+    const notice3: ThreadNotice = { kind: 'dm', from: sender3.cert.walletAddress, threadId: dmThreadId(myAddress, sender3.cert.walletAddress), ts: 300 };
 
-    const bytes1 = await encodeDmNotice(notice1, owner.pubHex, sender1.privateKeyHex, sender1.cert);
-    const bytes2 = await encodeDmNotice(notice2, owner.pubHex, sender2.privateKeyHex, sender2.cert);
-    const bytes3 = await encodeDmNotice(notice3, owner.pubHex, sender3.privateKeyHex, sender3.cert);
+    const bytes1 = await encodeThreadNotice(notice1, owner.pubHex, sender1.privateKeyHex, sender1.cert);
+    const bytes2 = await encodeThreadNotice(notice2, owner.pubHex, sender2.privateKeyHex, sender2.cert);
+    const bytes3 = await encodeThreadNotice(notice3, owner.pubHex, sender3.privateKeyHex, sender3.cert);
 
     vi.mocked(queryHistory).mockImplementation(async (_topic, onMessage) => {
-      // Real store replay is ordered; await each message's handler in turn —
-      // exactly the contract the Finding-1 fix establishes in waku.ts.
       for (const m of [bytes1, bytes2, bytes3]) {
         await onMessage(m);
       }
     });
 
-    const onDmNotice = vi.fn();
-    await queryInboxNotices(myAddress, owner.privHex, onDmNotice);
+    const onThreadNotice = vi.fn();
+    await queryInboxNotices(myAddress, owner.privHex, onThreadNotice);
 
-    // By the time queryInboxNotices's promise resolves, ALL three notices
-    // must already have been delivered — no post-await stragglers.
-    expect(onDmNotice).toHaveBeenCalledTimes(3);
-    expect(onDmNotice).toHaveBeenCalledWith(notice1);
-    expect(onDmNotice).toHaveBeenCalledWith(notice2);
-    expect(onDmNotice).toHaveBeenCalledWith(notice3);
+    expect(onThreadNotice).toHaveBeenCalledTimes(3);
+    expect(onThreadNotice).toHaveBeenCalledWith(notice1);
+    expect(onThreadNotice).toHaveBeenCalledWith(notice2);
+    expect(onThreadNotice).toHaveBeenCalledWith(notice3);
+  });
+
+  it('delivers a well-formed event notice alongside dm notices in the same replay', async () => {
+    const owner = keypair();
+    const myAddress = '0x1111111111111111111111111111111111111111' as const;
+    const dmSender = await makeGenuineCertWithKey();
+    const eventSender = await makeGenuineCertWithKey();
+    const draftId = 'draft-42';
+
+    const dmNotice: ThreadNotice = { kind: 'dm', from: dmSender.cert.walletAddress, threadId: dmThreadId(myAddress, dmSender.cert.walletAddress), ts: 100 };
+    const eventNotice: ThreadNotice = { kind: 'event', from: eventSender.cert.walletAddress, threadId: threadIdForDraft(draftId), draftId, ts: 200 };
+
+    const bytes1 = await encodeThreadNotice(dmNotice, owner.pubHex, dmSender.privateKeyHex, dmSender.cert);
+    const bytes2 = await encodeThreadNotice(eventNotice, owner.pubHex, eventSender.privateKeyHex, eventSender.cert);
+
+    vi.mocked(queryHistory).mockImplementation(async (_topic, onMessage) => {
+      for (const m of [bytes1, bytes2]) await onMessage(m);
+    });
+
+    const onThreadNotice = vi.fn();
+    await queryInboxNotices(myAddress, owner.privHex, onThreadNotice);
+
+    expect(onThreadNotice).toHaveBeenCalledTimes(2);
+    expect(onThreadNotice).toHaveBeenCalledWith(dmNotice);
+    expect(onThreadNotice).toHaveBeenCalledWith(eventNotice);
   });
 });
 
 // ---- queryInboxNotices isolation from malformed decrypted notices ----
-//
-// ECIES only requires knowing the recipient's PUBLIC session key to encrypt
-// something that decrypts cleanly — there is no signature binding the
-// decrypted plaintext's shape to a legitimate DmNotice. An attacker can
-// therefore post a payload that decrypts successfully but is malformed
-// (e.g. threadId missing/non-string), as long as the accompanying cert's
-// wallet matches the plaintext's `from` (otherwise it's rejected earlier, at
-// the auth-binding check — see the `inbox dm notice` tests above). Pre-fix,
-// `queryInboxNotices`'s callback has no try/catch and no shape check, so
-// `n.threadId` reaching a downstream consumer like `.toLowerCase()` would
-// throw — and even here, the malformed decode's failure/absence of
-// validation could abort `queryHistory`'s per-message await, preventing
-// delivery of any notice scheduled after it in the same batch. This test
-// asserts both well-formed notices — including the one ordered AFTER the
-// malformed one — are delivered, and that `queryInboxNotices` itself does
-// not throw.
 describe('queryInboxNotices isolation from malformed decrypted notices', () => {
   const testEnc = new TextEncoder();
   const myAddress = '0x1111111111111111111111111111111111111111' as const;
 
-  /** Build on-wire bytes with the same {t:'dm', cert, enc} framing as
-   *  encodeDmNotice, but wrapping an arbitrary (possibly non-conforming)
-   *  plaintext instead of a well-formed DmNotice. */
-  async function encodeMalformedDmNotice(
+  async function encodeMalformedNotice(
     malformedPlaintext: unknown,
     ownerSessionPubHex: string,
     mySessionPrivHex: string,
@@ -368,31 +416,18 @@ describe('queryInboxNotices isolation from malformed decrypted notices', () => {
   }
 
   it('delivers both well-formed notices even when a malformed-but-decryptable one sits between them', async () => {
-    const owner = keypair(); // "my" session — the inbox owner decrypting
+    const owner = keypair();
     const sender1 = await makeGenuineCertWithKey();
     const attacker = await makeGenuineCertWithKey();
     const sender2 = await makeGenuineCertWithKey();
 
-    const notice1: DmNotice = {
-      from: sender1.cert.walletAddress,
-      threadId: dmThreadId(myAddress, sender1.cert.walletAddress),
-      convKeyB64: 'a2V5b25l',
-      ts: 100,
-    };
-    // Decrypts cleanly and passes the sender-auth check (attacker's own
-    // genuine cert, `from` matches its walletAddress) but has no threadId at
-    // all — this is the downstream shape-malformation this test targets.
-    const malformed = { from: attacker.cert.walletAddress, convKeyB64: 'bad', ts: 999 };
-    const notice2: DmNotice = {
-      from: sender2.cert.walletAddress,
-      threadId: dmThreadId(myAddress, sender2.cert.walletAddress),
-      convKeyB64: 'a2V5dHdv',
-      ts: 200,
-    };
+    const notice1: ThreadNotice = { kind: 'dm', from: sender1.cert.walletAddress, threadId: dmThreadId(myAddress, sender1.cert.walletAddress), ts: 100 };
+    const malformed = { kind: 'dm', from: attacker.cert.walletAddress, ts: 999 };
+    const notice2: ThreadNotice = { kind: 'dm', from: sender2.cert.walletAddress, threadId: dmThreadId(myAddress, sender2.cert.walletAddress), ts: 200 };
 
-    const bytes1 = await encodeDmNotice(notice1, owner.pubHex, sender1.privateKeyHex, sender1.cert);
-    const malformedBytes = await encodeMalformedDmNotice(malformed, owner.pubHex, attacker.privateKeyHex, attacker.cert);
-    const bytes2 = await encodeDmNotice(notice2, owner.pubHex, sender2.privateKeyHex, sender2.cert);
+    const bytes1 = await encodeThreadNotice(notice1, owner.pubHex, sender1.privateKeyHex, sender1.cert);
+    const malformedBytes = await encodeMalformedNotice(malformed, owner.pubHex, attacker.privateKeyHex, attacker.cert);
+    const bytes2 = await encodeThreadNotice(notice2, owner.pubHex, sender2.privateKeyHex, sender2.cert);
 
     vi.mocked(queryHistory).mockImplementation(async (_topic, onMessage) => {
       for (const m of [bytes1, malformedBytes, bytes2]) {
@@ -400,12 +435,12 @@ describe('queryInboxNotices isolation from malformed decrypted notices', () => {
       }
     });
 
-    const onDmNotice = vi.fn();
+    const onThreadNotice = vi.fn();
 
-    await expect(queryInboxNotices(myAddress, owner.privHex, onDmNotice)).resolves.toBeUndefined();
+    await expect(queryInboxNotices(myAddress, owner.privHex, onThreadNotice)).resolves.toBeUndefined();
 
-    expect(onDmNotice).toHaveBeenCalledTimes(2);
-    expect(onDmNotice).toHaveBeenCalledWith(notice1);
-    expect(onDmNotice).toHaveBeenCalledWith(notice2);
+    expect(onThreadNotice).toHaveBeenCalledTimes(2);
+    expect(onThreadNotice).toHaveBeenCalledWith(notice1);
+    expect(onThreadNotice).toHaveBeenCalledWith(notice2);
   });
 });

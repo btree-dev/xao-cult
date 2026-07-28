@@ -30,22 +30,28 @@ export interface UseXaoEventResult extends UseXaoThreadResult {
   notifyThread: (contractAddress?: Address) => Promise<void>;
 }
 
-interface NegotiationResult { raw: Uint8Array; peerCert: SessionCert; }
+interface NegotiationResult { raw: Uint8Array; peerCert: SessionCert | null; }
 
 // Same dedupe purpose as useXaoDm's inFlightNegotiations — one negotiation
 // per threadId even across a StrictMode mount→cleanup→mount.
 const inFlightNegotiations = new Map<Hex, Promise<NegotiationResult | null>>();
 
+// Cache is checked FIRST, before any network call — unlike a naive
+// "always fetch the peer's cert" order, this means a thread whose key we
+// already hold stays readable even when the peer's session cert has since
+// expired (SESSION_DURATION_MS, session.ts — certs expire after 30 days).
+// Nothing about our own ability to decrypt this thread depends on the
+// peer's current cert; only a *fresh* key derivation does.
 async function negotiateKey(
   threadId: Hex,
   draftId: string,
   peer: Address,
   session: PersistedSession,
 ): Promise<NegotiationResult | null> {
+  const cached = loadConversationKeyRaw(threadId);
+  if (cached) return { raw: cached, peerCert: null };
   const peerCert = await queryPeerKeyBundle(peer);
   if (!peerCert) return null;
-  const cached = loadConversationKeyRaw(threadId);
-  if (cached) return { raw: cached, peerCert };
   const raw = await deriveEventConversationKeyRaw(session.privateKeyHex, peerCert.sessionPublicKeyHex, draftId);
   saveConversationKeyRaw(threadId, raw);
   return { raw, peerCert };
@@ -85,7 +91,17 @@ export function useXaoEvent(
       .then(async (result) => {
         if (cancelled) return;
         if (!result) { setStatus('no-peer-key'); return; }
-        peerCertRef.current = result.peerCert;
+        if (result.peerCert) {
+          peerCertRef.current = result.peerCert;
+        } else {
+          // Cache hit — readiness never waits on this. Fire-and-forget so
+          // notifyThread has a chance to get a fresh recipient cert later,
+          // without gating status/readiness on the peer's cert being
+          // current (see negotiateKey above).
+          queryPeerKeyBundle(peer).then((cert) => {
+            if (!cancelled && cert) peerCertRef.current = cert;
+          }).catch(() => {});
+        }
         const key = await importAesKey(result.raw);
         if (!cancelled) { setThreadKey(key); setStatus('ready'); }
       })
@@ -102,8 +118,8 @@ export function useXaoEvent(
   const draftByProposalHash = useRef<ProposalHashIndex>(new Map());
 
   const onMessage = (resolved: ResolvedMessage) => {
-    if (!myAddress || !peer) return;
-    applyDraftMessage(resolved, myAddress, peer, draftByProposalHash.current);
+    if (!myAddress || !peer || !draftId) return;
+    applyDraftMessage(resolved, myAddress, peer, draftByProposalHash.current, draftId);
   };
 
   const thread = useXaoThread({ threadId, contentTopic, threadKey, session, onMessage });

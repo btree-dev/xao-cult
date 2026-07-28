@@ -17,12 +17,23 @@ export type ProposalHashIndex = Map<Hex, string>;
  *  useXaoDm's live onMessage handler and the headless sync in sync.ts, so a
  *  draft update is applied identically whether it arrives live or via
  *  backfill. Deliberately does not handle CONTACT_CARD — that stays in
- *  useXaoDm, which has access to ProfileCacheContext. */
+ *  useXaoDm, which has access to ProfileCacheContext.
+ *
+ *  `expectedDraftId` is the draftId of the thread this message actually
+ *  arrived on (the caller's own hook/backfill params — never derived from
+ *  the message itself). A PROPOSAL/COUNTER_PROPOSAL or SYSTEM `minted`
+ *  message carries its own claimed draftId in its payload; without cross-
+ *  checking that claim against the thread it arrived on, a message that
+ *  arrived on thread A but claims to belong to draft B would be applied to
+ *  B's store entry anyway — letting someone who can put a message onto
+ *  *any* thread with you (e.g. their own throwaway draft) forge updates
+ *  (including a mint pairing) for an unrelated draft/contract of yours. */
 export function applyDraftMessage(
   resolved: ResolvedMessage,
   myAddress: Address,
   peer: Address,
   proposalHashIndex: ProposalHashIndex,
+  expectedDraftId: string,
 ): void {
   const { body, cert } = resolved.envelope;
   switch (body.contentType) {
@@ -31,6 +42,7 @@ export function applyDraftMessage(
       const p = body.payload as ProposalPayload;
       const draftId = String((p.data as { draftId?: unknown }).draftId || '');
       if (!draftId) return;
+      if (draftId !== expectedDraftId) return;
       proposalHashIndex.set(resolved.bodyHash, draftId);
       const [party1, party2] = ([myAddress, peer] as Address[]).sort(
         (a, b) => a.toLowerCase().localeCompare(b.toLowerCase()),
@@ -49,7 +61,7 @@ export function applyDraftMessage(
     }
     case ContentType.SYSTEM: {
       const s = body.payload as SystemPayload;
-      if (s.event === 'minted') recordMint(s.draftId, s.contractAddress);
+      if (s.event === 'minted' && s.draftId === expectedDraftId) recordMint(s.draftId, s.contractAddress);
       return;
     }
     default:

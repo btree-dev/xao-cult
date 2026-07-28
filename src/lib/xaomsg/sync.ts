@@ -76,8 +76,43 @@ async function backfillEventThread(myAddress: Address, peer: Address, draftId: s
   await queryHistory(contentTopic, async (bytes) => {
     const resolved = await decodeResolvedMessage(bytes, threadKey, threadId);
     if (!resolved) return;
-    applyDraftMessage(resolved, myAddress, peer, proposalHashIndex);
+    applyDraftMessage(resolved, myAddress, peer, proposalHashIndex, draftId);
   });
+}
+
+/**
+ * Full handling for one event (draft) inbox notice: the immediate
+ * mint-pairing record (if this draft is already known locally) plus
+ * key-derivation + backfill for its thread. Shared by syncAllKnownThreads's
+ * one-time login replay and useXaoInbox's live subscription (Fix 6 —
+ * without this, a counterparty already live in the app when you send a
+ * first proposal wouldn't see it until they reloaded from `/`).
+ *
+ * SECURITY: `notice.from` must be one of the draft's own party1/party2
+ * before the mint pairing is recorded — otherwise anyone who can publish
+ * *any* event notice naming this draftId (not necessarily a party to it)
+ * could claim an arbitrary contractAddress as "minted" for a draft that
+ * isn't theirs. This mirrors useResolveEventThread's own parties
+ * cross-check (defense in depth — that check protects the read path, this
+ * one protects the write path that feeds it).
+ */
+export async function backfillEventThreadFromNotice(
+  myAddress: Address,
+  session: PersistedSession,
+  notice: { draftId: string; from: Address; contractAddress?: Address },
+): Promise<void> {
+  if (notice.contractAddress) {
+    const existingDraft = loadDraft(notice.draftId);
+    if (existingDraft) {
+      const fromLower = notice.from.toLowerCase();
+      const isParty = existingDraft.party1.toLowerCase() === fromLower || existingDraft.party2.toLowerCase() === fromLower;
+      if (isParty) {
+        recordMint(notice.draftId, notice.contractAddress);
+      }
+    }
+  }
+  await ensureEventConversationKey(notice.from, notice.draftId, session);
+  await backfillEventThread(myAddress, notice.from, notice.draftId);
 }
 
 /**
@@ -93,21 +128,16 @@ async function backfillEventThread(myAddress: Address, peer: Address, draftId: s
  */
 export async function syncAllKnownThreads(myAddress: Address, session: PersistedSession): Promise<void> {
   const dmPeers = new Set<string>();
-  const events: { draftId: string; peer: string }[] = [];
+  const events: { draftId: string; from: Address; contractAddress?: Address }[] = [];
 
   try {
     await publishKeyBundle(session.cert);
     await queryInboxNotices(myAddress, session.privateKeyHex, (notice: ThreadNotice) => {
       if (notice.kind === 'event') {
         if (!notice.draftId) return;
-        // Record the mint pairing immediately if this draft is already known
-        // locally — no need to wait for a full thread replay in that case.
-        // If it isn't known locally yet (fresh device), the queued backfill
-        // below creates it from the thread's own PROPOSAL/SYSTEM history.
-        if (notice.contractAddress && loadDraft(notice.draftId)) {
-          recordMint(notice.draftId, notice.contractAddress);
-        }
-        events.push({ draftId: notice.draftId, peer: notice.from });
+        // Immediate mint-pairing (if known locally) + key-derivation +
+        // backfill all happen in backfillEventThreadFromNotice, below.
+        events.push({ draftId: notice.draftId, from: notice.from, contractAddress: notice.contractAddress });
         return;
       }
       upsertConversation(myAddress, {
@@ -128,8 +158,7 @@ export async function syncAllKnownThreads(myAddress: Address, session: Persisted
         }),
     ),
     ...events.map((e) =>
-      ensureEventConversationKey(e.peer as Address, e.draftId, session)
-        .then(() => backfillEventThread(myAddress, e.peer as Address, e.draftId))
+      backfillEventThreadFromNotice(myAddress, session, e)
         .catch((err) => {
           console.warn(`[xaomsg] sync: event thread backfill failed for draft ${e.draftId}:`, err);
         }),

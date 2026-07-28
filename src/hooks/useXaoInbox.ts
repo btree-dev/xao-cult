@@ -27,6 +27,15 @@ export function useXaoInbox(session: PersistedSession | null): UseXaoInboxResult
     let cancelled = false;
     let unsub: (() => Promise<void>) | null = null;
 
+    // Same callback is passed to both subscribeInbox (live) AND
+    // queryInboxNotices (full history replay) below — so on every mount,
+    // every historical event notice ever received would otherwise re-fire
+    // an event-thread backfill (key derivation + a full queryHistory call
+    // per draft), duplicating what syncAllKnownThreads already did once at
+    // login. This set bounds that to once per draftId per mount, live or
+    // replayed.
+    const queuedBackfillDraftIds = new Set<string>();
+
     // Only dm-kind notices populate the DM conversation list — event
     // (draft/contract) notices never appear in `conversations`. They still
     // need a live-delivery path though (Fix 6): without this, a
@@ -39,6 +48,9 @@ export function useXaoInbox(session: PersistedSession | null): UseXaoInboxResult
     const applyNotice = (n: ThreadNotice) => {
       if (n.kind === 'event') {
         if (!n.draftId) return;
+        if (cancelled) return;
+        if (queuedBackfillDraftIds.has(n.draftId)) return;
+        queuedBackfillDraftIds.add(n.draftId);
         backfillEventThreadFromNotice(address as Address, session, {
           draftId: n.draftId, from: n.from, contractAddress: n.contractAddress,
         }).catch((err) => console.warn('[xaomsg] live event notice backfill failed:', err));

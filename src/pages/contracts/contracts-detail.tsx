@@ -14,6 +14,7 @@ import { useRouter } from "next/router";
 import Scrollbar from "../../components/Scrollbar";
 import BlankNavbar from "../../components/BackNav";
 import { useWeb3 } from "../../hooks/useWeb3";
+import { useResolveEventThread } from "../../hooks/useResolveEventThread";
 import { useAllContractsWithSummaries } from "../../hooks/useGetContracts";
 import { useSignEventContract } from "../../hooks/useSignEventContract";
 import { useAddTicketType, useAddTierToXAOTicket, dollarToWei, weiToDollar, ETH_PRICE_USD } from "../../hooks/useAddTicketType";
@@ -35,7 +36,7 @@ const Contractsdetail: React.FC = () => {
   const [selected, setSelected] = useState<"contract" | "chat">("contract");
   const router = useRouter();
   const { address, chain } = useWeb3();
-  const { contracts } = useAllContractsWithSummaries(chain?.id);
+  const { contracts, isLoading: contractsLoading } = useAllContractsWithSummaries(chain?.id);
   const { id, ticketsold, totalrevenue, source } = router.query;
   const party1 = router.query.party1 as string | undefined;
   const party2 = router.query.party2 as string | undefined;
@@ -47,6 +48,28 @@ const Contractsdetail: React.FC = () => {
   // Fetch all contract fields from on-chain for blockchain contracts
   const isBlockchain = id && typeof id === "string" && id.startsWith("0x");
   const contractAddr = isBlockchain ? (id as `0x${string}`) : undefined;
+
+  // The on-chain summary (from useAllContractsWithSummaries) is the
+  // authoritative source of this contract's real parties — unlike
+  // router.query's party1/party2, it can't be spoofed via URL and is
+  // available even on entry points that never pass those query params
+  // (e.g. past-contracts.tsx, a bookmarked link). useResolveEventThread
+  // needs these real parties to cross-check a locally-matched draft before
+  // trusting it (see useResolveEventThread.ts for why).
+  const onChainMatch = useMemo(
+    () => contracts.find((c) => contractAddr && c.contractAddress.toLowerCase() === contractAddr.toLowerCase()),
+    [contracts, contractAddr],
+  );
+  // Prefer real on-chain parties; fall back to router.query (e.g. while
+  // `contracts` is still loading, or for non-blockchain/mock-data entries).
+  const effectiveParty1 = onChainMatch?.party1Address ?? party1;
+  const effectiveParty2 = onChainMatch?.party2Address ?? party2;
+
+  const resolvedThread = useResolveEventThread(contractAddr ?? null, onChainMatch?.party1Address, onChainMatch?.party2Address);
+  const myAddr = address?.toLowerCase();
+  const counterparty = effectiveParty1 && effectiveParty2
+    ? (effectiveParty1.toLowerCase() === myAddr ? effectiveParty2 : effectiveParty1)
+    : undefined;
 
   // Read ticketCollection address from ShowContract
   const { data: ticketCollectionData } = useReadContract({
@@ -565,7 +588,26 @@ const Contractsdetail: React.FC = () => {
           </div>
           {selected === "chat" ? (
             <div className={styles.content}>
-              <XaoMsgComponent showContract={contractAddr ?? null} embedded={true} />
+              {isBlockchain && contractsLoading ? (
+                // useAllContractsWithSummaries (and thus onChainMatch/
+                // effectiveParty1/2) hasn't loaded yet, so resolvedThread
+                // can only fall back to 'legacy' right now even for a
+                // contract that actually has a continuous draft thread —
+                // avoid a fast user briefly posting into the
+                // world-readable legacy thread before the real mode is
+                // known (see useResolveEventThread.ts SECURITY note).
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '40vh', color: 'white' }}>
+                  <p>Loading chat...</p>
+                </div>
+              ) : resolvedThread?.mode === 'draft' ? (
+                <XaoMsgComponent
+                  draftId={resolvedThread.draftId}
+                  peer={counterparty && counterparty.startsWith('0x') ? (counterparty as `0x${string}`) : null}
+                  embedded={true}
+                />
+              ) : (
+                <XaoMsgComponent showContract={contractAddr ?? null} embedded={true} />
+              )}
             </div>
           ) : (
           <>

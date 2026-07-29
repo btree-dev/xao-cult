@@ -4,6 +4,7 @@ import { useAccount } from 'wagmi';
 import styles from '../../styles/CreateContract.module.css';
 import { useXaoMsg } from '../../hooks/useXaoMsg';
 import { useXaoDm } from '../../hooks/useXaoDm';
+import { useXaoEvent } from '../../hooks/useXaoEvent';
 import { useXaoMsgSession } from '../../hooks/useXaoMsgSession';
 import {
   ContentType,
@@ -16,20 +17,26 @@ import { loadDraft } from '../../lib/xaomsg/offchainContracts';
 export interface XaoMsgComponentProps {
   showContract?: Address | null;
   peer?: Address | null;
+  draftId?: string | null;
   embedded?: boolean;
   onContractProposalSelect?: (proposal: ContractProposalMessage) => void;
 }
 
 const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({
-  showContract = null, peer = null, embedded = false, onContractProposalSelect,
+  showContract = null, peer = null, draftId = null, embedded = false, onContractProposalSelect,
 }) => {
   const { session, isUnlocking, error: sessionError, unlock } = useXaoMsgSession();
-  const isDm = !!peer;
+  // draftId takes priority: create-contract.tsx and contracts-detail.tsx
+  // (via useResolveEventThread) pass BOTH draftId and peer together for
+  // event mode. peer alone (no draftId) means DM mode.
+  const isEvent = !!draftId;
+  const isDm = !isEvent && !!peer;
 
-  const contractThread = useXaoMsg({ showContract: isDm ? null : showContract, session });
+  const contractThread = useXaoMsg({ showContract: isDm || isEvent ? null : showContract, session });
   const dmThread = useXaoDm({ peer: isDm ? peer : null, session });
-  const { messages, isLoading, error, postText } = isDm ? dmThread : contractThread;
-  const dmStatus = isDm ? dmThread.status : null;
+  const eventThread = useXaoEvent({ draftId: isEvent ? draftId : null, peer: isEvent ? peer : null, session });
+  const { messages, isLoading, error, postText } = isDm ? dmThread : isEvent ? eventThread : contractThread;
+  const activeStatus = isDm ? dmThread.status : isEvent ? eventThread.status : null;
 
   const { address: myAddress } = useAccount();
 
@@ -54,8 +61,8 @@ const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({
     </div>
   );
 
-  if (!showContract && !peer) {
-    return panel(<div className={styles.RecievedMessage}>Open this chat from a contract or a wallet address to use XaoMsg.</div>);
+  if (!showContract && !peer && !draftId) {
+    return panel(<div className={styles.RecievedMessage}>Open this chat from a contract, a draft, or a wallet address to use XaoMsg.</div>);
   }
 
   if (peer && !isAddress(peer)) {
@@ -88,7 +95,7 @@ const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({
     );
   }
 
-  if (isDm && dmStatus === 'no-peer-key') {
+  if ((isDm || isEvent) && activeStatus === 'no-peer-key') {
     return panel(
       <div className={styles.RecievedMessage}>
         This user hasn&apos;t joined XaoMsg yet, so messages can&apos;t be encrypted to them.
@@ -96,10 +103,10 @@ const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({
       </div>,
     );
   }
-  if (isDm && (dmStatus === 'negotiating' || dmStatus === 'idle')) {
+  if ((isDm || isEvent) && (activeStatus === 'negotiating' || activeStatus === 'idle')) {
     return panel(<div className={styles.RecievedMessage}>Setting up a secure channel…</div>);
   }
-  if (isDm && dmStatus === 'error') {
+  if ((isDm || isEvent) && activeStatus === 'error') {
     return panel(<div className={styles.RecievedMessage} style={{ color: '#ff8080' }}>Couldn&apos;t set up the secure channel. Please retry.</div>);
   }
 

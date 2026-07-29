@@ -1,7 +1,7 @@
 // src/lib/xaomsg/ecies.test.ts
 import { describe, it, expect } from 'vitest';
 import * as secp from '@noble/secp256k1';
-import { wrapBytes, unwrapBytes, deriveDmConversationKeyRaw } from './ecies';
+import { wrapBytes, unwrapBytes, deriveDmConversationKeyRaw, deriveEventConversationKeyRaw } from './ecies';
 
 function keypair() {
   const priv = secp.utils.randomPrivateKey();
@@ -63,5 +63,32 @@ describe('deriveDmConversationKeyRaw', () => {
     const aliceBob = await deriveDmConversationKeyRaw(alice.privHex, bob.pubHex);
     const aliceMallory = await deriveDmConversationKeyRaw(alice.privHex, mallory.pubHex);
     expect(Array.from(aliceBob)).not.toEqual(Array.from(aliceMallory));
+  });
+});
+
+describe('deriveEventConversationKeyRaw', () => {
+  it('is symmetric — both sides derive the identical key with no negotiation', async () => {
+    const alice = keypair();
+    const bob = keypair();
+    const fromAlice = await deriveEventConversationKeyRaw(alice.privHex, bob.pubHex, 'draft-1');
+    const fromBob = await deriveEventConversationKeyRaw(bob.privHex, alice.pubHex, 'draft-1');
+    expect(Array.from(fromAlice)).toEqual(Array.from(fromBob));
+    expect(fromAlice.length).toBe(32);
+  });
+
+  it('differs per draftId between the same two people — concurrent drafts never share a key', async () => {
+    const alice = keypair();
+    const bob = keypair();
+    const draft1 = await deriveEventConversationKeyRaw(alice.privHex, bob.pubHex, 'draft-1');
+    const draft2 = await deriveEventConversationKeyRaw(alice.privHex, bob.pubHex, 'draft-2');
+    expect(Array.from(draft1)).not.toEqual(Array.from(draft2));
+  });
+
+  it('never matches the same pair\'s DM key', async () => {
+    const alice = keypair();
+    const bob = keypair();
+    const dmKey = await deriveDmConversationKeyRaw(alice.privHex, bob.pubHex);
+    const eventKey = await deriveEventConversationKeyRaw(alice.privHex, bob.pubHex, 'draft-1');
+    expect(Array.from(dmKey)).not.toEqual(Array.from(eventKey));
   });
 });

@@ -10,10 +10,12 @@ import Image from "next/image";
 import { useState, useEffect, useMemo } from "react";
 import { useAccount, useChainId, useDisconnect } from "wagmi";
 import { DynamicConnectButton } from "@dynamic-labs/sdk-react-core";
-import { useGetUserNFTs } from "../../hooks/useContractNFT";
+import { useAllContractsWithSummaries } from "../../hooks/useGetContracts";
+import { useOffchainContracts } from "../../hooks/useOffchainContracts";
 import { useXaoMsgSession } from "../../hooks/useXaoMsgSession";
 import { useXaoInbox } from "../../hooks/useXaoInbox";
 import { useProfileCache, CachedProfile } from "../../contexts/ProfileCacheContext";
+import { CONTRACT_MESSAGE_VERSION, type ContractProposalMessage } from "../../types/contractMessage";
 
 interface ConversationPreview {
   id: string;
@@ -27,10 +29,13 @@ interface ConversationPreview {
 interface EventPreview {
   id: string;
   type: "event";
-  tokenId: bigint;
+  isOffchainDraft: boolean;
+  contractAddress?: `0x${string}`;
+  draftId?: string;
   party1: string;
   party2: string;
-  terms: string;
+  eventName: string;
+  venueName?: string;
   createdAt: Date;
   isSigned: boolean;
 }
@@ -43,8 +48,6 @@ export default function Search() {
   const { disconnect } = useDisconnect();
   const chainId = useChainId();
   const [searchQuery, setSearchQuery] = useState("");
-  const [events, setEvents] = useState<EventPreview[]>([]);
-  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "conversations" | "events">("all");
 
   // Waku-backed DM session + conversation index
@@ -54,8 +57,9 @@ export default function Search() {
   // Profile cache for displaying usernames
   const { getProfile } = useProfileCache();
 
-  // Get user's contract NFTs
-  const { tokenIds, isLoading: isLoadingTokenIds } = useGetUserNFTs(address, chainId);
+  // On-chain contract summaries + off-chain drafts (same merge Negotiation.tsx uses)
+  const { contracts, isLoading: isLoadingContracts } = useAllContractsWithSummaries(chainId);
+  const { drafts } = useOffchainContracts(contracts);
 
   // Truncate address for display
   const truncateAddress = (addr: string | unknown): string => {
@@ -99,14 +103,6 @@ export default function Search() {
     }
   };
 
-  // Clear events when wallet disconnects (conversations are cleared internally
-  // by useXaoInbox when the connected address changes/clears)
-  useEffect(() => {
-    if (!isConnected) {
-      setEvents([]);
-    }
-  }, [isConnected]);
-
   // Map the Waku-backed conversation index into the existing render shape
   const conversations: ConversationPreview[] = useMemo(
     () => dmConversations.map((c) => ({
@@ -120,37 +116,41 @@ export default function Search() {
     [dmConversations],
   );
 
-  // Load events when token IDs are available
-  // Load events when token IDs are available
-  useEffect(() => {
-    // Only process if we have token IDs
-    if (!tokenIds || tokenIds.length === 0) {
-      // Only clear if we have events to clear
-      if (events.length > 0) {
-        setEvents([]);
-      }
-      return;
-    }
+  // Merge on-chain contract summaries (where the connected wallet is a party)
+  // with off-chain drafts into the Events tab data source.
+  const myContracts = useMemo(() => {
+    const myAddr = address?.toLowerCase();
+    return contracts.filter(
+      (c) => myAddr && (c.party1Address.toLowerCase() === myAddr || c.party2Address.toLowerCase() === myAddr),
+    );
+  }, [contracts, address]);
 
-    setIsLoadingEvents(true);
-
-    // For now, we'll just create event previews from token IDs
-    // In a real implementation, you'd fetch event contract data for each token
-    const eventPreviews: EventPreview[] = tokenIds.map((tokenId) => ({
-      id: `event-${tokenId.toString()}`,
+  const events: EventPreview[] = useMemo(() => {
+    const onChain: EventPreview[] = myContracts.map((c) => ({
+      id: `onchain-${c.contractAddress}`,
       type: "event" as const,
-      tokenId,
-      party1: address || "",
-      party2: "",
-      terms: `Event #${tokenId.toString()}`,
+      isOffchainDraft: false,
+      contractAddress: c.contractAddress,
+      party1: c.party1Address,
+      party2: c.party2Address,
+      eventName: c.eventName,
+      venueName: c.venueName,
       createdAt: new Date(),
+      isSigned: c.party1Signed && c.party2Signed,
+    }));
+    const offChain: EventPreview[] = drafts.map((d) => ({
+      id: `draft-${d.draftId}`,
+      type: "event" as const,
+      isOffchainDraft: true,
+      draftId: d.draftId,
+      party1: d.party1,
+      party2: d.party2,
+      eventName: (d.terms as { promotion?: { value?: string } }).promotion?.value || "Untitled draft",
+      createdAt: new Date(d.lastActivityUnixMs),
       isSigned: false,
     }));
-
-    setEvents(eventPreviews);
-    setIsLoadingEvents(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tokenIds?.length, address]);
+    return [...onChain, ...offChain];
+  }, [myContracts, drafts]);
 
   // Filter items based on search query and active tab
   // Check if search query is a valid wallet address
@@ -190,10 +190,9 @@ export default function Search() {
         );
       } else {
         return (
-          item.terms.toLowerCase().includes(query) ||
+          item.eventName.toLowerCase().includes(query) ||
           item.party1.toLowerCase().includes(query) ||
-          item.party2.toLowerCase().includes(query) ||
-          item.tokenId.toString().includes(query)
+          item.party2.toLowerCase().includes(query)
         );
       }
     });
@@ -210,7 +209,7 @@ export default function Search() {
     );
   }, [searchQuery, isConnected, conversations, address]);
 
-  const isLoading = isLoadingEvents || isLoadingTokenIds;
+  const isLoading = isLoadingContracts;
 
   return (
     <Layout>
@@ -416,7 +415,39 @@ export default function Search() {
                       const peerParam = convo.peerAddress || convo.peerInboxId;
                       router.push(`/chat-Section/Chat?peer=${encodeURIComponent(peerParam)}`);
                     } else {
-                      router.push(`/contracts/contracts-detail?tokenId=${item.tokenId.toString()}`);
+                      const eventItem = item as EventPreview;
+                      if (eventItem.isOffchainDraft && eventItem.draftId) {
+                        // Mirrors Negotiation.tsx's handleDraftClick: look up the
+                        // real draft object and use its actual terms/revision/
+                        // lastActivity, the same way create-contract's Contract
+                        // tab restores a prefilled proposal from sessionStorage.
+                        const draft = drafts.find((d) => d.draftId === eventItem.draftId);
+                        if (!draft) return;
+                        const myAddr = address?.toLowerCase();
+                        const peer = draft.party1.toLowerCase() === myAddr ? draft.party2 : draft.party1;
+                        const proposal: ContractProposalMessage = {
+                          type: "contract-proposal",
+                          version: CONTRACT_MESSAGE_VERSION,
+                          data: draft.terms,
+                          sentAt: draft.lastActivityUnixMs,
+                          proposedBy: peer,
+                          revisionNumber: draft.revisionNumber,
+                        };
+                        sessionStorage.setItem("selectedContractProposal", JSON.stringify(proposal));
+                        router.push(`/contracts/create-contract?peer=${encodeURIComponent(peer)}&tab=chat`);
+                      } else if (eventItem.contractAddress) {
+                        router.push({
+                          pathname: "/contracts/contracts-detail",
+                          query: {
+                            id: eventItem.contractAddress,
+                            ticketsold: "0",
+                            totalrevenue: "0",
+                            source: "search",
+                            party1: eventItem.party1,
+                            party2: eventItem.party2,
+                          },
+                        });
+                      }
                     }
                   }}
                 >
@@ -466,12 +497,14 @@ export default function Search() {
                     <h3 className={docStyles.searchResultTitle}>
                       {item.type === "conversation"
                         ? getDisplayName((item as ConversationPreview).peerAddress || (item as ConversationPreview).peerInboxId)
-                        : `Event #${(item as EventPreview).tokenId.toString()}`}
+                        : (item as EventPreview).eventName}
                     </h3>
                     <p className={docStyles.searchResultEvents}>
                       {item.type === "conversation"
                         ? (item as ConversationPreview).lastMessage || "No messages yet"
-                        : (item as EventPreview).isSigned ? "Confirmed" : "Pending"}
+                        : (item as EventPreview).isOffchainDraft
+                          ? "Draft — off-chain"
+                          : (item as EventPreview).isSigned ? "Confirmed" : "Pending"}
                     </p>
                   </div>
 

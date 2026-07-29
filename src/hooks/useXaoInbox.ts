@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { type Address } from 'viem';
 import {
-  publishKeyBundle, queryInboxNotices, subscribeInbox, type DmNotice,
+  publishKeyBundle, queryInboxNotices, subscribeInbox, eventBackfillDedupeKey, type ThreadNotice,
 } from '../lib/xaomsg/inbox';
 import {
   loadConversations, upsertConversation, type ConversationRecord,
 } from '../lib/xaomsg/conversationStore';
+import { backfillEventThreadFromNotice } from '../lib/xaomsg/sync';
 import type { PersistedSession } from '../lib/xaomsg/session';
 
 export interface UseXaoInboxResult { conversations: ConversationRecord[]; }
@@ -26,11 +27,40 @@ export function useXaoInbox(session: PersistedSession | null): UseXaoInboxResult
     let cancelled = false;
     let unsub: (() => Promise<void>) | null = null;
 
-    // Key material no longer travels in the notice — useXaoDm derives it
-    // on-demand via ECDH when the user opens the thread, and syncAllKnownThreads
-    // backfills it in the background. This hook only needs the notice to
-    // populate the conversation list.
-    const applyNotice = (n: DmNotice) => {
+    // Same callback is passed to both subscribeInbox (live) AND
+    // queryInboxNotices (full history replay) below — so on every mount,
+    // every historical event notice ever received would otherwise re-fire
+    // an event-thread backfill (key derivation + a full queryHistory call
+    // per draft), duplicating what syncAllKnownThreads already did once at
+    // login. This set bounds that to once per (draftId, mint-state) pair
+    // per mount, live or replayed — keyed via eventBackfillDedupeKey, NOT
+    // draftId alone, because notifyThread fires twice per draft (pre-mint,
+    // then again at mint with contractAddress set) and a draftId-only key
+    // would let the pre-mint notice claim the slot and silently swallow the
+    // mint notice that recordMint/useResolveEventThread depend on.
+    const queuedBackfillKeys = new Set<string>();
+
+    // Only dm-kind notices populate the DM conversation list — event
+    // (draft/contract) notices never appear in `conversations`. They still
+    // need a live-delivery path though (Fix 6): without this, a
+    // counterparty already live in the app when you send a first proposal
+    // wouldn't see it until they reload from `/` (syncAllKnownThreads only
+    // runs once, at login). So an event notice fires the same
+    // backfillEventThreadFromNotice used at login, fire-and-forget, purely
+    // so the data lands in localStorage sooner — it never touches
+    // `conversations`.
+    const applyNotice = (n: ThreadNotice) => {
+      if (n.kind === 'event') {
+        if (!n.draftId) return;
+        if (cancelled) return;
+        const key = eventBackfillDedupeKey(n.draftId, n.contractAddress);
+        if (queuedBackfillKeys.has(key)) return;
+        queuedBackfillKeys.add(key);
+        backfillEventThreadFromNotice(address as Address, session, {
+          draftId: n.draftId, from: n.from, contractAddress: n.contractAddress,
+        }).catch((err) => console.warn('[xaomsg] live event notice backfill failed:', err));
+        return;
+      }
       const owner = address as Address;
       const next = upsertConversation(owner, {
         threadId: n.threadId, peer: n.from, lastActivityUnixMs: n.ts, lastPreview: n.preview,

@@ -6,13 +6,33 @@ import { wrapBytes, unwrapBytes } from './ecies';
 import { publishToTopic, subscribeToTopic, queryHistory } from './waku';
 import { verifySessionCert, isExpired } from './session';
 import { dmThreadId } from './dmThreadId';
+import { threadIdForDraft } from './threadId';
 
-export interface DmNotice {
+export interface ThreadNotice {
+  kind: 'dm' | 'event';
   from: Address;
   threadId: Hex;
-  convKeyB64: string; // base64 of the raw 32-byte conversation key
-  preview?: string;
   ts: number;
+  preview?: string;
+  /** present iff kind === 'event' */
+  draftId?: string;
+  /** present iff kind === 'event' and this draft has been minted on-chain —
+   *  lets any device resolve the minted contract's address back to this
+   *  same thread (see useResolveEventThread / sync.ts). */
+  contractAddress?: Address;
+}
+
+/** Dedupe key for live/replayed event-notice backfills (see useXaoInbox).
+ *  Keyed on draftId AND whether this notice carries a contractAddress —
+ *  NOT draftId alone — because `notifyThread` fires at least twice per
+ *  draft over its lifetime with the same draftId: once on the initial
+ *  proposal (no contractAddress) and again at mint (contractAddress set).
+ *  A draftId-only key lets the pre-mint notice claim the slot and silently
+ *  swallows the mint notice — the one `recordMint`/`useResolveEventThread`
+ *  actually depend on — on any session that already saw the pre-mint
+ *  notice live. */
+export function eventBackfillDedupeKey(draftId: string, contractAddress?: string): string {
+  return `${draftId}:${contractAddress ?? ''}`;
 }
 
 const enc = new TextEncoder();
@@ -30,34 +50,29 @@ export function tryDecodeKeyBundle(bytes: Uint8Array): SessionCert | null {
   } catch { return null; }
 }
 
-// ---- DM notice (ECIES-encrypted to owner, authenticated by sender's session cert) ----
-export async function encodeDmNotice(
-  notice: DmNotice,
+// ---- Thread notice (ECIES-encrypted to owner, authenticated by sender's session cert) ----
+export async function encodeThreadNotice(
+  notice: ThreadNotice,
   ownerSessionPubHex: string,
   mySessionPrivHex: string,
   myCert: SessionCert,
 ): Promise<Uint8Array> {
   const encBlob = await wrapBytes(enc.encode(JSON.stringify(notice)), ownerSessionPubHex, mySessionPrivHex);
+  // 't: dm' is on-wire transport framing (distinguishes a notice from a key
+  // bundle) — unrelated to the notice's own `kind` field, so it stays as-is
+  // for both dm- and event-kind notices.
   return enc.encode(JSON.stringify({ t: 'dm', cert: myCert, enc: encBlob }));
 }
 
-export async function tryDecodeDmNotice(bytes: Uint8Array, mySessionPrivHex: string): Promise<DmNotice | null> {
+export async function tryDecodeThreadNotice(bytes: Uint8Array, mySessionPrivHex: string): Promise<ThreadNotice | null> {
   try {
     const o = JSON.parse(dec.decode(bytes));
     if (o?.t !== 'dm' || !o.cert || !o.enc) return null;
     const senderCert = o.cert as SessionCert;
-    // The cert proves senderCert.sessionPublicKeyHex is wallet-attested to
-    // senderCert.walletAddress. Without this, ECIES alone authenticates
-    // nothing about who the sender claims to be — any throwaway keypair can
-    // encrypt to our known public key and produce a notice that decrypts
-    // cleanly but lies about `from`.
     if (!(await verifySessionCert(senderCert))) return null;
     if (isExpired(senderCert)) return null;
     const plain = await unwrapBytes(o.enc, senderCert.sessionPublicKeyHex, mySessionPrivHex);
-    const notice = JSON.parse(dec.decode(plain)) as DmNotice;
-    // Bind the plaintext's claimed sender to the wallet-verified cert — a
-    // genuinely-signed cert for wallet X can never be used to forge a
-    // notice claiming `from: Y` for any Y != X.
+    const notice = JSON.parse(dec.decode(plain)) as ThreadNotice;
     if (typeof notice.from !== 'string' || notice.from.toLowerCase() !== senderCert.walletAddress.toLowerCase()) {
       return null;
     }
@@ -65,12 +80,31 @@ export async function tryDecodeDmNotice(bytes: Uint8Array, mySessionPrivHex: str
   } catch { return null; }
 }
 
+/** Full shape + threadId-recomputation check, shared by subscribeInbox and
+ *  queryInboxNotices — a wallet-attested sender can never claim a threadId
+ *  that doesn't match what it's actually supposed to be, for either kind. */
+function isValidThreadNotice(myAddress: Address, n: unknown): n is ThreadNotice {
+  if (!n || typeof n !== 'object') return false;
+  const notice = n as ThreadNotice;
+  if (typeof notice.from !== 'string' || typeof notice.threadId !== 'string' || typeof notice.ts !== 'number') {
+    return false;
+  }
+  if (notice.kind === 'dm') {
+    return notice.threadId.toLowerCase() === dmThreadId(myAddress, notice.from as Address).toLowerCase();
+  }
+  if (notice.kind === 'event') {
+    if (typeof notice.draftId !== 'string' || !notice.draftId) return false;
+    return notice.threadId.toLowerCase() === threadIdForDraft(notice.draftId).toLowerCase();
+  }
+  return false;
+}
+
 // ---- Waku wiring ----
 export async function publishKeyBundle(cert: SessionCert): Promise<void> {
   await publishToTopic(inboxTopicForAddress(cert.walletAddress), encodeKeyBundle(cert));
 }
 
-export async function publishDmNotice(ownerAddress: Address, noticeBytes: Uint8Array): Promise<void> {
+export async function publishThreadNotice(ownerAddress: Address, noticeBytes: Uint8Array): Promise<void> {
   await publishToTopic(inboxTopicForAddress(ownerAddress), noticeBytes);
 }
 
@@ -79,19 +113,32 @@ export async function publishDmNotice(ownerAddress: Address, noticeBytes: Uint8A
 export async function queryPeerKeyBundle(peer: Address): Promise<SessionCert | null> {
   // The inbox topic is publicly writable, so any bundle in history is
   // attacker-controlled until its wallet signature verifies. Collect every
-  // shape-valid, unexpired candidate, then verify newest-first — a forged
-  // bundle with an inflated expiry must not mask the peer's real one.
-  const candidates: SessionCert[] = [];
-  await queryHistory(inboxTopicForAddress(peer), (bytes) => {
+  // shape-valid, unexpired candidate, then verify most-recently-PUBLISHED
+  // first (by Waku message timestamp) — NOT by the cert's own self-declared
+  // expiresAtUnixMs. A wallet that has ever created more than one session
+  // (a different device, a cleared localStorage, an earlier test run) can
+  // have several simultaneously-valid, unexpired certs sitting in its inbox
+  // topic's history; an abandoned/orphaned one can easily have a *later*
+  // self-declared expiry than the session the peer is actually using right
+  // now (expiry = creation time + 30 days, so "created later" always sorts
+  // ahead of "created earlier" regardless of which one is still alive). A
+  // real live bug: sorting by expiresAtUnixMs picked exactly such an
+  // orphaned cert, so every notice got encrypted to a session no device
+  // could decrypt — a silent, permanent, undetectable delivery failure.
+  // Sorting by actual publish time instead always prefers whichever cert
+  // the peer published last, which is a live session re-publishing its own
+  // unchanged cert on every mount — i.e., their current one.
+  const candidates: { cert: SessionCert; publishedAtMs: number }[] = [];
+  await queryHistory(inboxTopicForAddress(peer), (bytes, timestamp) => {
     const cert = tryDecodeKeyBundle(bytes);
     if (!cert) return;
     if (typeof cert.expiresAtUnixMs !== 'number') return;
     if (isExpired(cert)) return;
-    candidates.push(cert);
+    candidates.push({ cert, publishedAtMs: timestamp ? timestamp.getTime() : 0 });
   });
-  candidates.sort((a, b) => b.expiresAtUnixMs - a.expiresAtUnixMs);
+  candidates.sort((a, b) => b.publishedAtMs - a.publishedAtMs);
   const peerLower = peer.toLowerCase();
-  for (const cert of candidates) {
+  for (const { cert } of candidates) {
     // A cert can be genuinely self-signed by a wallet that is NOT the peer —
     // anyone can post their own cert onto the peer's public topic. Only a
     // cert whose walletAddress matches the queried peer proves ownership.
@@ -103,12 +150,12 @@ export async function queryPeerKeyBundle(peer: Address): Promise<SessionCert | n
 
 /** Subscribe to my inbox. Returns an unsubscribe fn. Routes each message to the
  *  right callback; ignores anything that isn't a signature-verified, unexpired
- *  bundle or a notice I can read. */
+ *  bundle or a notice I can read and that passes isValidThreadNotice. */
 export async function subscribeInbox(
   myAddress: Address,
   mySessionPrivHex: string,
   onKeyBundle: (cert: SessionCert) => void,
-  onDmNotice: (notice: DmNotice) => void,
+  onThreadNotice: (notice: ThreadNotice) => void,
 ): Promise<() => Promise<void>> {
   return subscribeToTopic(inboxTopicForAddress(myAddress), (bytes) => {
     const cert = tryDecodeKeyBundle(bytes);
@@ -122,34 +169,25 @@ export async function subscribeInbox(
       void verifySessionCert(cert).then((ok) => { if (ok) onKeyBundle(cert); });
       return;
     }
-    void tryDecodeDmNotice(bytes, mySessionPrivHex).then((n) => {
-      if (!n) return;
-      // Authenticated (verified above), but still confirm the notice is for
-      // *this* pair, not some other thread the sender is (mis)labeling.
-      if (n.threadId.toLowerCase() !== dmThreadId(myAddress, n.from as Address).toLowerCase()) return;
-      onDmNotice(n);
+    void tryDecodeThreadNotice(bytes, mySessionPrivHex).then((n) => {
+      if (!n || !isValidThreadNotice(myAddress, n)) return;
+      onThreadNotice(n);
     });
   });
 }
 
-/** Replay inbox store history to recover DM notices (conversation index). */
+/** Replay inbox store history to recover thread notices (conversation +
+ *  event index). */
 export async function queryInboxNotices(
   myAddress: Address,
   mySessionPrivHex: string,
-  onDmNotice: (notice: DmNotice) => void,
+  onThreadNotice: (notice: ThreadNotice) => void,
 ): Promise<void> {
   await queryHistory(inboxTopicForAddress(myAddress), async (bytes) => {
     try {
-      const n = await tryDecodeDmNotice(bytes, mySessionPrivHex);
-      if (
-        n &&
-        typeof n.threadId === 'string' &&
-        typeof n.convKeyB64 === 'string' &&
-        typeof n.from === 'string' &&
-        typeof n.ts === 'number' &&
-        n.threadId.toLowerCase() === dmThreadId(myAddress, n.from as Address).toLowerCase()
-      ) {
-        onDmNotice(n);
+      const n = await tryDecodeThreadNotice(bytes, mySessionPrivHex);
+      if (n && isValidThreadNotice(myAddress, n)) {
+        onThreadNotice(n);
       }
     } catch (err) {
       console.warn('[xaomsg] failed to process inbox notice; skipping', err);

@@ -1,5 +1,5 @@
 // src/hooks/useXaoDm.ts
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { type Address, type Hex, isAddress } from 'viem';
 import { useAccount } from 'wagmi';
 import { dmThreadId } from '../lib/xaomsg/dmThreadId';
@@ -8,7 +8,7 @@ import {
   importAesKey, loadConversationKeyRaw, saveConversationKeyRaw,
 } from '../lib/xaomsg/conversationKey';
 import {
-  encodeDmNotice, publishDmNotice, queryPeerKeyBundle, type DmNotice,
+  encodeThreadNotice, publishThreadNotice, queryPeerKeyBundle, type ThreadNotice,
 } from '../lib/xaomsg/inbox';
 import { deriveDmConversationKeyRaw } from '../lib/xaomsg/ecies';
 import { upsertConversation } from '../lib/xaomsg/conversationStore';
@@ -16,7 +16,6 @@ import { formatMessagePreview } from '../lib/xaomsg/messagePreview';
 import {
   buildContactCardPayload, applyContactCard, hasSentContactCard, markContactCardSent,
 } from '../lib/xaomsg/contactCard';
-import { applyDraftMessage, type ProposalHashIndex } from '../lib/xaomsg/draftSync';
 import {
   ContentType, type ContactCardPayload, type ResolvedMessage,
 } from '../lib/xaomsg/types';
@@ -26,8 +25,6 @@ import type { PersistedSession } from '../lib/xaomsg/session';
 
 export type DmStatus = 'idle' | 'negotiating' | 'ready' | 'no-peer-key' | 'error';
 export interface UseXaoDmResult extends UseXaoThreadResult { status: DmStatus; }
-
-function b64encode(bytes: Uint8Array): string { return btoa(String.fromCharCode(...Array.from(bytes))); }
 
 // Dedupe concurrent negotiations for the same thread (React StrictMode's
 // dev-mode mount→cleanup→mount, or a fast remount) so two effect instances
@@ -58,9 +55,9 @@ async function negotiateKey(
   // key material inside is redundant now — the peer derives the same key
   // themselves — so a failure here never blocks the key from being usable.
   try {
-    const notice: DmNotice = { from: myAddress, threadId, convKeyB64: b64encode(raw), ts: Date.now() };
-    const noticeBytes = await encodeDmNotice(notice, peerCert.sessionPublicKeyHex, session.privateKeyHex, session.cert);
-    await publishDmNotice(peer, noticeBytes);
+    const notice: ThreadNotice = { kind: 'dm', from: myAddress, threadId, ts: Date.now() };
+    const noticeBytes = await encodeThreadNotice(notice, peerCert.sessionPublicKeyHex, session.privateKeyHex, session.cert);
+    await publishThreadNotice(peer, noticeBytes);
   } catch (err) {
     console.warn('[xaomsg] DM discovery notice publish failed (key already usable locally):', err);
   }
@@ -110,14 +107,10 @@ export function useXaoDm({ peer, session }: { peer: Address | null; session: Per
     return () => { cancelled = true; };
   }, [threadId, contentTopic, peer, myAddress, session]);
 
-  // proposalHash (a PROPOSAL/COUNTER_PROPOSAL's own bodyHash) -> draftId, so a
-  // later ACCEPT (which only carries the proposalHash it approves) can be
-  // applied to the right off-chain draft. Assumes causal order — an ACCEPT
-  // can only ever reference a proposal that already exists, and Waku store
-  // replay returns messages in order, so the map is always populated before
-  // a referencing ACCEPT is processed.
-  const draftByProposalHash = useRef<ProposalHashIndex>(new Map());
-
+  // Pure chat + contact card — contract negotiation content
+  // (PROPOSAL/COUNTER_PROPOSAL/ACCEPT/SYSTEM) never rides the DM thread; it
+  // lives on its own per-draft event thread (see useXaoEvent). A DM never
+  // touches the off-chain contract store.
   const onMessage = (resolved: ResolvedMessage) => {
     if (!myAddress || !peer) return;
     const { body } = resolved.envelope;
@@ -139,7 +132,6 @@ export function useXaoDm({ peer, session }: { peer: Address | null; session: Per
       }
       return;
     }
-    applyDraftMessage(resolved, myAddress, peer, draftByProposalHash.current);
 
     const preview = formatMessagePreview(resolved);
     if (preview && threadId) {

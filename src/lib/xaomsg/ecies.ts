@@ -10,6 +10,12 @@ const KEK_SALT = new TextEncoder().encode('xao-dm-v1');
 // recover the other, even though both come from the same ECDH secret.
 const CONVKEY_INFO = 'xao-dm-convkey-v1';
 
+// Distinct info-string family from CONVKEY_INFO (the DM key) — and the
+// draftId is folded directly into the HKDF info, not just the family name,
+// so every concurrent draft between the same two people gets an
+// independent key. A leaked event key exposes only that one draft.
+const EVENT_CONVKEY_INFO_PREFIX = 'xao-event-convkey-v1:';
+
 function hexToBytes(hex: string): Uint8Array {
   const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
   const out = new Uint8Array(clean.length / 2);
@@ -45,6 +51,19 @@ async function deriveKek(mySessionPrivHex: string, theirSessionPubHex: string): 
  *  separated from the notice-wrapping KEK via CONVKEY_INFO. */
 export async function deriveDmConversationKeyRaw(mySessionPrivHex: string, theirSessionPubHex: string): Promise<Uint8Array> {
   return deriveSharedRaw(mySessionPrivHex, theirSessionPubHex, CONVKEY_INFO);
+}
+
+/** Deterministic per-draft event-thread key: same ECDH shared secret as the
+ *  DM key between this pair, but domain-separated by draftId so it never
+ *  collides with their DM key or with any other draft between them. Used
+ *  both pre- and post-mint — the event thread never switches keys at mint
+ *  (see docs/superpowers/specs/2026-07-27-event-thread-separation-design.md §4). */
+export async function deriveEventConversationKeyRaw(
+  mySessionPrivHex: string,
+  theirSessionPubHex: string,
+  draftId: string,
+): Promise<Uint8Array> {
+  return deriveSharedRaw(mySessionPrivHex, theirSessionPubHex, EVENT_CONVKEY_INFO_PREFIX + draftId);
 }
 
 export async function wrapBytes(

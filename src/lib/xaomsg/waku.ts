@@ -64,7 +64,7 @@ export async function publishToTopic(contentTopic: string, payload: Uint8Array):
  */
 export async function queryHistory(
   contentTopic: string,
-  onMessage: (bytes: Uint8Array) => void | Promise<void>,
+  onMessage: (bytes: Uint8Array, timestamp?: Date) => void | Promise<void>,
 ): Promise<void> {
   const node = await getWakuClient();
   try {
@@ -78,7 +78,7 @@ export async function queryHistory(
   try {
     const decoder = createDecoder(contentTopic);
     await node.store.queryWithOrderedCallback([decoder], async (wakuMessage) => {
-      if (wakuMessage.payload) await onMessage(wakuMessage.payload);
+      if (wakuMessage.payload) await onMessage(wakuMessage.payload, wakuMessage.timestamp);
     });
   } catch (err) {
     console.warn('[xaomsg] store history query failed:', err);

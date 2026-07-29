@@ -113,19 +113,32 @@ export async function publishThreadNotice(ownerAddress: Address, noticeBytes: Ui
 export async function queryPeerKeyBundle(peer: Address): Promise<SessionCert | null> {
   // The inbox topic is publicly writable, so any bundle in history is
   // attacker-controlled until its wallet signature verifies. Collect every
-  // shape-valid, unexpired candidate, then verify newest-first — a forged
-  // bundle with an inflated expiry must not mask the peer's real one.
-  const candidates: SessionCert[] = [];
-  await queryHistory(inboxTopicForAddress(peer), (bytes) => {
+  // shape-valid, unexpired candidate, then verify most-recently-PUBLISHED
+  // first (by Waku message timestamp) — NOT by the cert's own self-declared
+  // expiresAtUnixMs. A wallet that has ever created more than one session
+  // (a different device, a cleared localStorage, an earlier test run) can
+  // have several simultaneously-valid, unexpired certs sitting in its inbox
+  // topic's history; an abandoned/orphaned one can easily have a *later*
+  // self-declared expiry than the session the peer is actually using right
+  // now (expiry = creation time + 30 days, so "created later" always sorts
+  // ahead of "created earlier" regardless of which one is still alive). A
+  // real live bug: sorting by expiresAtUnixMs picked exactly such an
+  // orphaned cert, so every notice got encrypted to a session no device
+  // could decrypt — a silent, permanent, undetectable delivery failure.
+  // Sorting by actual publish time instead always prefers whichever cert
+  // the peer published last, which is a live session re-publishing its own
+  // unchanged cert on every mount — i.e., their current one.
+  const candidates: { cert: SessionCert; publishedAtMs: number }[] = [];
+  await queryHistory(inboxTopicForAddress(peer), (bytes, timestamp) => {
     const cert = tryDecodeKeyBundle(bytes);
     if (!cert) return;
     if (typeof cert.expiresAtUnixMs !== 'number') return;
     if (isExpired(cert)) return;
-    candidates.push(cert);
+    candidates.push({ cert, publishedAtMs: timestamp ? timestamp.getTime() : 0 });
   });
-  candidates.sort((a, b) => b.expiresAtUnixMs - a.expiresAtUnixMs);
+  candidates.sort((a, b) => b.publishedAtMs - a.publishedAtMs);
   const peerLower = peer.toLowerCase();
-  for (const cert of candidates) {
+  for (const { cert } of candidates) {
     // A cert can be genuinely self-signed by a wallet that is NOT the peer —
     // anyone can post their own cert onto the peer's public topic. Only a
     // cert whose walletAddress matches the queried peer proves ownership.

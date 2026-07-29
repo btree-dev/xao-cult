@@ -64,6 +64,27 @@ function forgeCert(base: SessionCert, expiresAtUnixMs: number): SessionCert {
   return { ...base, expiresAtUnixMs, walletSignature: ('0x' + 'cd'.repeat(65)) as `0x${string}` };
 }
 
+// Two genuinely-signed certs for the SAME wallet (simulating the same wallet
+// having created two real sessions over time — a different device, or an
+// earlier test run whose localStorage was later cleared/regenerated).
+async function makeGenuineCertPairForSameWallet(
+  firstExpiresAtUnixMs: number,
+  secondExpiresAtUnixMs: number,
+): Promise<{ first: SessionCert; second: SessionCert }> {
+  const account = privateKeyToAccount(generatePrivateKey());
+  const mint = async (expiresAtUnixMs: number) => {
+    const kp = await createSessionKeypair();
+    return mintSessionCert({
+      walletAddress: account.address,
+      sessionPublicKeyHex: kp.publicKey,
+      expiresAtUnixMs,
+      chainId: 84532,
+      signMessage: (message) => account.signMessage({ message }),
+    });
+  };
+  return { first: await mint(firstExpiresAtUnixMs), second: await mint(secondExpiresAtUnixMs) };
+}
+
 // A single macrotask tick isn't always enough here: tryDecodeThreadNotice's
 // chain (verifySessionCert, then ECIES unwrapBytes -> crypto.subtle
 // importKey + decrypt) can take multiple event-loop turns to settle under
@@ -188,6 +209,15 @@ function scriptHistory(messages: Uint8Array[]) {
   });
 }
 
+// Like scriptHistory, but also feeds each message's real Waku publish
+// timestamp — needed to exercise queryPeerKeyBundle's publish-time-based
+// selection (as opposed to the old, buggy expiresAtUnixMs-based one).
+function scriptHistoryWithTimestamps(entries: { bytes: Uint8Array; publishedAt: Date }[]) {
+  vi.mocked(queryHistory).mockImplementation(async (_topic, onMessage) => {
+    for (const { bytes, publishedAt } of entries) onMessage(bytes, publishedAt);
+  });
+}
+
 describe('queryPeerKeyBundle', () => {
   it('returns the genuine bundle even when a forged bundle with higher expiry is in history', async () => {
     const genuine = await makeGenuineCert();
@@ -234,6 +264,31 @@ describe('queryPeerKeyBundle', () => {
     scriptHistory([encodeKeyBundle(attacker), encodeKeyBundle(genuine)]);
     const out = await queryPeerKeyBundle(genuine.walletAddress);
     expect(out).toEqual(genuine);
+  });
+
+  // Regression test for a live bug found via manual two-wallet testing on
+  // 2026-07-29: a wallet with two genuinely-signed sessions in its inbox
+  // topic history (e.g. an earlier abandoned session, still unexpired) got
+  // the OLDER one selected because it happened to have been minted with a
+  // longer expiry window than the newer, currently-active one — expiry is
+  // "creation time + 30 days", so it does not monotonically track which
+  // session was published most recently. The old expiry-sort selection
+  // returned the stale, no-longer-held session, silently encrypting every
+  // notice to a key nobody could decrypt. Selection must instead follow
+  // actual Waku publish order (most-recently-published wins), independent
+  // of each cert's own self-declared expiry.
+  it('prefers the most recently PUBLISHED genuine cert over one with a later self-declared expiry', async () => {
+    const now = Date.now();
+    const { first: olderSession, second: newerSession } = await makeGenuineCertPairForSameWallet(
+      now + 30 * 24 * 60 * 60 * 1000, // older session, but minted with a longer expiry window
+      now + 5 * 24 * 60 * 60 * 1000, // newer session, currently in use, shorter remaining expiry
+    );
+    scriptHistoryWithTimestamps([
+      { bytes: encodeKeyBundle(olderSession), publishedAt: new Date(now - 10 * 24 * 60 * 60 * 1000) },
+      { bytes: encodeKeyBundle(newerSession), publishedAt: new Date(now) },
+    ]);
+    const out = await queryPeerKeyBundle(olderSession.walletAddress);
+    expect(out).toEqual(newerSession);
   });
 });
 

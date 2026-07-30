@@ -27,7 +27,7 @@ import { contentTopicForThread } from './topicId';
 import { saveConversationKeyRaw, generateRawConversationKey, importAesKey } from './conversationKey';
 import { encryptBody } from './crypto';
 import { buildUnsignedBody, buildEnvelope } from './envelope';
-import { createSessionKeypair, mintSessionCert } from './session';
+import { deriveSessionKeypair } from './session';
 import { upsertDraft, loadDraft } from './offchainContracts';
 import { loadConversations } from './conversationStore';
 import { ContentType, type ProposalPayload, type SystemPayload } from './types';
@@ -36,15 +36,8 @@ import type { PersistedSession } from './session';
 type Account = ReturnType<typeof privateKeyToAccount>;
 
 async function makeSession(account: Account): Promise<PersistedSession> {
-  const kp = await createSessionKeypair();
-  const cert = await mintSessionCert({
-    walletAddress: account.address,
-    sessionPublicKeyHex: kp.publicKey,
-    expiresAtUnixMs: Date.now() + 60 * 60 * 1000,
-    chainId: 84532,
-    signMessage: (message) => account.signMessage({ message }),
-  });
-  return { cert, privateKeyHex: kp.privateKey };
+  const { privateKey, cert } = await deriveSessionKeypair(account.address, (message) => account.signMessage({ message }));
+  return { cert, privateKeyHex: privateKey };
 }
 
 async function encryptedDmProposalBytes(

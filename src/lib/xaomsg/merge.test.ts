@@ -22,8 +22,6 @@ function msg(messageId: string, sentAt: number): ResolvedMessage {
         v: 1,
         walletAddress: '0x0000000000000000000000000000000000000001',
         sessionPublicKeyHex: '0x00',
-        expiresAtUnixMs: 0,
-        chainId: 8453,
         walletSignature: '0x00' as Hex,
       },
     },

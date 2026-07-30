@@ -32,8 +32,6 @@ function makeResolved(overrides: {
         v: 1,
         walletAddress: overrides.sender,
         sessionPublicKeyHex: '0x02' + 'ab'.repeat(32),
-        expiresAtUnixMs: Date.now() + 1000,
-        chainId: 84532,
         walletSignature: ('0x' + 'cd'.repeat(65)) as Hex,
       },
     },

@@ -38,10 +38,10 @@ const inFlightNegotiations = new Map<Hex, Promise<NegotiationResult | null>>();
 
 // Cache is checked FIRST, before any network call — unlike a naive
 // "always fetch the peer's cert" order, this means a thread whose key we
-// already hold stays readable even when the peer's session cert has since
-// expired (SESSION_DURATION_MS, session.ts — certs expire after 30 days).
-// Nothing about our own ability to decrypt this thread depends on the
-// peer's current cert; only a *fresh* key derivation does.
+// already hold stays readable even without a live network round-trip to
+// re-fetch the peer's cert. Session keys are now deterministically derived
+// from the wallet (session.ts) and never expire, so this is purely a perf
+// optimization, not a correctness dependency on cert freshness.
 async function negotiateKey(
   threadId: Hex,
   draftId: string,

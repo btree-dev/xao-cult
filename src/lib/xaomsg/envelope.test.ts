@@ -9,19 +9,12 @@ import {
   buildEnvelope,
   verifyEnvelope,
 } from './envelope';
-import { createSessionKeypair, mintSessionCert, SESSION_DURATION_MS } from './session';
+import { deriveSessionKeypair } from './session';
 
 async function seal(text = 'hello') {
   const pk = generatePrivateKey();
   const account = privateKeyToAccount(pk);
-  const { privateKey: sk, publicKey: spk } = await createSessionKeypair();
-  const cert = await mintSessionCert({
-    walletAddress: account.address,
-    sessionPublicKeyHex: spk,
-    expiresAtUnixMs: Date.now() + SESSION_DURATION_MS,
-    chainId: 84532,
-    signMessage: async (m) => account.signMessage({ message: m }),
-  });
+  const { privateKey: sk, cert } = await deriveSessionKeypair(account.address, (m) => account.signMessage({ message: m }));
   const body = buildUnsignedBody({
     threadId: ('0x' + 'aa'.repeat(32)) as Hex,
     contentType: ContentType.TEXT,
@@ -58,15 +51,6 @@ describe('envelope', () => {
     expect(await verifyEnvelope(tampered)).toBe(false);
   });
 
-  it('rejects when the cert is expired', async () => {
-    const { envelope } = await seal();
-    const tampered = {
-      ...envelope,
-      cert: { ...envelope.cert, expiresAtUnixMs: Date.now() - 1, walletSignature: envelope.cert.walletSignature },
-    };
-    expect(await verifyEnvelope(tampered)).toBe(false);
-  });
-
   it('verifies after a JSON round-trip even when the payload has undefined-valued keys', async () => {
     // Reproduces the real wire path: post() signs payloadDigest(body) against
     // the in-memory body, then JSON.stringify(envelope)s it for encryption;
@@ -75,14 +59,7 @@ describe('envelope', () => {
     // proposal) routinely has explicit `undefined` values for unset fields.
     const pk = generatePrivateKey();
     const account = privateKeyToAccount(pk);
-    const { privateKey: sk, publicKey: spk } = await createSessionKeypair();
-    const cert = await mintSessionCert({
-      walletAddress: account.address,
-      sessionPublicKeyHex: spk,
-      expiresAtUnixMs: Date.now() + SESSION_DURATION_MS,
-      chainId: 84532,
-      signMessage: async (m) => account.signMessage({ message: m }),
-    });
+    const { privateKey: sk, cert } = await deriveSessionKeypair(account.address, (m) => account.signMessage({ message: m }));
     const body = buildUnsignedBody({
       threadId: ('0x' + 'aa'.repeat(32)) as Hex,
       contentType: ContentType.PROPOSAL,
@@ -109,14 +86,7 @@ describe('envelope', () => {
     // receiver would decode a string, not `{}`, and the hashes would diverge.
     const pk = generatePrivateKey();
     const account = privateKeyToAccount(pk);
-    const { privateKey: sk, publicKey: spk } = await createSessionKeypair();
-    const cert = await mintSessionCert({
-      walletAddress: account.address,
-      sessionPublicKeyHex: spk,
-      expiresAtUnixMs: Date.now() + SESSION_DURATION_MS,
-      chainId: 84532,
-      signMessage: async (m) => account.signMessage({ message: m }),
-    });
+    const { privateKey: sk, cert } = await deriveSessionKeypair(account.address, (m) => account.signMessage({ message: m }));
     const body = buildUnsignedBody({
       threadId: ('0x' + 'aa'.repeat(32)) as Hex,
       contentType: ContentType.PROPOSAL,

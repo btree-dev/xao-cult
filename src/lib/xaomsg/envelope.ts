@@ -1,6 +1,6 @@
 import { keccak256, toBytes, type Hex, type Address } from 'viem';
 import type { MessageBody, MessagePayload, OnWireEnvelope, SessionCert } from './types';
-import { signWithSession, verifyWithSession, verifySessionCert, isExpired } from './session';
+import { signWithSession, verifyWithSession, verifySessionCert } from './session';
 
 // Must match how a real JSON.stringify/parse round-trip treats `undefined` —
 // the wire transport always does exactly one such round-trip (post() calls
@@ -88,7 +88,6 @@ export async function buildEnvelope(
 
 export async function verifyEnvelope(envelope: OnWireEnvelope): Promise<boolean> {
   if (!(await verifySessionCert(envelope.cert))) return false;
-  if (isExpired(envelope.cert)) return false;
   if (envelope.body.sender.toLowerCase() !== envelope.cert.walletAddress.toLowerCase()) return false;
   const recomputed = payloadDigest(envelope.body);
   if (recomputed !== envelope.payloadHash) return false;

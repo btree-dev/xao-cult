@@ -1,8 +1,8 @@
 import * as secp from '@noble/secp256k1';
+import { hkdf } from '@noble/hashes/hkdf';
+import { sha256 } from '@noble/hashes/sha256';
 import { recoverMessageAddress, type Address, type Hex } from 'viem';
 import type { SessionCert } from './types';
-
-export const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 
 function bytesToHex(bytes: Uint8Array): string {
   let out = '';
@@ -17,68 +17,70 @@ function hexToBytes(hex: string): Uint8Array {
   return out;
 }
 
-export async function createSessionKeypair(): Promise<{ privateKey: Hex; publicKey: Hex }> {
-  const priv = secp.utils.randomPrivateKey();
-  const pub = secp.getPublicKey(priv, true); // compressed (33 bytes)
-  return {
-    privateKey: ('0x' + bytesToHex(priv)) as Hex,
-    publicKey: ('0x' + bytesToHex(pub)) as Hex,
-  };
+const DERIVATION_SALT = new TextEncoder().encode('xao-session-key-v1');
+const DERIVATION_INFO = 'xao-session-keyseed-v1';
+
+/** Secret, wallet-scoped message signed once to derive the session keypair.
+ *  This signature must NEVER be transmitted or published anywhere — unlike
+ *  the cert challenge below (public by design), this one's bytes are hashed
+ *  directly into the private key: anyone who saw it could re-derive the key.
+ *  Fixed format, no variable fields besides the wallet address, so the same
+ *  wallet always reproduces the same signature (EOA wallets sign
+ *  deterministically per RFC 6979) and therefore the same keypair, on any
+ *  device. Exported because the message text itself isn't sensitive — only
+ *  signing it and publishing that signature would be. */
+export function sessionKeyDerivationMessage(walletAddress: Address): string {
+  return `XaoMsg session key derivation v1\nwallet:${walletAddress.toLowerCase()}`;
 }
 
-export interface ChallengeFields {
-  walletAddress: Address;
-  sessionPublicKeyHex: string;
-  expiresAtUnixMs: number;
-  chainId: number;
-}
-
-export function sessionChallengeString(f: ChallengeFields): string {
-  // Plain-text challenge — readable in MetaMask. Locked format; do NOT change without a v2.
+/** Public challenge — the wallet's signature over this becomes
+ *  cert.walletSignature and is broadcast in every envelope and key bundle.
+ *  Locked format; do NOT change without a v2. */
+export function sessionCertChallenge(walletAddress: Address, sessionPublicKeyHex: string): string {
   return [
     'XaoMsg session v1',
-    `wallet:${f.walletAddress.toLowerCase()}`,
-    `session_pubkey:${f.sessionPublicKeyHex.toLowerCase()}`,
-    `expires:${f.expiresAtUnixMs}`,
-    `chain:${f.chainId}`,
+    `wallet:${walletAddress.toLowerCase()}`,
+    `session_pubkey:${sessionPublicKeyHex.toLowerCase()}`,
   ].join('\n');
 }
 
-export async function mintSessionCert(args: ChallengeFields & {
-  signMessage: (message: string) => Promise<Hex>;
-}): Promise<SessionCert> {
-  const message = sessionChallengeString(args);
-  const walletSignature = await args.signMessage(message);
-  return {
+/** Derives this wallet's session keypair + cert deterministically via two
+ *  wallet signatures: one secret (seeds the keypair, never transmitted) and
+ *  one public (becomes the broadcastable cert). The same wallet reproduces
+ *  the identical keypair and cert on any device/origin — no randomness, no
+ *  per-device divergence. See
+ *  docs/superpowers/specs/2026-07-30-deterministic-session-keys-design.md. */
+export async function deriveSessionKeypair(
+  walletAddress: Address,
+  signMessage: (message: string) => Promise<Hex>,
+): Promise<{ privateKey: Hex; publicKey: Hex; cert: SessionCert }> {
+  const derivationSig = await signMessage(sessionKeyDerivationMessage(walletAddress));
+  const seed = hkdf(sha256, hexToBytes(derivationSig), DERIVATION_SALT, DERIVATION_INFO, 40);
+  const privBytes = secp.etc.hashToPrivateKey(seed);
+  const privateKey = ('0x' + bytesToHex(privBytes)) as Hex;
+  const publicKey = ('0x' + bytesToHex(secp.getPublicKey(privBytes, true))) as Hex;
+
+  const walletSignature = await signMessage(sessionCertChallenge(walletAddress, publicKey));
+  const cert: SessionCert = {
     v: 1,
-    walletAddress: args.walletAddress,
-    sessionPublicKeyHex: args.sessionPublicKeyHex,
-    expiresAtUnixMs: args.expiresAtUnixMs,
-    chainId: args.chainId,
+    walletAddress,
+    sessionPublicKeyHex: publicKey,
     walletSignature,
   };
+  return { privateKey, publicKey, cert };
 }
 
 export async function verifySessionCert(cert: SessionCert): Promise<boolean> {
   if (cert.v !== 1) return false;
   try {
     const recovered = await recoverMessageAddress({
-      message: sessionChallengeString({
-        walletAddress: cert.walletAddress,
-        sessionPublicKeyHex: cert.sessionPublicKeyHex,
-        expiresAtUnixMs: cert.expiresAtUnixMs,
-        chainId: cert.chainId,
-      }),
+      message: sessionCertChallenge(cert.walletAddress, cert.sessionPublicKeyHex),
       signature: cert.walletSignature,
     });
     return recovered.toLowerCase() === cert.walletAddress.toLowerCase();
   } catch {
     return false;
   }
-}
-
-export function isExpired(cert: { expiresAtUnixMs: number }): boolean {
-  return Date.now() >= cert.expiresAtUnixMs;
 }
 
 /** Sign an arbitrary 32-byte digest with the session private key. */
@@ -109,21 +111,20 @@ export interface PersistedSession {
 // failing to persist and re-prompting on every navigation.
 const memoryFallback = new Map<string, PersistedSession>();
 
+/** Reads whatever is cached, with no validity filtering — the derived
+ *  keypair is permanent, so there's no expiry to check here. The caller
+ *  (useXaoMsgSession's mount effect) verifies the cert still checks out
+ *  under the current derivation before trusting it, since a cached entry
+ *  could be a stale pre-deterministic-key session. */
 export function loadSession(wallet: Address): PersistedSession | null {
   if (typeof window === 'undefined') return null;
   const key = wallet.toLowerCase();
   try {
     const raw = localStorage.getItem(STORAGE_KEY(wallet));
-    if (!raw) {
-      const fallback = memoryFallback.get(key);
-      return fallback && !isExpired(fallback.cert) ? fallback : null;
-    }
-    const parsed = JSON.parse(raw) as PersistedSession;
-    if (isExpired(parsed.cert)) return null;
-    return parsed;
+    if (!raw) return memoryFallback.get(key) ?? null;
+    return JSON.parse(raw) as PersistedSession;
   } catch {
-    const fallback = memoryFallback.get(key);
-    return fallback && !isExpired(fallback.cert) ? fallback : null;
+    return memoryFallback.get(key) ?? null;
   }
 }
 

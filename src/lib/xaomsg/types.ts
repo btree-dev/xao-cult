@@ -41,17 +41,20 @@ export interface SystemPayload {
 export type MessagePayload = TextPayload | ProposalPayload | AcceptPayload | RejectPayload | ContactCardPayload | SystemPayload;
 
 /**
- * SessionCert authorises a session keypair on behalf of a wallet until
- * `expiresAtUnixMs` (minted for `SESSION_DURATION_MS` — see session.ts).
- * The wallet signs a fixed-format challenge string; verifiers ecrecover it.
+ * SessionCert authorises a session keypair on behalf of a wallet. The
+ * keypair is deterministically derived from the wallet (see session.ts's
+ * deriveSessionKeypair) — the same wallet always reproduces the same
+ * keypair and the same cert, on any device. The wallet signs a fixed-format
+ * challenge string; verifiers ecrecover it. No expiry: a compromised key
+ * can't be rotated away per-user anyway once it's deterministic, so an
+ * expiry field would be a control that looks real but isn't — see
+ * docs/superpowers/specs/2026-07-30-deterministic-session-keys-design.md.
  */
 export interface SessionCert {
   v: 1;
   walletAddress: Address;
   sessionPublicKeyHex: string;     // 33-byte compressed secp256k1 pubkey, hex with 0x prefix
-  expiresAtUnixMs: number;
-  chainId: number;
-  /** EIP-191 personal-sign signature over `sessionChallengeString(...)`. */
+  /** EIP-191 personal-sign signature over `sessionCertChallenge(...)`. */
   walletSignature: Hex;
 }
 

@@ -1,14 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts';
 import {
-  createSessionKeypair,
-  sessionChallengeString,
-  mintSessionCert,
+  deriveSessionKeypair,
+  sessionCertChallenge,
+  sessionKeyDerivationMessage,
   verifySessionCert,
-  isExpired,
   signWithSession,
   verifyWithSession,
-  SESSION_DURATION_MS,
   loadSession,
   saveSession,
   clearSession,
@@ -16,83 +14,95 @@ import {
 } from './session';
 import type { Address } from 'viem';
 
+function signer(account: ReturnType<typeof privateKeyToAccount>) {
+  return (message: string) => account.signMessage({ message });
+}
+
 describe('session', () => {
-  it('createSessionKeypair generates a valid 32/33 byte secp256k1 pair', async () => {
-    const { privateKey, publicKey } = await createSessionKeypair();
-    expect(privateKey.length).toBe(2 + 64);             // 0x + 32 bytes
-    expect(publicKey.length).toBe(2 + 66);              // 0x + 33 bytes (compressed)
+  it('deriveSessionKeypair produces a valid 32/33-byte secp256k1 pair', async () => {
+    const account = privateKeyToAccount(generatePrivateKey());
+    const { privateKey, publicKey } = await deriveSessionKeypair(account.address, signer(account));
+    expect(privateKey.length).toBe(2 + 64);   // 0x + 32 bytes
+    expect(publicKey.length).toBe(2 + 66);    // 0x + 33 bytes (compressed)
   });
 
-  it('sessionChallengeString includes wallet, pubkey, expiry, chainId', () => {
-    const s = sessionChallengeString({
-      walletAddress: '0x000000000000000000000000000000000000dead',
-      sessionPublicKeyHex: '0x' + 'aa'.repeat(33),
-      expiresAtUnixMs: 1700000000000,
-      chainId: 84532,
-    });
+  it('is fully deterministic: two independent derivations for the same wallet are byte-identical', async () => {
+    const account = privateKeyToAccount(generatePrivateKey());
+    const first = await deriveSessionKeypair(account.address, signer(account));
+    const second = await deriveSessionKeypair(account.address, signer(account));
+    expect(second.privateKey).toBe(first.privateKey);
+    expect(second.publicKey).toBe(first.publicKey);
+    expect(second.cert).toEqual(first.cert);
+  });
+
+  it('different wallets derive different keypairs', async () => {
+    const a = privateKeyToAccount(generatePrivateKey());
+    const b = privateKeyToAccount(generatePrivateKey());
+    const derivedA = await deriveSessionKeypair(a.address, signer(a));
+    const derivedB = await deriveSessionKeypair(b.address, signer(b));
+    expect(derivedA.privateKey).not.toBe(derivedB.privateKey);
+  });
+
+  it('the derivation message and the cert challenge are distinct strings', () => {
+    // Regression guard: if these ever collapsed into one signed message, the
+    // cert's public walletSignature (broadcast in every envelope and key
+    // bundle) would BE the secret used to derive the private key.
+    const addr = '0x000000000000000000000000000000000000dead' as Address;
+    const derivation = sessionKeyDerivationMessage(addr);
+    const challenge = sessionCertChallenge(addr, '0x' + 'aa'.repeat(33));
+    expect(derivation).not.toBe(challenge);
+  });
+
+  it('sessionCertChallenge includes wallet and session pubkey, no expiry or chain', () => {
+    const s = sessionCertChallenge(
+      '0x000000000000000000000000000000000000dead',
+      '0x' + 'aa'.repeat(33),
+    );
     expect(s).toContain('wallet:0x000000000000000000000000000000000000dead');
     expect(s).toContain('session_pubkey:0x' + 'aa'.repeat(33));
-    expect(s).toContain('expires:1700000000000');
-    expect(s).toContain('chain:84532');
-    expect(s).toContain('XaoMsg session v1');
+    expect(s).not.toContain('expires:');
+    expect(s).not.toContain('chain:');
   });
 
-  it('mintSessionCert + verifySessionCert round-trip via a viem account', async () => {
-    const pk = generatePrivateKey();
-    const account = privateKeyToAccount(pk);
-    const { privateKey: sessionPriv, publicKey: sessionPub } = await createSessionKeypair();
-    const expiresAt = Date.now() + SESSION_DURATION_MS;
-    const cert = await mintSessionCert({
-      walletAddress: account.address,
-      sessionPublicKeyHex: sessionPub,
-      expiresAtUnixMs: expiresAt,
-      chainId: 84532,
-      signMessage: async (msg) => account.signMessage({ message: msg }),
-    });
+  it('deriveSessionKeypair + verifySessionCert round-trip via a viem account', async () => {
+    const account = privateKeyToAccount(generatePrivateKey());
+    const { cert } = await deriveSessionKeypair(account.address, signer(account));
     expect(await verifySessionCert(cert)).toBe(true);
-    void sessionPriv;
   });
 
-  it('verifySessionCert rejects a tampered expiry', async () => {
-    const pk = generatePrivateKey();
-    const account = privateKeyToAccount(pk);
-    const { publicKey: sessionPub } = await createSessionKeypair();
-    const cert = await mintSessionCert({
-      walletAddress: account.address,
-      sessionPublicKeyHex: sessionPub,
-      expiresAtUnixMs: Date.now() + SESSION_DURATION_MS,
-      chainId: 84532,
-      signMessage: async (msg) => account.signMessage({ message: msg }),
-    });
-    const tampered = { ...cert, expiresAtUnixMs: cert.expiresAtUnixMs + 1 };
+  it('verifySessionCert rejects a cert whose pubkey was swapped after signing', async () => {
+    const account = privateKeyToAccount(generatePrivateKey());
+    const { cert } = await deriveSessionKeypair(account.address, signer(account));
+    const tampered = { ...cert, sessionPublicKeyHex: '0x02' + 'ff'.repeat(32) };
     expect(await verifySessionCert(tampered)).toBe(false);
   });
 
-  it('isExpired flags certs whose expiresAt has passed', () => {
-    expect(isExpired({ expiresAtUnixMs: Date.now() - 1 } as any)).toBe(true);
-    expect(isExpired({ expiresAtUnixMs: Date.now() + 1000 } as any)).toBe(false);
+  it('verifySessionCert rejects a cert claiming a different wallet', async () => {
+    const account = privateKeyToAccount(generatePrivateKey());
+    const impostor = privateKeyToAccount(generatePrivateKey());
+    const { cert } = await deriveSessionKeypair(account.address, signer(account));
+    const tampered = { ...cert, walletAddress: impostor.address };
+    expect(await verifySessionCert(tampered)).toBe(false);
   });
 
   it('signWithSession + verifyWithSession round-trip', async () => {
-    const { privateKey, publicKey } = await createSessionKeypair();
+    const account = privateKeyToAccount(generatePrivateKey());
+    const { privateKey, publicKey } = await deriveSessionKeypair(account.address, signer(account));
     const digest = ('0x' + 'cd'.repeat(32)) as `0x${string}`;
     const sig = await signWithSession(digest, privateKey);
     expect(await verifyWithSession(digest, sig, publicKey)).toBe(true);
-    const wrongPub = (await createSessionKeypair()).publicKey;
+    const otherAccount = privateKeyToAccount(generatePrivateKey());
+    const wrongPub = (await deriveSessionKeypair(otherAccount.address, signer(otherAccount))).publicKey;
     expect(await verifyWithSession(digest, sig, wrongPub)).toBe(false);
   });
 });
 
-describe('session storage (localStorage-backed, 30-day duration)', () => {
+describe('session storage (localStorage-backed, permanent — no expiry)', () => {
   const WALLET = '0x000000000000000000000000000000000000dead' as Address;
 
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
-  });
-
-  it('SESSION_DURATION_MS is 30 days', () => {
-    expect(SESSION_DURATION_MS).toBe(30 * 24 * 60 * 60 * 1000);
   });
 
   it('loadSession returns null when nothing is stored', () => {
@@ -105,8 +115,6 @@ describe('session storage (localStorage-backed, 30-day duration)', () => {
         v: 1,
         walletAddress: WALLET,
         sessionPublicKeyHex: '0x02' + 'ab'.repeat(32),
-        expiresAtUnixMs: Date.now() + SESSION_DURATION_MS,
-        chainId: 84532,
         walletSignature: ('0x' + 'cd'.repeat(65)) as `0x${string}`,
       },
       privateKeyHex: ('0x' + '11'.repeat(32)) as `0x${string}`,
@@ -118,30 +126,12 @@ describe('session storage (localStorage-backed, 30-day duration)', () => {
     expect(sessionStorage.getItem(`xao-msg-session-${WALLET}`)).toBeNull();
   });
 
-  it('loadSession returns null for an expired persisted session', () => {
-    const persisted: PersistedSession = {
-      cert: {
-        v: 1,
-        walletAddress: WALLET,
-        sessionPublicKeyHex: '0x02' + 'ab'.repeat(32),
-        expiresAtUnixMs: Date.now() - 1000,
-        chainId: 84532,
-        walletSignature: ('0x' + 'cd'.repeat(65)) as `0x${string}`,
-      },
-      privateKeyHex: ('0x' + '11'.repeat(32)) as `0x${string}`,
-    };
-    saveSession(WALLET, persisted);
-    expect(loadSession(WALLET)).toBeNull();
-  });
-
   it('clearSession removes the persisted entry', () => {
     const persisted: PersistedSession = {
       cert: {
         v: 1,
         walletAddress: WALLET,
         sessionPublicKeyHex: '0x02' + 'ab'.repeat(32),
-        expiresAtUnixMs: Date.now() + SESSION_DURATION_MS,
-        chainId: 84532,
         walletSignature: ('0x' + 'cd'.repeat(65)) as `0x${string}`,
       },
       privateKeyHex: ('0x' + '11'.repeat(32)) as `0x${string}`,
@@ -157,8 +147,6 @@ describe('session storage (localStorage-backed, 30-day duration)', () => {
         v: 1,
         walletAddress: WALLET,
         sessionPublicKeyHex: '0x02' + 'ab'.repeat(32),
-        expiresAtUnixMs: Date.now() + SESSION_DURATION_MS,
-        chainId: 84532,
         walletSignature: ('0x' + 'cd'.repeat(65)) as `0x${string}`,
       },
       privateKeyHex: ('0x' + '11'.repeat(32)) as `0x${string}`,

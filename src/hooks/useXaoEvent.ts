@@ -142,7 +142,7 @@ export function useXaoEvent(
     } else {
       // No cert yet — the background fetch in negotiateKey's cache-hit path
       // may not have resolved yet (a race), or the peer's session cert may
-      // genuinely be missing/expired. Don't await a fresh lookup here: it
+      // genuinely be missing. Don't await a fresh lookup here: it
       // can take up to ~15s (queryPeerKeyBundle -> queryHistory ->
       // waitForRemotePeer(..., 15_000)) when no Waku store peer is
       // available, and notifyThread is itself awaited synchronously from

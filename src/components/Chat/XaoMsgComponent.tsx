@@ -73,7 +73,7 @@ const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({
     return panel(
       <div className={styles.RecievedMessage}>
         <div style={{ marginBottom: 12 }}>
-          XaoMsg unlocks for 24 hours with a single wallet signature.
+          XaoMsg unlocks with two wallet signatures and stays unlocked — no expiry.
           After that, sending messages is gas-free and prompt-free.
         </div>
         {sessionError && <div style={{ color: '#ff8080', marginBottom: 8 }}>{sessionError}</div>}
@@ -89,7 +89,7 @@ const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({
             cursor: isUnlocking ? 'not-allowed' : 'pointer',
           }}
         >
-          {isUnlocking ? 'Signing…' : 'Unlock chat for 24h'}
+          {isUnlocking ? 'Signing…' : 'Unlock chat'}
         </button>
       </div>,
     );

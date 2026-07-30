@@ -25,9 +25,11 @@ export interface UseXaoMsgSessionResult {
 
 export function useXaoMsgSession(): UseXaoMsgSessionResult {
   const { address } = useAccount();
-  // chainId is read for isWalletReady/unlock gating elsewhere in the app;
-  // it is no longer part of the signed session-derivation or cert messages
-  // (chat identity is chain-independent).
+  // Called only to preserve a re-render when the connected chain changes,
+  // matching this hook's prior behavior — its return value is discarded and
+  // is not otherwise used by this file (chainId is no longer part of the
+  // signed session-derivation or cert messages; chat identity is
+  // chain-independent).
   useChainId();
   const { data: walletClient } = useWalletClient();
   const [session, setSession] = useState<PersistedSession | null>(null);
@@ -50,7 +52,7 @@ export function useXaoMsgSession(): UseXaoMsgSessionResult {
       const cached = loadSession(address);
       const stillValid =
         !!cached &&
-        cached.cert.walletAddress.toLowerCase() === address.toLowerCase() &&
+        cached.cert?.walletAddress?.toLowerCase?.() === address.toLowerCase() &&
         (await verifySessionCert(cached.cert));
       if (cancelled) return;
       if (stillValid) {
@@ -73,6 +75,12 @@ export function useXaoMsgSession(): UseXaoMsgSessionResult {
       const { privateKey, cert } = await deriveSessionKeypair(address, (message) =>
         walletClient.signMessage({ account: address, message }),
       );
+      if (!(await verifySessionCert(cert))) {
+        setError(
+          "This wallet type isn't compatible with XaoMsg chat (signature couldn't be verified).",
+        );
+        return;
+      }
       const persisted: PersistedSession = { cert, privateKeyHex: privateKey };
       saveSession(address, persisted);
       setSession(persisted);

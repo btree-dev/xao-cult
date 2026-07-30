@@ -4,7 +4,7 @@ import type { SessionCert } from './types';
 import { inboxTopicForAddress } from './inboxTopic';
 import { wrapBytes, unwrapBytes } from './ecies';
 import { publishToTopic, subscribeToTopic, queryHistory } from './waku';
-import { verifySessionCert, isExpired } from './session';
+import { verifySessionCert } from './session';
 import { dmThreadId } from './dmThreadId';
 import { threadIdForDraft } from './threadId';
 
@@ -70,7 +70,6 @@ export async function tryDecodeThreadNotice(bytes: Uint8Array, mySessionPrivHex:
     if (o?.t !== 'dm' || !o.cert || !o.enc) return null;
     const senderCert = o.cert as SessionCert;
     if (!(await verifySessionCert(senderCert))) return null;
-    if (isExpired(senderCert)) return null;
     const plain = await unwrapBytes(o.enc, senderCert.sessionPublicKeyHex, mySessionPrivHex);
     const notice = JSON.parse(dec.decode(plain)) as ThreadNotice;
     if (typeof notice.from !== 'string' || notice.from.toLowerCase() !== senderCert.walletAddress.toLowerCase()) {
@@ -108,48 +107,39 @@ export async function publishThreadNotice(ownerAddress: Address, noticeBytes: Ui
   await publishToTopic(inboxTopicForAddress(ownerAddress), noticeBytes);
 }
 
-/** Fetch the peer's most recent valid, unexpired key bundle (their session pubkey).
- *  Returns null if the peer has never published one (→ caller blocks the cold DM). */
+/** Fetch the peer's session cert (their session pubkey) from their inbox
+ *  topic history. Returns null if the peer has never published one (→
+ *  caller blocks the cold DM).
+ *
+ *  The inbox topic is publicly writable, so any bundle in history is
+ *  attacker-controlled until its wallet signature verifies. Because the
+ *  session keypair is now a deterministic function of the wallet
+ *  (session.ts), every genuinely-signed cert for a given wallet carries the
+ *  identical session pubkey — there is no "which one is the current
+ *  session" ambiguity left to resolve (see the 2026-07-29 publish-time fix
+ *  this replaces, described in docs/architecture/xaomsg-messaging.md), so
+ *  this just needs to find ANY structurally-matching, signature-valid cert
+ *  for the peer's address. */
 export async function queryPeerKeyBundle(peer: Address): Promise<SessionCert | null> {
-  // The inbox topic is publicly writable, so any bundle in history is
-  // attacker-controlled until its wallet signature verifies. Collect every
-  // shape-valid, unexpired candidate, then verify most-recently-PUBLISHED
-  // first (by Waku message timestamp) — NOT by the cert's own self-declared
-  // expiresAtUnixMs. A wallet that has ever created more than one session
-  // (a different device, a cleared localStorage, an earlier test run) can
-  // have several simultaneously-valid, unexpired certs sitting in its inbox
-  // topic's history; an abandoned/orphaned one can easily have a *later*
-  // self-declared expiry than the session the peer is actually using right
-  // now (expiry = creation time + 30 days, so "created later" always sorts
-  // ahead of "created earlier" regardless of which one is still alive). A
-  // real live bug: sorting by expiresAtUnixMs picked exactly such an
-  // orphaned cert, so every notice got encrypted to a session no device
-  // could decrypt — a silent, permanent, undetectable delivery failure.
-  // Sorting by actual publish time instead always prefers whichever cert
-  // the peer published last, which is a live session re-publishing its own
-  // unchanged cert on every mount — i.e., their current one.
-  const candidates: { cert: SessionCert; publishedAtMs: number }[] = [];
-  await queryHistory(inboxTopicForAddress(peer), (bytes, timestamp) => {
+  const peerLower = peer.toLowerCase();
+  const candidates: SessionCert[] = [];
+  await queryHistory(inboxTopicForAddress(peer), (bytes) => {
     const cert = tryDecodeKeyBundle(bytes);
     if (!cert) return;
-    if (typeof cert.expiresAtUnixMs !== 'number') return;
-    if (isExpired(cert)) return;
-    candidates.push({ cert, publishedAtMs: timestamp ? timestamp.getTime() : 0 });
-  });
-  candidates.sort((a, b) => b.publishedAtMs - a.publishedAtMs);
-  const peerLower = peer.toLowerCase();
-  for (const { cert } of candidates) {
     // A cert can be genuinely self-signed by a wallet that is NOT the peer —
     // anyone can post their own cert onto the peer's public topic. Only a
     // cert whose walletAddress matches the queried peer proves ownership.
-    if (cert.walletAddress?.toLowerCase() !== peerLower) continue;
+    if (cert.walletAddress?.toLowerCase() !== peerLower) return;
+    candidates.push(cert);
+  });
+  for (const cert of candidates) {
     if (await verifySessionCert(cert)) return cert;
   }
   return null;
 }
 
 /** Subscribe to my inbox. Returns an unsubscribe fn. Routes each message to the
- *  right callback; ignores anything that isn't a signature-verified, unexpired
+ *  right callback; ignores anything that isn't a signature-verified
  *  bundle or a notice I can read and that passes isValidThreadNotice. */
 export async function subscribeInbox(
   myAddress: Address,
@@ -161,7 +151,6 @@ export async function subscribeInbox(
     const cert = tryDecodeKeyBundle(bytes);
     if (cert) {
       // Never surface an unverified cert — the topic is publicly writable.
-      if (isExpired(cert)) return;
       // Only my own cert belongs on my topic (publishKeyBundle publishes a
       // wallet's cert to its own topic); a validly self-signed cert for a
       // different wallet is off-invariant and must not reach the callback.

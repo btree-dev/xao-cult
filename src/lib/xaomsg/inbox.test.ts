@@ -20,7 +20,7 @@ import {
   eventBackfillDedupeKey,
   type ThreadNotice,
 } from './inbox';
-import { createSessionKeypair, mintSessionCert } from './session';
+import { deriveSessionKeypair } from './session';
 import { queryHistory, subscribeToTopic } from './waku';
 import { wrapBytes } from './ecies';
 import { dmThreadId } from './dmThreadId';
@@ -36,53 +36,25 @@ const cert: SessionCert = {
   v: 1,
   walletAddress: '0x1111111111111111111111111111111111111111',
   sessionPublicKeyHex: '0x02' + 'ab'.repeat(32),
-  expiresAtUnixMs: Date.now() + 100000,
-  chainId: 84532,
   walletSignature: ('0x' + 'cd'.repeat(65)) as `0x${string}`,
 };
 
-async function makeGenuineCertWithKey(
-  expiresAtUnixMs = Date.now() + 60 * 60 * 1000,
-): Promise<{ cert: SessionCert; privateKeyHex: string }> {
+async function makeGenuineCertWithKey(): Promise<{ cert: SessionCert; privateKeyHex: string }> {
   const account = privateKeyToAccount(generatePrivateKey());
-  const kp = await createSessionKeypair();
-  const genuineCert = await mintSessionCert({
-    walletAddress: account.address,
-    sessionPublicKeyHex: kp.publicKey,
-    expiresAtUnixMs,
-    chainId: 84532,
-    signMessage: (message) => account.signMessage({ message }),
-  });
-  return { cert: genuineCert, privateKeyHex: kp.privateKey };
+  const { privateKey, cert: genuineCert } = await deriveSessionKeypair(account.address, (message) =>
+    account.signMessage({ message }),
+  );
+  return { cert: genuineCert, privateKeyHex: privateKey };
 }
 
-async function makeGenuineCert(expiresAtUnixMs = Date.now() + 60 * 60 * 1000): Promise<SessionCert> {
-  return (await makeGenuineCertWithKey(expiresAtUnixMs)).cert;
+async function makeGenuineCert(): Promise<SessionCert> {
+  return (await makeGenuineCertWithKey()).cert;
 }
 
-function forgeCert(base: SessionCert, expiresAtUnixMs: number): SessionCert {
-  return { ...base, expiresAtUnixMs, walletSignature: ('0x' + 'cd'.repeat(65)) as `0x${string}` };
-}
-
-// Two genuinely-signed certs for the SAME wallet (simulating the same wallet
-// having created two real sessions over time — a different device, or an
-// earlier test run whose localStorage was later cleared/regenerated).
-async function makeGenuineCertPairForSameWallet(
-  firstExpiresAtUnixMs: number,
-  secondExpiresAtUnixMs: number,
-): Promise<{ first: SessionCert; second: SessionCert }> {
-  const account = privateKeyToAccount(generatePrivateKey());
-  const mint = async (expiresAtUnixMs: number) => {
-    const kp = await createSessionKeypair();
-    return mintSessionCert({
-      walletAddress: account.address,
-      sessionPublicKeyHex: kp.publicKey,
-      expiresAtUnixMs,
-      chainId: 84532,
-      signMessage: (message) => account.signMessage({ message }),
-    });
-  };
-  return { first: await mint(firstExpiresAtUnixMs), second: await mint(secondExpiresAtUnixMs) };
+// A forged cert: same claimed wallet, but the pubkey was swapped after
+// signing, so the signature no longer covers it — verifySessionCert fails.
+function forgeCert(base: SessionCert): SessionCert {
+  return { ...base, sessionPublicKeyHex: '0x02' + 'ff'.repeat(32) };
 }
 
 // A single macrotask tick isn't always enough here: tryDecodeThreadNotice's
@@ -109,15 +81,11 @@ describe('eventBackfillDedupeKey', () => {
     const draftId = 'draft-1';
     const contractAddress = '0x2222222222222222222222222222222222222222';
 
-    // First notice observed live: the initial proposal send, no contractAddress yet.
     const preMintKey = eventBackfillDedupeKey(draftId, undefined);
     expect(seen.has(preMintKey)).toBe(false);
     seen.add(preMintKey);
 
-    // Second notice for the SAME draftId, now carrying the mint's contractAddress.
     const mintKey = eventBackfillDedupeKey(draftId, contractAddress);
-    // The bug this closes: with a draftId-only key, this would already be
-    // `true` (dropped) here, silently swallowing the mint notice.
     expect(seen.has(mintKey)).toBe(false);
   });
 
@@ -181,17 +149,9 @@ describe('inbox thread notice (dm kind)', () => {
   it('returns null when the sender cert fails signature verification', async () => {
     const owner = keypair();
     const genuine = await makeGenuineCertWithKey();
-    const forged = forgeCert(genuine.cert, genuine.cert.expiresAtUnixMs);
+    const forged = forgeCert(genuine.cert);
     const notice: ThreadNotice = { kind: 'dm', from: forged.walletAddress, threadId: ('0x' + '33'.repeat(32)) as any, ts: 1 };
     const bytes = await encodeThreadNotice(notice, owner.pubHex, genuine.privateKeyHex, forged);
-    expect(await tryDecodeThreadNotice(bytes, owner.privHex)).toBeNull();
-  });
-
-  it('returns null when the sender cert is expired', async () => {
-    const owner = keypair();
-    const expired = await makeGenuineCertWithKey(Date.now() - 1000);
-    const notice: ThreadNotice = { kind: 'dm', from: expired.cert.walletAddress, threadId: ('0x' + '33'.repeat(32)) as any, ts: 1 };
-    const bytes = await encodeThreadNotice(notice, owner.pubHex, expired.privateKeyHex, expired.cert);
     expect(await tryDecodeThreadNotice(bytes, owner.privHex)).toBeNull();
   });
 });
@@ -209,27 +169,18 @@ function scriptHistory(messages: Uint8Array[]) {
   });
 }
 
-// Like scriptHistory, but also feeds each message's real Waku publish
-// timestamp — needed to exercise queryPeerKeyBundle's publish-time-based
-// selection (as opposed to the old, buggy expiresAtUnixMs-based one).
-function scriptHistoryWithTimestamps(entries: { bytes: Uint8Array; publishedAt: Date }[]) {
-  vi.mocked(queryHistory).mockImplementation(async (_topic, onMessage) => {
-    for (const { bytes, publishedAt } of entries) onMessage(bytes, publishedAt);
-  });
-}
-
 describe('queryPeerKeyBundle', () => {
-  it('returns the genuine bundle even when a forged bundle with higher expiry is in history', async () => {
+  it('returns the genuine bundle even when a forged bundle (bad signature) is in history', async () => {
     const genuine = await makeGenuineCert();
-    const forged = forgeCert(genuine, genuine.expiresAtUnixMs + 1_000_000);
+    const forged = forgeCert(genuine);
     scriptHistory([encodeKeyBundle(forged), encodeKeyBundle(genuine)]);
     const out = await queryPeerKeyBundle(genuine.walletAddress);
     expect(out).toEqual(genuine);
   });
 
-  it('is not locked out by a malformed bundle with undefined expiry appearing first', async () => {
+  it('is not locked out by a malformed bundle (missing pubkey) appearing first', async () => {
     const genuine = await makeGenuineCert();
-    const malformed = { ...genuine, expiresAtUnixMs: undefined } as unknown as SessionCert;
+    const malformed = { ...genuine, sessionPublicKeyHex: undefined } as unknown as SessionCert;
     scriptHistory([encodeKeyBundle(malformed), encodeKeyBundle(genuine)]);
     const out = await queryPeerKeyBundle(genuine.walletAddress);
     expect(out).toEqual(genuine);
@@ -237,9 +188,9 @@ describe('queryPeerKeyBundle', () => {
 
   it('returns null when only forged/invalid bundles exist', async () => {
     const genuine = await makeGenuineCert();
-    const forged1 = forgeCert(genuine, genuine.expiresAtUnixMs + 5000);
-    const malformed = { ...genuine, expiresAtUnixMs: undefined } as unknown as SessionCert;
-    scriptHistory([encodeKeyBundle(forged1), encodeKeyBundle(malformed)]);
+    const forged = forgeCert(genuine);
+    const malformed = { ...genuine, sessionPublicKeyHex: undefined } as unknown as SessionCert;
+    scriptHistory([encodeKeyBundle(forged), encodeKeyBundle(malformed)]);
     const out = await queryPeerKeyBundle(genuine.walletAddress);
     expect(out).toBeNull();
   });
@@ -260,35 +211,21 @@ describe('queryPeerKeyBundle', () => {
 
   it('still returns the peer bundle when an attacker cert for another wallet sorts first', async () => {
     const genuine = await makeGenuineCert();
-    const attacker = await makeGenuineCert(genuine.expiresAtUnixMs + 1_000_000);
+    const attacker = await makeGenuineCert();
     scriptHistory([encodeKeyBundle(attacker), encodeKeyBundle(genuine)]);
     const out = await queryPeerKeyBundle(genuine.walletAddress);
     expect(out).toEqual(genuine);
   });
 
-  // Regression test for a live bug found via manual two-wallet testing on
-  // 2026-07-29: a wallet with two genuinely-signed sessions in its inbox
-  // topic history (e.g. an earlier abandoned session, still unexpired) got
-  // the OLDER one selected because it happened to have been minted with a
-  // longer expiry window than the newer, currently-active one — expiry is
-  // "creation time + 30 days", so it does not monotonically track which
-  // session was published most recently. The old expiry-sort selection
-  // returned the stale, no-longer-held session, silently encrypting every
-  // notice to a key nobody could decrypt. Selection must instead follow
-  // actual Waku publish order (most-recently-published wins), independent
-  // of each cert's own self-declared expiry.
-  it('prefers the most recently PUBLISHED genuine cert over one with a later self-declared expiry', async () => {
-    const now = Date.now();
-    const { first: olderSession, second: newerSession } = await makeGenuineCertPairForSameWallet(
-      now + 30 * 24 * 60 * 60 * 1000, // older session, but minted with a longer expiry window
-      now + 5 * 24 * 60 * 60 * 1000, // newer session, currently in use, shorter remaining expiry
-    );
-    scriptHistoryWithTimestamps([
-      { bytes: encodeKeyBundle(olderSession), publishedAt: new Date(now - 10 * 24 * 60 * 60 * 1000) },
-      { bytes: encodeKeyBundle(newerSession), publishedAt: new Date(now) },
-    ]);
-    const out = await queryPeerKeyBundle(olderSession.walletAddress);
-    expect(out).toEqual(newerSession);
+  // Regression-replacement for the 2026-07-29 publish-time-selection bug:
+  // that fix is no longer needed because every genuinely-signed cert for a
+  // wallet now carries the identical, deterministically-derived pubkey —
+  // there is nothing left to disambiguate by order or timestamp.
+  it('accepts the peer\'s cert regardless of duplicate entries in its history', async () => {
+    const genuine = await makeGenuineCert();
+    scriptHistory([encodeKeyBundle(genuine), encodeKeyBundle(genuine), encodeKeyBundle(genuine)]);
+    const out = await queryPeerKeyBundle(genuine.walletAddress);
+    expect(out).toEqual(genuine);
   });
 });
 
@@ -307,7 +244,7 @@ describe('subscribeInbox key-bundle verification', () => {
     const onKeyBundle = vi.fn();
     const onThreadNotice = vi.fn();
     const genuine = await makeGenuineCert();
-    const forged = forgeCert(genuine, genuine.expiresAtUnixMs + 1000);
+    const forged = forgeCert(genuine);
     await subscribeInbox(genuine.walletAddress, '0x' + '11'.repeat(32), onKeyBundle, onThreadNotice);
     getDeliver()(encodeKeyBundle(forged));
     await flush();
@@ -326,17 +263,6 @@ describe('subscribeInbox key-bundle verification', () => {
     expect(onKeyBundle).toHaveBeenCalledTimes(1);
     expect(onKeyBundle).toHaveBeenCalledWith(genuine);
     expect(onThreadNotice).not.toHaveBeenCalled();
-  });
-
-  it('does not invoke onKeyBundle for an expired but genuinely signed cert', async () => {
-    const getDeliver = captureSubscription();
-    const onKeyBundle = vi.fn();
-    const onThreadNotice = vi.fn();
-    const expired = await makeGenuineCert(Date.now() - 1000);
-    await subscribeInbox(expired.walletAddress, '0x' + '11'.repeat(32), onKeyBundle, onThreadNotice);
-    getDeliver()(encodeKeyBundle(expired));
-    await flush();
-    expect(onKeyBundle).not.toHaveBeenCalled();
   });
 
   it('ignores a validly-signed cert for a different wallet but accepts my own', async () => {
@@ -377,7 +303,6 @@ describe('subscribeInbox key-bundle verification', () => {
     const me = keypair();
     const myAddress = '0x1111111111111111111111111111111111111111' as const;
     const sender = await makeGenuineCertWithKey();
-    // threadId claims a completely unrelated pair.
     const notice: ThreadNotice = { kind: 'dm', from: sender.cert.walletAddress, threadId: ('0x' + '99'.repeat(32)) as any, ts: 1 };
     await subscribeInbox(myAddress, me.privHex, onKeyBundle, onThreadNotice);
     getDeliver()(await encodeThreadNotice(notice, me.pubHex, sender.privateKeyHex, sender.cert));
@@ -410,7 +335,6 @@ describe('subscribeInbox key-bundle verification', () => {
     const me = keypair();
     const myAddress = '0x1111111111111111111111111111111111111111' as const;
     const sender = await makeGenuineCertWithKey();
-    // draftId says 'draft-abc' but threadId is for a different draft entirely.
     const notice: ThreadNotice = {
       kind: 'event', from: sender.cert.walletAddress, threadId: threadIdForDraft('draft-xyz'), draftId: 'draft-abc', ts: 1,
     };

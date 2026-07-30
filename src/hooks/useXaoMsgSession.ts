@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAccount, useChainId, useWalletClient } from 'wagmi';
 import {
-  createSessionKeypair,
+  deriveSessionKeypair,
   loadSession,
-  mintSessionCert,
   saveSession,
-  SESSION_DURATION_MS,
+  clearSession,
+  verifySessionCert,
   type PersistedSession,
 } from '../lib/xaomsg/session';
 
@@ -25,35 +25,54 @@ export interface UseXaoMsgSessionResult {
 
 export function useXaoMsgSession(): UseXaoMsgSessionResult {
   const { address } = useAccount();
-  const chainId = useChainId();
+  // chainId is read for isWalletReady/unlock gating elsewhere in the app;
+  // it is no longer part of the signed session-derivation or cert messages
+  // (chat identity is chain-independent).
+  useChainId();
   const { data: walletClient } = useWalletClient();
   const [session, setSession] = useState<PersistedSession | null>(null);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Restore from sessionStorage on mount/wallet change.
+  // Restore from localStorage on mount/wallet change, but only trust it once
+  // it re-verifies under the current (deterministic) cert format — a cached
+  // entry from before this change, or otherwise corrupted, must not be used
+  // silently. An invalid cached session is cleared outright so the rest of
+  // the app's existing "no session yet" path (prompt unlock()) handles it,
+  // rather than adding a second not-quite-ready state.
   useEffect(() => {
     if (!address) {
       setSession(null);
       return;
     }
-    setSession(loadSession(address));
+    let cancelled = false;
+    (async () => {
+      const cached = loadSession(address);
+      const stillValid =
+        !!cached &&
+        cached.cert.walletAddress.toLowerCase() === address.toLowerCase() &&
+        (await verifySessionCert(cached.cert));
+      if (cancelled) return;
+      if (stillValid) {
+        setSession(cached);
+      } else {
+        if (cached) clearSession(address);
+        setSession(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [address]);
 
   const unlock = useCallback(async () => {
-    if (!walletClient || !address || !chainId) return;
+    if (!walletClient || !address) return;
     setIsUnlocking(true);
     setError(null);
     try {
-      const { privateKey, publicKey } = await createSessionKeypair();
-      const expiresAtUnixMs = Date.now() + SESSION_DURATION_MS;
-      const cert = await mintSessionCert({
-        walletAddress: address,
-        sessionPublicKeyHex: publicKey,
-        expiresAtUnixMs,
-        chainId,
-        signMessage: async (message) => walletClient.signMessage({ account: address, message }),
-      });
+      const { privateKey, cert } = await deriveSessionKeypair(address, (message) =>
+        walletClient.signMessage({ account: address, message }),
+      );
       const persisted: PersistedSession = { cert, privateKeyHex: privateKey };
       saveSession(address, persisted);
       setSession(persisted);
@@ -62,7 +81,7 @@ export function useXaoMsgSession(): UseXaoMsgSessionResult {
     } finally {
       setIsUnlocking(false);
     }
-  }, [walletClient, address, chainId]);
+  }, [walletClient, address]);
 
   return { session, isUnlocking, error, unlock, isWalletReady: !!walletClient };
 }

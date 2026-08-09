@@ -6,13 +6,21 @@ import TicketsSection, { TicketRow } from "./TicketsSection";
 import MoneySection, { SecurityDepositRow, CancelPartyRow } from "./MoneySection";
 import PaymentsSection, { PaymentRow } from "./PaymentsSection";
 import styles from "../../styles/CreateContract.module.css";
-import { EventDocs } from "../../backend/eventsdata";
 import { Genres } from "../../backend/public-information-services/publicinfodata";
 import { IContract } from "../../backend/services/types/api";
 const dropdownOptions = ["Option 1", "Option 2", "Option 3"];
 
 // ── Toggle this to enable/disable the "Fill Dummy Data" button ──
 const ENABLE_DUMMY_DATA = true;
+
+function formatEventDate(value: string): string {
+  if (!value) return 'Date';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return 'Date';
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+  const month = d.toLocaleDateString('en-US', { month: 'long' });
+  return `${weekday}. ${d.getDate()} ${month}`;
+}
 interface CreateContractsectionProps {
   party1: string;
   party2: string;
@@ -679,41 +687,47 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
                 accept="image/*"
                 style={{ display: 'none' }}
               />
-              <div className={styles.promotionImageContainer}>
+              <div
+                className={styles.promotionImageContainer}
+                onClick={handleImageClick}
+                style={{ cursor: 'pointer' }}
+              >
                 {promotionImage ? (
-                  <div onClick={handleImageClick} style={{ cursor: 'pointer', position: 'relative' }}>
-                    <img
-                      src={promotionImage}
-                      alt="Uploaded promotion"
-                      className={styles.promotionImage}
-                    />
-                    <div className={styles.promotionDetailsOverlay}>
-                      <h2 className={styles.promotionTitle}>{EventDocs[0].title}</h2>
-                      <span className={styles.promotionLocation}>
-                        <img src="/contracts-Icons/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
-                        Wembley Stadium London
-                      </span>
-                      <span className={styles.promotionDate}>
-                        <img src="/contracts-Icons/Calendar.svg" alt="Date" className={styles.promotionIcon} />
-                        Sat. 19 December
-                      </span>
+                  <img
+                    src={promotionImage}
+                    alt="Uploaded promotion"
+                    className={styles.promotionImage}
+                  />
+                ) : (
+                  <div className={styles.promotionImagePlaceholder}>
+                    <div className={styles.promotionImagePlaceholderHint}>
+                      <Image
+                        src="/contracts-Icons/Add_Plus.svg"
+                        alt="Add Image"
+                        width={48}
+                        height={48}
+                      />
+                      <span>Add Image</span>
                     </div>
                   </div>
-                ) : (
-                  <div
-                    className={styles.promotionImagePlaceholder}
-                    onClick={handleImageClick}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <Image
-                      src="/contracts-Icons/Add_Plus.svg"
-                      alt="Add Image"
-                      width={48}
-                      height={48}
-                    />
-                    <span>Add Image</span>
-                  </div>
                 )}
+                <div
+                  className={`${styles.promotionDetailsOverlay} ${
+                    promotionImage ? styles.promotionDetailsOverlayFaded : ''
+                  }`}
+                >
+                  <h2 className={styles.promotionTitle}>
+                    {promotionValue || 'Event Name'}
+                  </h2>
+                  <span className={styles.promotionLocation}>
+                    <img src="/contracts-Icons/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
+                    {venueName || 'Location'}
+                  </span>
+                  <span className={styles.promotionDate}>
+                    <img src="/contracts-Icons/Calendar.svg" alt="Date" className={styles.promotionIcon} />
+                    {formatEventDate(eventStartDate)}
+                  </span>
+                </div>
               </div>
               <label className={`${styles.LeftLabel}`}>Event Name</label>
               <div className={styles.contractRow}>

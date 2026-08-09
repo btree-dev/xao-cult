@@ -75,7 +75,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
     const taxes = (grossSub * salesTaxPercent) / 100;
     const gas = numberOfTickets * 1; // $1 per ticket
     const xaoFee = (grossSub * 2) / 100;
-    const netTotal = grossSub + taxes + gas + xaoFee;
+    const netTotal = grossSub - taxes - gas - xaoFee;
 
     return { grossSub, taxes, gas, xaoFee, netTotal };
   };
@@ -98,7 +98,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
       });
     }
 
-    const totalNet = totalGrossSub + totalTaxes + totalGas + totalXaoFee;
+    const totalNet = totalGrossSub - totalTaxes - totalGas - totalXaoFee;
 
     return {
       totalGrossSub,
@@ -475,23 +475,23 @@ const TicketsSection: React.FC<TicketsProps> = ({
               <div className={styles.ticketSummary}>
                 <div className={styles.summaryRow}>
                   <span className={styles.summaryLabel}>Gross Sub:</span>
-                  <span className={styles.summaryValue}>₵{formatCurrency(calculateTicketValues(row, salesTaxPercent).grossSub)}</span>
+                  <span className={styles.summaryValue}>${formatCurrency(calculateTicketValues(row, salesTaxPercent).grossSub)}</span>
                 </div>
                 <div className={styles.summaryRow}>
                   <span className={styles.summaryLabel}>Taxes:</span>
-                  <span className={styles.summaryValue}>₵{formatCurrency(calculateTicketValues(row, salesTaxPercent).taxes)}</span>
+                  <span className={styles.summaryValue}>${formatCurrency(calculateTicketValues(row, salesTaxPercent).taxes)}</span>
                 </div>
                 <div className={styles.summaryRow}>
                   <span className={styles.summaryLabel}>Gas:</span>
-                  <span className={styles.summaryValue}>₵{formatCurrency(calculateTicketValues(row, salesTaxPercent).gas)}</span>
+                  <span className={styles.summaryValue}>${formatCurrency(calculateTicketValues(row, salesTaxPercent).gas)}</span>
                 </div>
                 <div className={styles.summaryRow}>
                   <span className={styles.summaryLabel}>Xao&apos;s 2%:</span>
-                  <span className={styles.summaryValue}>₵{formatCurrency(calculateTicketValues(row, salesTaxPercent).xaoFee)}</span>
+                  <span className={styles.summaryValue}>${formatCurrency(calculateTicketValues(row, salesTaxPercent).xaoFee)}</span>
                 </div>
                 <div className={styles.summaryRow}>
                   <span className={styles.summaryLabel}>Net Total:</span>
-                  <span className={styles.summaryValue}>₵{formatCurrency(calculateTicketValues(row, salesTaxPercent).netTotal)}</span>
+                  <span className={styles.summaryValue}>${formatCurrency(calculateTicketValues(row, salesTaxPercent).netTotal)}</span>
                 </div>
               </div>
             </div>
@@ -524,23 +524,23 @@ const TicketsSection: React.FC<TicketsProps> = ({
           <div className={styles.ticketSummary}>
             <div className={styles.summaryRow}>
               <span className={styles.summaryLabel}>Gross Total:</span>
-              <span className={styles.summaryValue}>₵{formatCurrency(overallTotals.totalGrossSub)}</span>
+              <span className={styles.summaryValue}>${formatCurrency(overallTotals.totalGrossSub)}</span>
             </div>
             <div className={styles.summaryRow}>
               <span className={styles.summaryLabel}>Taxes:</span>
-              <span className={styles.summaryValue}>₵{formatCurrency(overallTotals.totalTaxes)}</span>
+              <span className={styles.summaryValue}>${formatCurrency(overallTotals.totalTaxes)}</span>
             </div>
             <div className={styles.summaryRow}>
               <span className={styles.summaryLabel}>Gas:</span>
-              <span className={styles.summaryValue}>₵{formatCurrency(overallTotals.totalGas)}</span>
+              <span className={styles.summaryValue}>${formatCurrency(overallTotals.totalGas)}</span>
             </div>
             <div className={styles.summaryRow}>
               <span className={styles.summaryLabel}>Xao&apos;s 2%:</span>
-              <span className={styles.summaryValue}>₵{formatCurrency(overallTotals.totalXaoFee)}</span>
+              <span className={styles.summaryValue}>${formatCurrency(overallTotals.totalXaoFee)}</span>
             </div>
             <div className={styles.summaryRow}>
               <span className={styles.summaryLabel}>Net Total:</span>
-              <span className={styles.summaryValue}>₵{formatCurrency(overallTotals.totalNet)}</span>
+              <span className={styles.summaryValue}>${formatCurrency(overallTotals.totalNet)}</span>
             </div>
           </div>
 

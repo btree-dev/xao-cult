@@ -404,8 +404,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
+  justify-content: flex-end;
+  padding-bottom: 24px;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 30px;
   color: white;
@@ -418,19 +418,37 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+.promotionImagePlaceholderHint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.7;
+}
+
 .promotionDetailsOverlay {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%; 
+  height: 100%;
   display: flex;
-  gap:4px;
+  gap: 4px;
   flex-direction: column;
-  justify-content: center;  
-  align-items: center;      
-  background:none;
+  justify-content: center;
+  align-items: center;
+  background: none;
   padding: 16px;
+  border-radius: 30px;
+  pointer-events: none;
+}
+
+.promotionDetailsOverlayFaded {
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
 }
 
 .promotionTitle {

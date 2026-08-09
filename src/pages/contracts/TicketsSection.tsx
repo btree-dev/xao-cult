@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import Image from "next/image";
 import styles from "../../styles/CreateContract.module.css";
+import { useProfileCache } from "../../contexts/ProfileCacheContext";
 
 export interface TicketRow {
   ticketType: string;
@@ -52,6 +53,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
   resaleReseller,
   setResaleReseller,
 }) => {
+  const { currentUserProfile } = useProfileCache();
   // Create refs for each ticket row's On Sale Date input
   const onSaleDateRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -558,7 +560,9 @@ const TicketsSection: React.FC<TicketsProps> = ({
       
             <div className={styles.ticketDetailsRow}>
               <div className={styles.ticketColumn}>
-                <label className={styles.ticketColumnLabel}>Party 1</label>
+                <label className={styles.ticketColumnLabel}>
+                  Party 1{currentUserProfile?.username ? ` - ${currentUserProfile.username}` : ""}
+                </label>
                 <div className={styles.inputRow}>
                   <Image src="/contracts-Icons/percent icon.svg" alt="percent" className={styles.contracticon} width={20} height={20} />
                   <input

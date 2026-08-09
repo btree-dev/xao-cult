@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import Image from "next/image";
 import styles from "../../styles/CreateContract.module.css";
+import { useProfileCache } from "../../contexts/ProfileCacheContext";
 
 
 
@@ -35,6 +36,7 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
   addParty2Row,
   updateParty2Row,
 }) => {
+  const { currentUserProfile } = useProfileCache();
 
   const party1DateRefs = useRef<(HTMLInputElement | null)[]>([]);
   const party2DateRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -82,7 +84,9 @@ const PaymentsSection: React.FC<PaymentsProps> = ({
       {isOpen && (
         <>
           
-            <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>Party 1</label>
+            <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>
+              Party 1{currentUserProfile?.username ? ` - ${currentUserProfile.username}` : ""}
+            </label>
             {party1Rows?.map((row, index) => (
               <div key={index}>
                 <div className={styles.ticketDetailsRow}>

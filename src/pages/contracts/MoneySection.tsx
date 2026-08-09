@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import Image from "next/image";
 import styles from "../../styles/CreateContract.module.css";
+import { useProfileCache } from "../../contexts/ProfileCacheContext";
 
 const dropdownOptions = ["Option 1", "Option 2", "Option 3"];
 
@@ -86,6 +87,7 @@ const MoneySection: React.FC<MoneyProps> = ({
   addCancelParty2Row,
   updateCancelParty2Row,
 }) => {
+  const { currentUserProfile } = useProfileCache();
   // Refs for Security deposit Party 1
   const securityDepositDateRefs = useRef<(HTMLInputElement | null)[]>([]);
   // Refs for Party 1 receives if canceled by
@@ -515,7 +517,7 @@ const MoneySection: React.FC<MoneyProps> = ({
           <div className={styles.ticketDetailsContainer}>
             <div className={styles.infoLabelRow}>
             <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>
-              Security deposit Party 1
+              Security deposit Party 1{currentUserProfile?.username ? ` - ${currentUserProfile.username}` : ""}
             </label>
             <Image
                 src="/contracts-Icons/Info.svg"
@@ -670,7 +672,7 @@ const MoneySection: React.FC<MoneyProps> = ({
               </div>
             
             <label className={`${styles.LeftLabel} ${isOpen ? styles.open : ''}`}>
-              Party 1 receives if canceled by:
+              Party 1{currentUserProfile?.username ? ` - ${currentUserProfile.username}` : ""} receives if canceled by:
             </label>
             {cancelParty1Rows?.map((row, index) => (
               <div key={index}>

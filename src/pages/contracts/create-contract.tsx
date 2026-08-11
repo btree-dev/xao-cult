@@ -664,20 +664,14 @@ const CreateContract = () => {
                   </div>
                 )}
 
-                {/* Send Proposal Button */}
+                {/* Save/Draft Button */}
                 <button
                   type="button"
-                  onClick={handleSendProposal}
-                  disabled={isSendingProposal || !peerAddress || !isClientReady}
-                  className={styles.documentButton}
-                  style={{
-                    marginBottom: "10px",
-                    opacity: (!peerAddress || !isClientReady) ? 0.5 : 1,
-                  }}
+                  onClick={handleSave}
+                  disabled={isContractCreating || isLoading || isSigning || isUploading || !isConnected || !!savedContractAddress}
+                  className={styles.confirmButton}
                 >
-                  {isSendingProposal
-                    ? "Sending..."
-                    : `Send to ${myRole === 'party2' ? "Party 1" : "Party 2"} (Rev. ${revisionNumber})`}
+                  {isUploading ? "Uploading Image..." : isContractCreating || isLoading ? "Saving Draft..." : savedContractAddress ? "Already Saved" : "Save"}
                 </button>
 
                 {/* Contract already exists notice */}
@@ -687,14 +681,21 @@ const CreateContract = () => {
                   </div>
                 )}
 
-                {/* Save/Draft Button */}
+                {/* Send Proposal Button */}
                 <button
                   type="button"
-                  onClick={handleSave}
-                  disabled={isContractCreating || isLoading || isSigning || isUploading || !isConnected || !!savedContractAddress}
-                  className={styles.confirmButton}
+                  onClick={handleSendProposal}
+                  disabled={isSendingProposal || !peerAddress || !isClientReady}
+                  className={styles.documentButton}
+                  style={{
+                    marginTop: "10px",
+                    marginBottom: "10px",
+                    opacity: (!peerAddress || !isClientReady) ? 0.5 : 1,
+                  }}
                 >
-                  {isUploading ? "Uploading Image..." : isContractCreating || isLoading ? "Saving Draft..." : savedContractAddress ? "Already Saved" : "Save"}
+                  {isSendingProposal
+                    ? "Sending..."
+                    : `Send to ${myRole === 'party2' ? "Party 1" : "Party 2"} (Rev. ${revisionNumber})`}
                 </button>
 
                 {/* Sign Button — only enabled after contract is saved as draft and not already signed */}

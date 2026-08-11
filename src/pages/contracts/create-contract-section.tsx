@@ -774,13 +774,12 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
             <>
               {riderRows.map((row, index) => (
                 <div key={index} className={styles.contractRow}>
-                  <div className={styles.contractInput}>
-                    <input
-                      type="text"
+                  <div className={styles.contractTextareaContainer}>
+                    <textarea
                       placeholder="Value"
                       value={row.value}
                       onChange={(e) => updateRiderRow(index, e.target.value)}
-                      className={styles.input}
+                      className={styles.textareaInput}
                       required
                     />
                   </div>
@@ -809,13 +808,12 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
                 />
           {isLegalAgreementOpen && (
             <div className={styles.contractRow}>
-              <div className={styles.contractInput}>
-                <input
-                  type="text"
+              <div className={styles.contractTextareaContainer}>
+                <textarea
                   placeholder="Value"
                   value={LegalAgreementValue}
                   onChange={(e) => setLegalAgreementValue(e.target.value)}
-                  className={styles.input}
+                  className={styles.textareaInput}
                   required
                 />
               </div>
@@ -831,13 +829,12 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
                 />
           {isTicketLegalLanguageOpen && (
             <div className={styles.contractRow}>
-              <div className={styles.contractInput}>
-                <input
-                  type="text"
+              <div className={styles.contractTextareaContainer}>
+                <textarea
                   placeholder="Value"
                   value={ticketLegalLanguageValue}
                   onChange={(e) => setTicketLegalLanguageValue(e.target.value)}
-                  className={styles.input}
+                  className={styles.textareaInput}
                   required
                 />
               </div>

@@ -233,7 +233,6 @@ const Contractsdetail: React.FC = () => {
       tickets: {
         ticketRows: [{ ticketType: '', onSaleDate: '', numberOfTickets: '', ticketPrice: '' }],
         totalCapacity: Number(totalCapacityVal) ? String(Number(totalCapacityVal)) : '',
-        comps: basisToPercent(salesTaxBPSVal),
         salesTax: basisToPercent(salesTaxBPSVal),
         resale: undefined,
       },

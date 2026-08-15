@@ -1,3 +1,4 @@
+import { keccak256, toBytes } from 'viem';
 import {
   DatesConfig,
   LocationConfig,
@@ -9,6 +10,24 @@ import {
   CreateShowContractParams,
   CreateEventContractParams,
 } from '../../hooks/useCreateContract';
+
+// Deterministic JSON (sorted keys, drops undefined) so both parties hash the
+// same bytes regardless of object key order.
+function canonicalStringify(value: any): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return '[' + value.map(canonicalStringify).join(',') + ']';
+  const keys = Object.keys(value).filter((k) => value[k] !== undefined).sort();
+  return '{' + keys.map((k) => JSON.stringify(k) + ':' + canonicalStringify(value[k])).join(',') + '}';
+}
+
+// The contract terms we commit to on-chain, minus volatile / non-term fields
+// (the base64 image blob and the local updatedAt timestamp).
+function termsForHash(formData: any): any {
+  const clone = { ...formData };
+  if (clone.promotion) clone.promotion = { ...clone.promotion, imageData: undefined };
+  delete clone.updatedAt;
+  return clone;
+}
 
 export const dateToTimestamp = (dateString: string): bigint => {
   if (!dateString) return BigInt(0);
@@ -132,14 +151,24 @@ export const buildContractParams = (
   // ── Promo ──────────────────────────────────────────────────────────
   const riderText = formData.rider?.rows?.map((r: any) => r.value).filter(Boolean).join(', ') || '';
 
+  // Integrity hashes — previously always zero. keccak256 of the flyer
+  // reference and of the canonical contract terms, so the agreement is
+  // on-chain verifiable: anyone holding the off-chain terms JSON can recompute
+  // these and compare against what's stored. (Field is named *CIDHash for
+  // legacy reasons; we hash the terms directly rather than an IPFS CID so
+  // verification does not depend on IPFS availability.)
+  const flyerRef = formData.eventImageUri || '';
+  const flyerCIDHash = flyerRef ? keccak256(toBytes(flyerRef)) : ZERO_BYTES32;
+  const contractCIDHash = keccak256(toBytes(canonicalStringify(termsForHash(formData))));
+
   const promoConfig: PromoConfig = {
     eventName: formData.promotion?.value || '',
     flyerDNSLink: formData.eventImageUri || '',
-    flyerCIDHash: ZERO_BYTES32,
+    flyerCIDHash,
     riderIPFSCID: riderText,
     contractLegal: formData.legalAgreement || '',
     ticketLegal: formData.ticketLegalLanguage || '',
-    contractCIDHash: ZERO_BYTES32,
+    contractCIDHash,
   };
 
   // ── Party1 config ──────────────────────────────────────────────────

@@ -25,11 +25,11 @@ export const CONTRACT_ADDRESSES = {
   },
   [baseSepolia.id]: {
     ContractNFT: process.env.NEXT_PUBLIC_CONTRACT_NFT_TESTNET || '0x',
-    ShowContractFactory: process.env.NEXT_PUBLIC_SHOW_CONTRACT_FACTORY_TESTNET || '0x56b1AbF4A672c2f3D8A9bA380E07C32b5AaeeaB2',
+    ShowContractFactory: process.env.NEXT_PUBLIC_SHOW_CONTRACT_FACTORY_TESTNET || '0x936A9D97b890BAB940A5B28C3D1f4706BBe3bd39',
   },
   [sepolia.id]: {
     ContractNFT: process.env.NEXT_PUBLIC_CONTRACT_NFT_TESTNET || '0x',
-    ShowContractFactory: process.env.NEXT_PUBLIC_SHOW_CONTRACT_FACTORY_TESTNET || '0x56b1AbF4A672c2f3D8A9bA380E07C32b5AaeeaB2',
+    ShowContractFactory: process.env.NEXT_PUBLIC_SHOW_CONTRACT_FACTORY_TESTNET || '0x936A9D97b890BAB940A5B28C3D1f4706BBe3bd39',
   },
 };
 

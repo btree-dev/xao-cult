@@ -333,6 +333,46 @@ export const SHOW_CONTRACT_FACTORY_ABI = [
 ] as const;
 
 export const SHOW_CONTRACT_ABI = [
+  // ── Frontend-parity fields (genres, comps, ticketsSale, resale) — Draft-only, party1 ──
+  {
+    "inputs": [{ "internalType": "string[]", "name": "_genres", "type": "string[]" }],
+    "name": "setGenres",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "_compTickets", "type": "uint256" }],
+    "name": "setCompTickets",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "_ticketsSaleDate", "type": "uint256" }],
+    "name": "setTicketsSaleDate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "_party1BPS", "type": "uint256" },
+      { "internalType": "uint256", "name": "_party2BPS", "type": "uint256" },
+      { "internalType": "uint256", "name": "_resellerBPS", "type": "uint256" }
+    ],
+    "name": "setResaleSplits",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getGenres",
+    "outputs": [{ "internalType": "string[]", "name": "", "type": "string[]" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
   {
     "inputs": [
       {

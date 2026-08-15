@@ -26,8 +26,41 @@ const TicketsPage: NextPage = () => {
   // Mock ticket data
   const [tickets, setTickets] = useState<any[]>(TicketsQR);
 
+  // Load the buyer's real purchased tickets (saved by ticket-confirmation into
+  // localStorage on a successful on-chain buy) and merge them ahead of the demo
+  // set. Map the stored shape onto the fields this feed renders, with safe
+  // fallbacks — next/image needs a valid local src, so any remote/data image
+  // falls back to a bundled asset.
   useEffect(() => {
-    setLoading(false);
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('purchasedTickets') : null;
+      const purchased = raw ? JSON.parse(raw) : [];
+      const mapped = (Array.isArray(purchased) ? purchased : []).map((t: any) => {
+        const safeImg = typeof t.image === 'string' && t.image.startsWith('/') ? t.image : '/xao-monster.png';
+        return {
+          id: t.id,
+          title: t.title || 'Blockchain Event',
+          image: safeImg,
+          profilePic: '/xao-monster.png',
+          artist: t.title ? String(t.title).split(' ')[0] : 'XAO',
+          tag: 'Owned',
+          location: t.location || '',
+          date: t.date || 'TBD',
+          redeemed: !!t.redeemed,
+          views: 0,
+          likes: 0,
+          isReal: true,
+          contractAddress: t.contractAddress,
+          ticketCode: t.ticketCode,
+          txHash: t.txHash,
+        };
+      });
+      setTickets(mapped.length > 0 ? [...mapped, ...TicketsQR] : TicketsQR);
+    } catch (e) {
+      console.warn('Failed to load purchased tickets:', e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const handleTicketClick = (ticketId: string) => {

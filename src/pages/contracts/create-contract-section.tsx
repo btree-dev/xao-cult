@@ -56,7 +56,9 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
   const [radiusDistance, setRadiusDistance] = useState("");
   const [days, setDays] = useState("");
   const [totalCapacity, setTotalCapacity] = useState("");
-  const [comps, setComps] = useState("");
+  // Sales-tax percentage. (Historically this state was misnamed `comps`; the
+  // input it backs is the "Sales Tax" field.)
+  const [salesTax, setSalesTax] = useState("");
   const [resaleParty1, setResaleParty1] = useState("");
   const [resaleParty2, setResaleParty2] = useState("");
   const [resaleReseller, setResaleReseller] = useState("");
@@ -287,7 +289,10 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
         setTicketRows(data.tickets.ticketRows);
       }
       if (data.tickets.totalCapacity) setTotalCapacity(data.tickets.totalCapacity);
-      if (data.tickets.comps) setComps(data.tickets.comps);
+      // `salesTax` is the current key; fall back to the legacy `comps` key so
+      // proposals saved before the rename still load their sales-tax value.
+      const loadedSalesTax = (data.tickets as any).salesTax ?? (data.tickets as any).comps;
+      if (loadedSalesTax) setSalesTax(loadedSalesTax);
       if (data.tickets.resale) {
         if (data.tickets.resale.party1) setResaleParty1(data.tickets.resale.party1);
         if (data.tickets.resale.party2) setResaleParty2(data.tickets.resale.party2);
@@ -406,8 +411,7 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     tickets: {
       ticketRows,
       totalCapacity,
-      comps,
-      salesTax: comps,
+      salesTax,
       resale: {
         party1: resaleParty1,
         party2: resaleParty2,
@@ -448,10 +452,11 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
 
   // Fill all form fields with dummy/test data for fast contract creation
   const fillDummyData = () => {
-    // Dates & Times
-    setEventStartDate("2026-05-15T19:00");
-    setEventEndDate("2026-05-15T23:00");
-    setEventAnnouncementDate("2026-04-20T10:00");
+    // Dates & Times (future-dated so timestamps are ahead of "now")
+    setEventStartDate("2026-11-20T19:00");
+    setEventEndDate("2026-11-20T23:00");
+    setEventAnnouncementDate("2026-09-01T10:00");
+    setTicketsSale("2026-09-15T00:00");   // → triggers setTicketsSaleDate on-chain
     setStartTime("19:00");
     setEndTime("23:00");
     setLoadIn("14:00");
@@ -469,14 +474,16 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
 
     // Tickets
     setTotalCapacity("500");
-    setComps("8");
+    setSalesTax("8");
     setResaleParty1("33.33");
     setResaleParty2("33.33");
     setResaleReseller("33.34");
     setticketsEnabled(true);
     setTicketRows([
-      { ticketType: "General Admission", onSaleDate: "2026-04-01T00:00", numberOfTickets: "400", ticketPrice: "45" },
-      { ticketType: "VIP", onSaleDate: "2026-04-01T00:00", numberOfTickets: "100", ticketPrice: "120" },
+      // onSale in the PAST so the tier is immediately buyable while testing
+      // (XAOTicket.buyTicket reverts "Not on sale yet" until onSaleTimestamp).
+      { ticketType: "General Admission", onSaleDate: "2026-08-01T00:00", numberOfTickets: "400", ticketPrice: "45" },
+      { ticketType: "VIP", onSaleDate: "2026-08-01T00:00", numberOfTickets: "100", ticketPrice: "120" },
     ]);
     setIsTicketsOpen(true);
 
@@ -486,25 +493,25 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     setBarsplitInput("15");
     setMerchSplitInput("10");
     setdepositbandInput("1,000");
-    setbandCanceledBy("2026-05-01T12:00");
+    setbandCanceledBy("2026-11-01T12:00");
     setsecuritydepositAdd("");
     setSecurityDepositRows([
-      { dateTime: "2026-04-30T12:00", percentage: "50", dollarAmount: "2,500" },
+      { dateTime: "2026-10-15T12:00", percentage: "50", dollarAmount: "2,500" },
     ]);
     setCancelParty1Rows([
-      { dateTime: "2026-05-10T12:00", percentage: "25", dollarAmount: "1,250" },
+      { dateTime: "2026-11-01T12:00", percentage: "25", dollarAmount: "1,250" },
     ]);
     setCancelParty2Rows([
-      { dateTime: "2026-05-10T12:00", percentage: "25", dollarAmount: "1,250" },
+      { dateTime: "2026-11-01T12:00", percentage: "25", dollarAmount: "1,250" },
     ]);
     setIsMoneyOpen(true);
 
     // Payments
     setPayoutRows([
-      { dateTime: "2026-05-16T12:00", percentage: "100", dollarAmount: "5,000" },
+      { dateTime: "2026-11-21T12:00", percentage: "100", dollarAmount: "5,000" },
     ]);
     setPayout2Rows([
-      { dateTime: "2026-05-16T12:00", percentage: "100", dollarAmount: "5,000" },
+      { dateTime: "2026-11-21T12:00", percentage: "100", dollarAmount: "5,000" },
     ]);
     setIsPaymentsOpen(true);
 
@@ -613,8 +620,8 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
         setticketsEnabled={setticketsEnabled}
         totalCapacity={totalCapacity}
         setTotalCapacity={setTotalCapacity}
-        comps={comps}
-        setComps={setComps}
+        salesTax={salesTax}
+        setSalesTax={setSalesTax}
         ticketRows={ticketRows}
         addTicketRow={addTicketRow}
         updateTicketRow={updateTicketRow}

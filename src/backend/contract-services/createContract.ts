@@ -1,9 +1,10 @@
 import React from 'react';
 import { CreateEventContractParams, CreateShowContractParams } from '../../hooks/useCreateContract';
-import { buildContractParams, validateContractParams } from './contractHelpers';
+import { buildContractParams, validateContractParams, dateToTimestamp, percentageToBasisPoints, dollarToUSDC } from './contractHelpers';
 import { validateBaseChain } from '../contracts';
 import { TicketRow } from '../../pages/contracts/TicketsSection';
 import { AddTicketTypeParams, dateTimeToTimestamp, dollarToWei, parseFormattedNumber } from '../../hooks/useAddTicketType';
+import { ScheduleFn, ShowContractConfigApi } from '../../hooks/useShowContractSchedules';
 
 // State setters interface for contract operations
 export interface ContractStateSetters {
@@ -253,6 +254,144 @@ export const addTicketsToContract = async (
         });
       }
     }
+  }
+};
+
+// A single security-deposit / cancellation / payout form row.
+interface ScheduleRow {
+  dateTime: string;
+  percentage: string;
+  dollarAmount: string;
+}
+
+// Convert one form row to the ShowContract setter's (uint256, uint256, uint256)
+// args. Returns null for an empty row so blank/placeholder rows are skipped.
+const scheduleRowToArgs = (row: ScheduleRow): [bigint, bigint, bigint] | null => {
+  const ts = dateToTimestamp(row?.dateTime || '');       // works on datetime-local strings (splits on 'T')
+  const pct = percentageToBasisPoints(row?.percentage || '0');
+  const amt = dollarToUSDC(row?.dollarAmount || '0');
+  if (ts === BigInt(0) && pct === BigInt(0) && amt === BigInt(0)) return null;
+  return [ts, pct, amt];
+};
+
+/**
+ * Push the contract's payment schedules, payouts, and cancellation refunds
+ * on-chain via the ShowContract setters. Must run after the draft is deployed
+ * (contract in Draft) and by party1, since every setter is `onlyParty1
+ * notFinalized`. Each row is a separate transaction (the contract has no batch
+ * setter), so the caller will see one wallet prompt per non-empty row.
+ *
+ * Maps the create-contract form (getContractData) to the on-chain arrays:
+ *   money.securityDepositRows  -> party1Deposits            (addParty1Deposit)
+ *   money.securityDeposit2Rows -> party2Deposits            (addParty2Deposit)
+ *   payments.party1            -> party1Payouts             (addParty1Payout)
+ *   payments.party2            -> party2Payouts             (addParty2Payout)
+ *   money.cancelParty1Rows     -> party1CancellationRefunds (addParty1CancellationRefund)
+ *   money.cancelParty2Rows     -> party2CancellationRefunds (addParty2CancellationRefund)
+ */
+export const addPaymentSchedulesToContract = async (
+  contractAddress: `0x${string}`,
+  formData: any,
+  addSchedule: (
+    contractAddress: `0x${string}`,
+    fn: ScheduleFn,
+    arg1: bigint,
+    arg2: bigint,
+    arg3: bigint,
+  ) => Promise<`0x${string}`>,
+): Promise<void> => {
+  const money = formData?.money || {};
+  const payments = formData?.payments || {};
+
+  const groups: Array<{ rows: ScheduleRow[]; fn: ScheduleFn }> = [
+    { rows: money.securityDepositRows || [], fn: 'addParty1Deposit' },
+    { rows: money.securityDeposit2Rows || [], fn: 'addParty2Deposit' },
+    { rows: payments.party1 || [], fn: 'addParty1Payout' },
+    { rows: payments.party2 || [], fn: 'addParty2Payout' },
+    { rows: money.cancelParty1Rows || [], fn: 'addParty1CancellationRefund' },
+    { rows: money.cancelParty2Rows || [], fn: 'addParty2CancellationRefund' },
+  ];
+
+  for (const group of groups) {
+    for (const row of group.rows) {
+      const args = scheduleRowToArgs(row);
+      if (!args) continue;
+      try {
+        await addSchedule(contractAddress, group.fn, args[0], args[1], args[2]);
+      } catch (err) {
+        // Don't abort the whole batch if one row fails — log and continue.
+        console.warn(`[addPaymentSchedules] ${group.fn} failed for row`, row, err);
+      }
+    }
+  }
+};
+
+/**
+ * Push the "frontend-parity" config fields on-chain via the ShowContract
+ * setters added for genres / comps / tickets-sale date / resale splits. Must
+ * run after deploy (Draft) and by party1 (setters are onlyParty1 notFinalized).
+ * Each field is its own transaction. Every call is guarded so that, if the
+ * deployed contract predates these setters (old factory), the revert is logged
+ * and the rest of the save flow continues instead of breaking.
+ *
+ *   promotion.genres        -> setGenres
+ *   tickets.comps           -> setCompTickets
+ *   datesAndTimes.ticketsSale-> setTicketsSaleDate
+ *   tickets.resale {p1,p2,reseller} -> setResaleSplits (only if BPS sum to 10000)
+ */
+export const addConfigFieldsToContract = async (
+  contractAddress: `0x${string}`,
+  formData: any,
+  configApi: ShowContractConfigApi,
+): Promise<void> => {
+  // ── genres ──
+  try {
+    const genres: string[] = (formData?.promotion?.genres || []).filter(
+      (g: unknown) => typeof g === 'string' && g.trim().length > 0,
+    );
+    if (genres.length > 0) {
+      await configApi.setGenres(contractAddress, genres);
+    }
+  } catch (err) {
+    console.warn('[addConfigFields] setGenres failed:', err);
+  }
+
+  // ── comps ──
+  // NOTE: intentionally NOT wired. In the current form, the `tickets.comps`
+  // state variable is mislabelled — the UI input bound to it is actually the
+  // "Sales Tax" field (see TicketsSection: salesTaxPercent = comps), and its
+  // value already reaches the chain as salesTaxBPS via buildContractParams.
+  // There is no real complimentary-ticket-count field to source from, so
+  // setCompTickets is left uncalled to avoid writing the sales-tax value as a
+  // comp count. The on-chain compTickets field stays 0 until a genuine comps
+  // input exists in the form.
+
+  // ── tickets on-sale date ──
+  try {
+    const saleTs = dateToTimestamp(formData?.datesAndTimes?.ticketsSale || '');
+    if (saleTs > BigInt(0)) {
+      await configApi.setTicketsSaleDate(contractAddress, saleTs);
+    }
+  } catch (err) {
+    console.warn('[addConfigFields] setTicketsSaleDate failed:', err);
+  }
+
+  // ── resale splits (only when the three percentages convert to a valid
+  //    10000-BPS split; the on-chain setter reverts otherwise) ──
+  try {
+    const resale = formData?.tickets?.resale || {};
+    const p1 = percentageToBasisPoints(resale.party1 || '0');
+    const p2 = percentageToBasisPoints(resale.party2 || '0');
+    const reseller = percentageToBasisPoints(resale.reseller || '0');
+    if (p1 + p2 + reseller === BigInt(10000)) {
+      await configApi.setResaleSplits(contractAddress, p1, p2, reseller);
+    } else {
+      console.warn('[addConfigFields] skipping setResaleSplits — BPS do not sum to 10000:', {
+        p1: p1.toString(), p2: p2.toString(), reseller: reseller.toString(),
+      });
+    }
+  } catch (err) {
+    console.warn('[addConfigFields] setResaleSplits failed:', err);
   }
 };
 

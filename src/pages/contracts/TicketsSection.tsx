@@ -19,8 +19,8 @@ export interface TicketsProps {
   setticketsEnabled: (v: boolean) => void;
   totalCapacity: string;
   setTotalCapacity: (v: string) => void;
-  comps: string;
-  setComps: (v: string) => void;
+  salesTax: string;
+  setSalesTax: (v: string) => void;
   ticketRows: TicketRow[];
   addTicketRow: () => void;
   updateTicketRow: (index: number, field: keyof TicketRow, value: string) => void;
@@ -41,8 +41,8 @@ const TicketsSection: React.FC<TicketsProps> = ({
   setticketsEnabled,
   totalCapacity,
   setTotalCapacity,
-  comps,
-  setComps,
+  salesTax,
+  setSalesTax,
   ticketRows,
   addTicketRow,
   updateTicketRow,
@@ -84,7 +84,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
 
   // Calculate overall totals
   const calculateOverallTotals = () => {
-    const salesTaxPercent = parseFormattedNumber(comps);
+    const salesTaxPercent = parseFormattedNumber(salesTax);
     let totalGrossSub = 0;
     let totalTaxes = 0;
     let totalGas = 0;
@@ -111,7 +111,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
     };
   };
 
-  const salesTaxPercent = parseFormattedNumber(comps);
+  const salesTaxPercent = parseFormattedNumber(salesTax);
   const overallTotals = calculateOverallTotals();
 
   // Calculate total tickets used across all ticket types
@@ -217,7 +217,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
                 <input
                   type="text"
                   placeholder="0"
-                  value={comps || "0"}
+                  value={salesTax || "0"}
                   onChange={e => {
                     const value = e.target.value;
                     // Remove all non-digit characters except decimal point
@@ -253,7 +253,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
                       return; // Don't update if over 100
                     }
 
-                    setComps(formattedValue);
+                    setSalesTax(formattedValue);
                   }}
                   onBlur={e => {
                     // Ensure proper format on blur
@@ -263,7 +263,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
 
                     // Clamp between 0 and 100
                     const clampedValue = Math.min(Math.max(numericValue, 0), 100);
-                    setComps(clampedValue.toString());
+                    setSalesTax(clampedValue.toString());
                   }}
                   className={styles.input}
                   required

@@ -11,6 +11,7 @@ import { XaoMsgComponent } from "../../components/Chat";
 import { useCreateEventContract } from "../../hooks/useCreateContract";
 import { useSignEventContract } from "../../hooks/useSignEventContract";
 import { useAddTicketType, useAddTierToXAOTicket, dollarToWei, dateTimeToTimestamp } from "../../hooks/useAddTicketType";
+import { percentageToBasisPoints } from "../../backend/contract-services/contractHelpers";
 import { useWeb3 } from "../../hooks/useWeb3";
 import { useProfileCache } from "../../contexts/ProfileCacheContext";
 import { useReadContract } from "wagmi";
@@ -20,7 +21,8 @@ import { config } from "../../wagmi";
 import { useXaoEvent } from "../../hooks/useXaoEvent";
 import { useXaoMsgSession } from "../../hooks/useXaoMsgSession";
 import { ContractProposalMessage } from "../../types/contractMessage";
-import { handleSaveContract, handleSignContract, addTicketsToContract, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
+import { handleSaveContract, handleSignContract, addTicketsToContract, addPaymentSchedulesToContract, addConfigFieldsToContract, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
+import { useShowContractSchedules, useShowContractConfig } from "../../hooks/useShowContractSchedules";
 import { TicketRow } from "./TicketsSection";
 
 // ── Toggle this to enable/disable dummy party values ──
@@ -48,6 +50,20 @@ const CreateContract = () => {
   // Track the address of whoever last sent us a proposal (for reply-to logic)
   const [lastProposalSender, setLastProposalSender] = useState<string | null>(null);
 
+  // Copyable "contract address" modal — replaces native alert() (whose text
+  // can't be selected/copied, especially on mobile) after save/sign.
+  const [addressModal, setAddressModal] = useState<{ title: string; address: string } | null>(null);
+  const [addressCopied, setAddressCopied] = useState(false);
+  const copyAddress = async (addr: string) => {
+    try {
+      await navigator.clipboard.writeText(addr);
+      setAddressCopied(true);
+      setTimeout(() => setAddressCopied(false), 1500);
+    } catch {
+      // Clipboard blocked — the readonly input is still selectable as a fallback.
+    }
+  };
+
   // Stable per-negotiation identifier the off-chain draft store keys on.
   // Regenerated when the user manually points party2 at a new counterparty
   // (see the party2 input's onChange below); reloaded from a stored/incoming
@@ -62,6 +78,8 @@ const CreateContract = () => {
   const { signContractAsync, isLoading: isSignLoading, isSuccess: isSignSuccess, error: signError, transactionHash: signTxHash } = useSignEventContract();
   const { addTicketTypeAsync } = useAddTicketType();
   const { addTier } = useAddTierToXAOTicket();
+  const { addSchedule } = useShowContractSchedules();
+  const configApi = useShowContractConfig();
   const [ticketRowsToAdd, setTicketRowsToAdd] = useState<TicketRow[]>([]);
 
   // Read signing status from on-chain contract (ShowContract uses hasSigned(address) mapping)
@@ -323,6 +341,16 @@ const CreateContract = () => {
   const handleSign = async () => {
     setIsSigning(true);
     try {
+      // If I'm party2, record my XAO username on-chain — the constructor leaves
+      // party2.xaoUsername empty and only party2 can set it. Best-effort: a
+      // failure here (e.g. older contract without the setter) must not block signing.
+      if (myRole === 'party2' && savedContractAddress && currentUserProfile?.username) {
+        try {
+          await configApi.setParty2Username(savedContractAddress as `0x${string}`, currentUserProfile.username);
+        } catch (err) {
+          console.warn('[CreateContract] setParty2Username failed (non-blocking):', err);
+        }
+      }
       await handleSignContract(
         isConnected,
         chain?.id,
@@ -348,6 +376,25 @@ const CreateContract = () => {
           // Add tickets while contract is still in Draft status
           // (addTicketType requires inDraft modifier on the smart contract)
           await addTicketsToContract(newContractAddress, ticketRowsToAdd, addTicketTypeAsync);
+
+          // Push payment schedules / payouts / cancellation refunds on-chain.
+          // These setters are onlyParty1 + notFinalized, so this must run here
+          // (the deployer is on-chain party1) while the contract is still Draft.
+          // One tx per non-empty row — the user will see a wallet prompt each.
+          try {
+            const scheduleData = contractSectionRef.current?.getContractData
+              ? contractSectionRef.current.getContractData()
+              : null;
+            if (scheduleData) {
+              await addPaymentSchedulesToContract(newContractAddress, scheduleData, addSchedule);
+              // Push genres / comps / tickets-sale date / resale splits on-chain.
+              // Guarded internally so an old-factory deploy (without these
+              // setters) just logs and continues instead of breaking save.
+              await addConfigFieldsToContract(newContractAddress, scheduleData, configApi);
+            }
+          } catch (schedErr) {
+            console.warn("[CreateContract] Failed to add payment schedules:", schedErr);
+          }
 
           setIsContractCreating(false);
 
@@ -396,7 +443,7 @@ const CreateContract = () => {
             }
           }
 
-          alert(`Contract saved as draft on blockchain!\nContract: ${newContractAddress}`);
+          setAddressModal({ title: 'Contract saved as draft on blockchain', address: String(newContractAddress) });
         } catch (err) {
           setCreationError(err instanceof Error ? err.message : "Failed to process contract");
           setIsContractCreating(false);
@@ -434,6 +481,22 @@ const CreateContract = () => {
               const formData = contractSectionRef.current?.getContractData?.();
               const rows: TicketRow[] = formData?.tickets?.ticketRows || ticketRowsToAdd || [];
 
+              // Resale royalty split from the form (percentages → BPS). These
+              // are contract-level (same for every tier). XAOTicket.addTier
+              // requires the three to sum to exactly 10000; if the form values
+              // don't (e.g. left blank), fall back to an even 3333/3333/3334
+              // split so a valid tier is still created instead of reverting.
+              const rp1 = percentageToBasisPoints(formData?.tickets?.resale?.party1 || '0');
+              const rp2 = percentageToBasisPoints(formData?.tickets?.resale?.party2 || '0');
+              const rReseller = percentageToBasisPoints(formData?.tickets?.resale?.reseller || '0');
+              const resaleValid = rp1 + rp2 + rReseller === BigInt(10000);
+              const party1ResaleBPS = resaleValid ? rp1 : BigInt(3333);
+              const party2ResaleBPS = resaleValid ? rp2 : BigInt(3333);
+              const resellerBPS = resaleValid ? rReseller : BigInt(3334);
+              if (!resaleValid) {
+                console.warn('[CreateContract] Form resale BPS do not sum to 10000; using default 3333/3333/3334');
+              }
+
               // Map ticket type names to enum values
               const nameToEnum = (name: string): number => {
                 const lower = name.toLowerCase().trim();
@@ -460,9 +523,9 @@ const CreateContract = () => {
                     priceUSDC,
                     quantity,
                     onSaleTimestamp: onSale,
-                    party1ResaleBPS: BigInt(3333),
-                    party2ResaleBPS: BigInt(3333),
-                    resellerBPS: BigInt(3334),
+                    party1ResaleBPS,
+                    party2ResaleBPS,
+                    resellerBPS,
                   });
                   console.log(`[CreateContract] Tier added: ${row.ticketType}`);
                 } catch (tierErr) {
@@ -475,7 +538,7 @@ const CreateContract = () => {
           }
         }
 
-        alert(`Contract signed successfully on blockchain!\nContract: ${contractAddrToShare}`);
+        setAddressModal({ title: 'Contract signed successfully on blockchain', address: String(contractAddrToShare) });
         router.push("/dashboard");
 
         // Send proposal and cleanup in background (non-blocking)
@@ -716,6 +779,64 @@ const CreateContract = () => {
           </div>
         </main>
       </div>
+
+      {addressModal && (
+        <div
+          onClick={() => setAddressModal(null)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 1000, padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%", maxWidth: 360, padding: 24, borderRadius: 18,
+              border: "1px solid transparent",
+              backgroundImage:
+                "linear-gradient(#111,#111), linear-gradient(to right,#ff9900,#e100ff)",
+              backgroundOrigin: "border-box", backgroundClip: "padding-box, border-box",
+            }}
+          >
+            <h3 style={{ color: "#fff", margin: "0 0 6px", fontSize: 16 }}>✓ {addressModal.title}</h3>
+            <p style={{ color: "#aaa", margin: "0 0 8px", fontSize: 13 }}>Contract address:</p>
+            <input
+              readOnly
+              value={addressModal.address}
+              onFocus={(e) => e.currentTarget.select()}
+              style={{
+                width: "100%", boxSizing: "border-box", background: "#000", color: "#fff",
+                border: "1px solid #444", borderRadius: 10, padding: "10px 12px",
+                fontSize: 12, marginBottom: 14, fontFamily: "monospace",
+              }}
+            />
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => copyAddress(addressModal.address)}
+                style={{
+                  flex: 1, padding: 10, borderRadius: 30, border: "none",
+                  background: "linear-gradient(to right,#ff9900,#e100ff)",
+                  color: "#fff", fontWeight: "bold", cursor: "pointer",
+                }}
+              >
+                {addressCopied ? "Copied!" : "Copy Address"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddressModal(null)}
+                style={{
+                  flex: 1, padding: 10, borderRadius: 30, border: "1px solid #444",
+                  background: "transparent", color: "#fff", cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };

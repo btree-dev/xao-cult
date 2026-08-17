@@ -203,7 +203,7 @@
 }
 
 .toggleBtn.active {
-  background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  background: linear-gradient(180deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
   font-weight: bold;
 }
 
@@ -299,6 +299,28 @@
   white-space: pre-wrap;
   resize: vertical;
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #FF5F6D transparent;
+}
+
+.textareaInput::-webkit-scrollbar {
+  width: 6px;
+  background-color: transparent;
+}
+
+.textareaInput::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+.textareaInput::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  border-radius: 4px;
+}
+
+.textareaInput::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  opacity: 0.85;
 }
 .datesTimesHeader {
   display: flex;
@@ -384,7 +406,7 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  background: linear-gradient(180deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
   transition: transform 0.3s ease;
 }
 
@@ -406,7 +428,7 @@
   height: 60px;
   border-radius: 40px;
   border: none;
-  background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  background: linear-gradient(180deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
   color: #ffffff;
   display: flex;
   justify-content: center;
@@ -1114,7 +1136,7 @@
 }
 
 .genrePillSelected {
-  background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  background: linear-gradient(180deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
   border: none;
 }
 .iconButton {
@@ -1154,7 +1176,7 @@
   .gradientLine {
     flex: 1;
     height: 2px;
-    background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+    background: linear-gradient(180deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
     border-radius: 1.5px;
     min-width: 50px;
     opacity: 1;

@@ -110,6 +110,7 @@ export const useAddTierToXAOTicket = () => {
       party1ResaleBPS: bigint;   // resale split for party1
       party2ResaleBPS: bigint;   // resale split for party2
       resellerBPS: bigint;       // resale split for reseller
+      image: string;             // NFT artwork URI for this ticket type
     }
   ) => {
     console.log("=== ADDING TIER TO XAOTICKET ===");
@@ -129,6 +130,7 @@ export const useAddTierToXAOTicket = () => {
         params.party1ResaleBPS,
         params.party2ResaleBPS,
         params.resellerBPS,
+        params.image,
       ],
     });
   };

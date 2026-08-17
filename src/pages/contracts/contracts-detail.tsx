@@ -30,6 +30,7 @@ const Contractsdetail: React.FC = () => {
   const [ticketName, setTicketName] = useState("");
   const [ticketPrice, setTicketPrice] = useState("");
   const [ticketCount, setTicketCount] = useState("");
+  const [ticketImage, setTicketImage] = useState(""); // NFT artwork URI for this tier
   const [showGrantScanner, setShowGrantScanner] = useState(false);
   const [scannerAddress, setScannerAddress] = useState("");
   const [isGrantingRole, setIsGrantingRole] = useState(false);
@@ -356,12 +357,14 @@ const Contractsdetail: React.FC = () => {
         party1ResaleBPS: BigInt(3333),
         party2ResaleBPS: BigInt(3333),
         resellerBPS: BigInt(3334),
+        image: ticketImage.trim(),
       });
 
       alert("Ticket tier added successfully!");
       setTicketName("");
       setTicketPrice("");
       setTicketCount("");
+      setTicketImage("");
       setAddingTicket(false);
     } catch (error) {
       console.error("Error adding ticket tier:", error);
@@ -758,6 +761,16 @@ const Contractsdetail: React.FC = () => {
                   className={styles.input}
                   style={{ marginBottom: "15px" }}
                   min="1"
+                />
+              </div>
+              <div className={styles.inputRow}>
+                <input
+                  type="text"
+                  placeholder="Ticket Image URL (NFT artwork, optional)"
+                  value={ticketImage}
+                  onChange={(e) => setTicketImage(e.target.value)}
+                  className={styles.input}
+                  style={{ marginBottom: "15px" }}
                 />
               </div>
               <div className={styles.contractRow}>

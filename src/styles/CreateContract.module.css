@@ -322,6 +322,33 @@
   background: linear-gradient(180deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
   opacity: 0.85;
 }
+
+/* Read-only view: neutralize custom (div-based) dropdown wrappers that
+   <fieldset disabled> can't reach. Any .inputRow whose input is disabled
+   (which is what happens to every input inside the disabled fieldset)
+   loses pointer events on the wrapper, so onClick handlers that open
+   dropdowns won't fire. Text-selection on the input itself is preserved
+   so users can still copy contract values. */
+.readOnlySection .inputRow:has(input:disabled),
+.readOnlySection .inputRow:has(textarea:disabled) {
+  pointer-events: none;
+  cursor: default;
+}
+
+.readOnlySection .inputRow input:disabled,
+.readOnlySection .inputRow textarea:disabled {
+  pointer-events: auto;
+}
+
+/* Any dropdown popup that may already be open when entering read-only view */
+.readOnlySection .dropdownMenu {
+  display: none !important;
+}
+
+/* Hide the Rider "Add" row entirely in read-only contract detail view */
+.readOnlySection .riderAddRow {
+  display: none;
+}
 .datesTimesHeader {
   display: flex;
   justify-content: space-between;

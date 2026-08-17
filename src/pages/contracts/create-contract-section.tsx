@@ -792,7 +792,7 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
                   </div>
                 </div>
               ))}
-              <div className={styles.contractRow}>
+              <div className={`${styles.contractRow} ${styles.riderAddRow}`}>
                 <div className={styles.contractInput} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }} onClick={addRiderRow}>
                   <Image
                     src="/contracts-Icons/Add_Plus.svg"

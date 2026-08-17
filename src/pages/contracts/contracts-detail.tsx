@@ -819,7 +819,14 @@ const Contractsdetail: React.FC = () => {
             </div>
           )}
 
-          <CreateContractsection party1={party1 || ''} party2={party2 || ''} initialData={chainInitialData} />
+          <div className={styles.readOnlySection}>
+            <fieldset
+              disabled
+              style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'contents' }}
+            >
+              <CreateContractsection party1={party1 || ''} party2={party2 || ''} initialData={chainInitialData} />
+            </fieldset>
+          </div>
           {renderButtons()}
           </>
           )}

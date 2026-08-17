@@ -1,13 +1,15 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import Image from "next/image";
 import styles from "../../styles/CreateContract.module.css";
 import { useProfileCache } from "../../contexts/ProfileCacheContext";
+import { uploadImageToIPFS } from "../../backend/contract-services/createContract";
 
 export interface TicketRow {
   ticketType: string;
   onSaleDate: string;
   numberOfTickets: string;
   ticketPrice: string;
+  image?: string;   // NFT artwork URI for this ticket type (uploaded to IPFS)
 }
 
 export interface TicketsProps {
@@ -56,6 +58,26 @@ const TicketsSection: React.FC<TicketsProps> = ({
   const { currentUserProfile } = useProfileCache();
   // Create refs for each ticket row's On Sale Date input
   const onSaleDateRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Per-tier NFT image: upload the picked file to IPFS and store the URL on the
+  // row, so addTier can pass a short URI (never a base64 blob) on-chain.
+  const [uploadingTierImage, setUploadingTierImage] = useState<number | null>(null);
+  const handleTierImageUpload = (index: number, file: File) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      setUploadingTierImage(index);
+      try {
+        const url = await uploadImageToIPFS(reader.result as string, `ticket-${index}`, 'XAO');
+        updateTicketRow(index, "image", url);
+      } catch (err) {
+        console.error("Tier image upload failed:", err);
+        alert("Ticket image upload failed. Please try again.");
+      } finally {
+        setUploadingTierImage(null);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Helper function to parse formatted numbers (remove commas)
   const parseFormattedNumber = (value: string): number => {
@@ -335,6 +357,41 @@ const TicketsSection: React.FC<TicketsProps> = ({
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* NFT artwork for this ticket type — becomes the ticket's NFT image */}
+              <div className={styles.ticketColumn}>
+                <label className={styles.ticketColumnLabel}>Ticket Image (NFT)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  id={`tier-image-${index}`}
+                  style={{ display: "none" }}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) handleTierImageUpload(index, file);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => document.getElementById(`tier-image-${index}`)?.click()}
+                  className={styles.confirmButton}
+                  style={{ padding: "8px 12px", fontSize: 13, opacity: uploadingTierImage === index ? 0.6 : 1 }}
+                  disabled={uploadingTierImage === index}
+                >
+                  {uploadingTierImage === index
+                    ? "Uploading…"
+                    : row.image
+                      ? "Change Image ✓"
+                      : "Add Ticket Image"}
+                </button>
+                {row.image && (
+                  <img
+                    src={row.image}
+                    alt="Ticket art"
+                    style={{ width: "100%", maxHeight: 120, objectFit: "cover", borderRadius: 12, marginTop: 8 }}
+                  />
+                )}
               </div>
               <div className={styles.ticketDetailsRow}>
                 <div className={styles.ticketColumn}>

@@ -16,6 +16,7 @@ import BlankNavbar from "../../components/BackNav";
 import { useWeb3 } from "../../hooks/useWeb3";
 import { useResolveEventThread } from "../../hooks/useResolveEventThread";
 import { useAllContractsWithSummaries } from "../../hooks/useGetContracts";
+import { uploadImageToIPFS } from "../../backend/contract-services/createContract";
 import { useSignEventContract } from "../../hooks/useSignEventContract";
 import { useAddTicketType, useAddTierToXAOTicket, dollarToWei, weiToDollar, ETH_PRICE_USD } from "../../hooks/useAddTicketType";
 import { useReadContracts, useReadContract } from "wagmi";
@@ -30,6 +31,25 @@ const Contractsdetail: React.FC = () => {
   const [ticketName, setTicketName] = useState("");
   const [ticketPrice, setTicketPrice] = useState("");
   const [ticketCount, setTicketCount] = useState("");
+  const [ticketImage, setTicketImage] = useState(""); // NFT artwork URI for this tier
+  const [uploadingTicketImage, setUploadingTicketImage] = useState(false);
+  // Upload the picked file to IPFS and store the returned URL (never a base64 blob).
+  const handleTicketImageUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      setUploadingTicketImage(true);
+      try {
+        const url = await uploadImageToIPFS(reader.result as string, "ticket-tier", "XAO");
+        setTicketImage(url);
+      } catch (err) {
+        console.error("Ticket image upload failed:", err);
+        alert("Ticket image upload failed. Please try again.");
+      } finally {
+        setUploadingTicketImage(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
   const [showGrantScanner, setShowGrantScanner] = useState(false);
   const [scannerAddress, setScannerAddress] = useState("");
   const [isGrantingRole, setIsGrantingRole] = useState(false);
@@ -356,12 +376,14 @@ const Contractsdetail: React.FC = () => {
         party1ResaleBPS: BigInt(3333),
         party2ResaleBPS: BigInt(3333),
         resellerBPS: BigInt(3334),
+        image: ticketImage.trim(),
       });
 
       alert("Ticket tier added successfully!");
       setTicketName("");
       setTicketPrice("");
       setTicketCount("");
+      setTicketImage("");
       setAddingTicket(false);
     } catch (error) {
       console.error("Error adding ticket tier:", error);
@@ -760,6 +782,36 @@ const Contractsdetail: React.FC = () => {
                   min="1"
                 />
               </div>
+              <input
+                type="file"
+                accept="image/*"
+                id="ticket-tier-image"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleTicketImageUpload(file);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => document.getElementById("ticket-tier-image")?.click()}
+                className={styles.confirmButton}
+                disabled={uploadingTicketImage}
+                style={{ width: "100%", marginBottom: "10px", opacity: uploadingTicketImage ? 0.6 : 1 }}
+              >
+                {uploadingTicketImage
+                  ? "Uploading…"
+                  : ticketImage
+                    ? "Change Ticket Image ✓"
+                    : "Upload Ticket Image (NFT)"}
+              </button>
+              {ticketImage && (
+                <img
+                  src={ticketImage}
+                  alt="Ticket art"
+                  style={{ width: "100%", maxHeight: 140, objectFit: "cover", borderRadius: 12, marginBottom: "15px" }}
+                />
+              )}
               <div className={styles.contractRow}>
                 <button
                   type="button"

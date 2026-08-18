@@ -27,15 +27,19 @@ const EventDetails: NextPage = () => {
   const contractAddress = isContractAddress ? (id as `0x${string}`) : undefined;
 
   // Fetch contract data if it's a contract address
+  // ShowContract stores these as individual public getters (the old EventContract
+  // had name/location/dates/imageUri/legal — those don't exist on ShowContract).
   const contracts = contractAddress ? [
     { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'party1' as const },
     { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'party2' as const },
-    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'name' as const },
-    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'location' as const },
-    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'dates' as const },
-    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'imageUri' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'eventName' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'venueName' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'venueAddress' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'eventStartDate' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'startTime' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'flyerDNSLink' as const },
     { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'status' as const },
-    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'legal' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'contractLegalLanguage' as const },
   ] : [];
 
   const { data: contractData, isLoading: contractLoading } = useReadContracts({
@@ -58,29 +62,36 @@ const EventDetails: NextPage = () => {
 
           const party1 = contractData[0]?.status === 'success' ? (contractData[0].result as any) : null;
           const party2 = contractData[1]?.status === 'success' ? (contractData[1].result as any) : null;
-          const name = contractData[2]?.status === 'success' ? (contractData[2].result as string) : 'Untitled Event';
-          const location = contractData[3]?.status === 'success' ? (contractData[3].result as any) : null;
-          const dates = contractData[4]?.status === 'success' ? (contractData[4].result as any) : null;
-          const imageUri = contractData[5]?.status === 'success' ? (contractData[5].result as string) : '';
-          const status = contractData[6]?.status === 'success' ? Number(contractData[6].result) : 0;
-          const legal = contractData[7]?.status === 'success' ? (contractData[7].result as string) : '';
+          const eventName = contractData[2]?.status === 'success' ? (contractData[2].result as string) : '';
+          const venueName = contractData[3]?.status === 'success' ? (contractData[3].result as string) : '';
+          const venueAddress = contractData[4]?.status === 'success' ? (contractData[4].result as string) : '';
+          const eventStartDate = contractData[5]?.status === 'success' ? (contractData[5].result as bigint) : null;
+          const startTime = contractData[6]?.status === 'success' ? (contractData[6].result as bigint) : null;
+          const flyerDNSLink = contractData[7]?.status === 'success' ? (contractData[7].result as string) : '';
+          const status = contractData[8]?.status === 'success' ? Number(contractData[8].result) : 0;
+          const legal = contractData[9]?.status === 'success' ? (contractData[9].result as string) : '';
+
+          // party* getter returns the Party struct → { wallet, role, xaoUsername } (or a tuple).
+          const partyName = (p: any) => p?.xaoUsername || p?.[2] || '';
 
           const contractEvent = {
             id,
-            title: name,
-            artist: party1?.name || party1?.[1] || 'Unknown Artist',
+            title: eventName || 'Untitled Event',
+            artist: partyName(party1) || 'Unknown Artist',
             tag: CONTRACT_STATUS_LABELS[status] || 'Draft',
-            date: dates ? formatContractDate(dates.show || dates[1]) : 'TBD',
-            time: dates ? new Date(Number(dates.start || dates[4]) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'TBD',
-            location: location ? (location.venue || location[0]) : 'No venue specified',
+            date: eventStartDate && Number(eventStartDate) > 0 ? formatContractDate(eventStartDate) : 'TBD',
+            time: startTime && Number(startTime) > 0
+              ? new Date(Number(startTime) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+              : 'TBD',
+            location: venueName || venueAddress || 'No venue specified',
             description: legal || 'No description available for this event.',
-            image: imageUri || '',
+            image: flyerDNSLink || '',
             profilePic: '/profileIcon.svg',
             likes: '0',
             views: '0',
             lineup: [],
             organizer: {
-              name: party1?.name || party1?.[1] || 'Unknown',
+              name: partyName(party1) || 'Unknown',
               image: '/profileIcon.svg'
             },
             ticketPrice: 0,
@@ -287,15 +298,15 @@ const EventDetails: NextPage = () => {
           </div>
         </div>
         <div className={styles.feedContent}>
-          {event.image && (
-            <Image
-              src={event.image}
-              alt={`${event.artist} Content`}
-              width={430}
-              height={764}
-              className={styles.feedImage}
-            />
-          )}
+          {/* Plain <img>: the flyer is an arbitrary user-uploaded IPFS/remote URL,
+              which next/image would block unless every gateway host is whitelisted.
+              Falls back to a placeholder when the contract has no flyer set. */}
+          <img
+            src={event.image || '/xao-monster.png'}
+            alt={`${event.artist} Content`}
+            className={styles.feedImage}
+            style={{ width: '100%', height: 'auto', objectFit: 'cover' }}
+          />
           <div className={styles.feedContentOverlayTop}>
             <h1 className={styles.feedEventTitle}>{event.title}</h1>
             <div className={styles.feedEventLocation}>

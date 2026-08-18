@@ -3002,6 +3002,11 @@ export const XAO_TICKET_ABI = [
         "internalType": "uint256",
         "name": "_resellerBPS",
         "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "_image",
+        "type": "string"
       }
     ],
     "name": "addTier",

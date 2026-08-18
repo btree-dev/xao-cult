@@ -526,6 +526,7 @@ const CreateContract = () => {
                     party1ResaleBPS,
                     party2ResaleBPS,
                     resellerBPS,
+                    image: row.image || '',
                   });
                   console.log(`[CreateContract] Tier added: ${row.ticketType}`);
                 } catch (tierErr) {

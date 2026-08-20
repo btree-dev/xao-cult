@@ -83,6 +83,7 @@ const TicketPurchase: NextPage = () => {
             priceRaw: BigInt(tier.priceUSDC ?? tier[2] ?? 0), // raw USDC for buying
             available: quantity - sold,
             saleDate: Number(tier.onSaleTimestamp ?? tier[5] ?? 0),
+            image: (tier.image ?? tier[9] ?? '') as string, // per-tier NFT artwork
             selected: false,
             count: 0,
           };
@@ -145,6 +146,7 @@ const TicketPurchase: NextPage = () => {
       count: t.count,
       price: t.price,
       saleDate: t.saleDate ?? 0,
+      image: (t as any).image || '',   // per-tier NFT artwork
     }));
 
     router.push({
@@ -228,12 +230,13 @@ const TicketPurchase: NextPage = () => {
           </div>
         </div>
         <div className={styles.feedContent}>
-          <Image
-            src={event.image}
+          {/* Plain <img>: the flyer is an arbitrary user-uploaded IPFS/remote URL
+              that next/image would block unless every gateway host is whitelisted. */}
+          <img
+            src={event.image || '/xao-monster.png'}
             alt={`${event.title} Content`}
-            width={430}
-            height={764}
             className={styles.feedImage}
+            style={{ width: '100%', height: 'auto', objectFit: 'cover' }}
           />
           <div className={styles.feedContentOverlayTop}>
             <h1 className={styles.feedEventTitle}>{event.title}</h1>

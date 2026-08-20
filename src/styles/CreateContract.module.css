@@ -330,14 +330,19 @@
    dropdowns won't fire. Text-selection on the input itself is preserved
    so users can still copy contract values. */
 .readOnlySection .inputRow:has(input:disabled),
-.readOnlySection .inputRow:has(textarea:disabled) {
+.readOnlySection .inputRow:has(textarea:disabled),
+.readOnlySection .contractTextareaContainer:has(textarea:disabled) {
   pointer-events: none;
-  cursor: default;
+  cursor: not-allowed;
+  /* Dim signed/finalized fields so they read as uneditable. */
+  opacity: 0.55;
 }
 
-.readOnlySection .inputRow input:disabled,
-.readOnlySection .inputRow textarea:disabled {
+.readOnlySection input:disabled,
+.readOnlySection textarea:disabled,
+.readOnlySection select:disabled {
   pointer-events: auto;
+  cursor: not-allowed;
 }
 
 /* Any dropdown popup that may already be open when entering read-only view */

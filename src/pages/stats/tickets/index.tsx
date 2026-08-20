@@ -36,11 +36,11 @@ const TicketsPage: NextPage = () => {
       const raw = typeof window !== 'undefined' ? localStorage.getItem('purchasedTickets') : null;
       const purchased = raw ? JSON.parse(raw) : [];
       const mapped = (Array.isArray(purchased) ? purchased : []).map((t: any) => {
-        const safeImg = typeof t.image === 'string' && t.image.startsWith('/') ? t.image : '/xao-monster.png';
+        // t.image is the NFT tier artwork (any IPFS/remote URL); placeholder if none.
         return {
           id: t.id,
           title: t.title || 'Blockchain Event',
-          image: safeImg,
+          image: t.image || '/xao-monster.png',
           profilePic: '/xao-monster.png',
           artist: t.title ? String(t.title).split(' ')[0] : 'XAO',
           tag: 'Owned',
@@ -153,11 +153,11 @@ const TicketsPage: NextPage = () => {
                 </div>
                 <div className={styles.feedContent}>
                   <div className={ticket.redeemed ? styles.redeemedImageWrapper : styles.unredeemedImageWrapper}>
-                    <Image
+                    {/* Plain <img>: the NFT tier artwork is an arbitrary IPFS/remote
+                        URL that next/image would block unless whitelisted. */}
+                    <img
                       src={ticket.image}
                       alt={`${ticket.title} Content`}
-                      width={430}
-                      height={500}
                       className={ticket.redeemed ? styles.redeemedTicketImage : styles.unredeemedTicketImage}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />

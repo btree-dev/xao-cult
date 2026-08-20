@@ -40,6 +40,10 @@ const EventDetails: NextPage = () => {
     { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'flyerDNSLink' as const },
     { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'status' as const },
     { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'contractLegalLanguage' as const },
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'doorsTime' as const },       // 10
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'eventEndDate' as const },     // 11
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'totalCapacity' as const },    // 12
+    { address: contractAddress, abi: EVENT_CONTRACT_ABI as any, functionName: 'getGenres' as const },        // 13
   ] : [];
 
   const { data: contractData, isLoading: contractLoading } = useReadContracts({
@@ -70,9 +74,19 @@ const EventDetails: NextPage = () => {
           const flyerDNSLink = contractData[7]?.status === 'success' ? (contractData[7].result as string) : '';
           const status = contractData[8]?.status === 'success' ? Number(contractData[8].result) : 0;
           const legal = contractData[9]?.status === 'success' ? (contractData[9].result as string) : '';
+          const doorsTime = contractData[10]?.status === 'success' ? (contractData[10].result as bigint) : null;
+          const eventEndDate = contractData[11]?.status === 'success' ? (contractData[11].result as bigint) : null;
+          const totalCapacity = contractData[12]?.status === 'success' ? Number(contractData[12].result) : 0;
+          const genres = contractData[13]?.status === 'success' ? (contractData[13].result as string[]) : [];
 
           // party* getter returns the Party struct → { wallet, role, xaoUsername } (or a tuple).
           const partyName = (p: any) => p?.xaoUsername || p?.[2] || '';
+          const fmtTime = (t: bigint | null) =>
+            t && Number(t) > 0
+              ? new Date(Number(t) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+              : '';
+          // Full venue address = name + street address (both public fields).
+          const fullAddress = [venueName, venueAddress].filter(Boolean).join(', ');
 
           const contractEvent = {
             id,
@@ -83,7 +97,13 @@ const EventDetails: NextPage = () => {
             time: startTime && Number(startTime) > 0
               ? new Date(Number(startTime) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
               : 'TBD',
-            location: venueName || venueAddress || 'No venue specified',
+            location: fullAddress || 'No venue specified',
+            venueName: venueName || '',
+            venueAddress: venueAddress || '',
+            doorsTime: fmtTime(doorsTime),
+            endDate: eventEndDate && Number(eventEndDate) > 0 ? formatContractDate(eventEndDate) : '',
+            capacity: totalCapacity,
+            genres: Array.isArray(genres) ? genres : [],
             description: legal || 'No description available for this event.',
             image: flyerDNSLink || '',
             profilePic: '/profileIcon.svg',
@@ -383,6 +403,39 @@ const EventDetails: NextPage = () => {
             </div>
             <span>{event.location}</span>
           </div>
+          {event.doorsTime && (
+            <div className={styles.eventDetail}>
+              <div className={styles.eventDetailIcon}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 21h18M6 21V7l6-4 6 4v14M10 21v-6h4v6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <span>Doors: {event.doorsTime}</span>
+            </div>
+          )}
+          {/* {event.capacity > 0 && (
+            <div className={styles.eventDetail}>
+              <div className={styles.eventDetailIcon}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="9" cy="8" r="3" stroke="white" strokeWidth="2"/>
+                  <path d="M3 20c0-3 3-5 6-5s6 2 6 5M16 6a3 3 0 010 6M21 20c0-2-1.5-3.5-3.5-4.2" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <span>Capacity: {event.capacity.toLocaleString()}</span>
+            </div>
+          )} */}
+          {event.genres && event.genres.length > 0 && (
+            <div className={styles.eventDetail}>
+              <div className={styles.eventDetailIcon}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 18V6l10-2v12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="6" cy="18" r="3" stroke="white" strokeWidth="2"/>
+                  <circle cx="16" cy="16" r="3" stroke="white" strokeWidth="2"/>
+                </svg>
+              </div>
+              <span>{event.genres.join(', ')}</span>
+            </div>
+          )}
         </div>
 
         <div className={styles.eventSection}>

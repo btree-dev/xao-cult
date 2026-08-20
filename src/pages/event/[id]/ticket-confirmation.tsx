@@ -30,8 +30,11 @@ const TicketConfirmation: NextPage = () => {
     const handleSeeInAsset = () => {
     sessionStorage.removeItem(`purchaseState-${eventId}`);
 
-    // Store purchased ticket data in localStorage for the tickets page
+    // Store purchased ticket data in localStorage for the tickets page.
     if (isBlockchainPurchase && contractAddress) {
+      // The ticket's image is the NFT tier artwork (what was bought); fall back
+      // to the event flyer only if a tier has no image of its own.
+      const tierImage = parsedTickets.find((t: any) => t.image)?.image || '';
       const purchasedTicket = {
         id: `blockchain-${contractAddress}-${Date.now()}`,
         eventId: eventId as string,
@@ -39,7 +42,7 @@ const TicketConfirmation: NextPage = () => {
         date: date as string || 'TBD',
         time: time as string || 'TBD',
         location: location as string || '',
-        image: image as string || '',
+        image: tierImage || (image as string) || '',
         contractAddress: contractAddress as string,
         txHash: txHash as string || '',
         ticketCode: `${contractAddress}:${txHash || contractAddress}`,

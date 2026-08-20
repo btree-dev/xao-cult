@@ -453,6 +453,7 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
   // Fill all form fields with dummy/test data for fast contract creation
   const fillDummyData = () => {
     // Dates & Times (future-dated so timestamps are ahead of "now")
+    // FUTURE-dated so the signed contract shows on the Current Contracts page.
     setEventStartDate("2026-11-20T19:00");
     setEventEndDate("2026-11-20T23:00");
     setEventAnnouncementDate("2026-09-01T10:00");

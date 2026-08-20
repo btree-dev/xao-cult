@@ -19,9 +19,14 @@ const CurrentContract: React.FC = () => {
   const { address, chain } = useWeb3();
   const { contracts, isLoading } = useUserContractsWithSummaries(chain?.id, address as `0x${string}`);
 
-  // ShowContract: 3=Approved (both signed), 4=Active
+  // ShowContract: 3=Approved (both signed), 4=Active.
+  // "Current" = signed AND the event hasn't ended yet. Once the event's
+  // endDate is in the past, it moves to the Past Contracts page.
+  const nowSec = BigInt(Math.floor(Date.now() / 1000));
   const currentContracts = contracts.filter(
-    (contract) => contract.status === 3 || contract.status === 4,
+    (contract) =>
+      (contract.status === 3 || contract.status === 4) &&
+      (contract.endDate === BigInt(0) || contract.endDate >= nowSec),
   );
 
   const toggleMute = (contractId: string, e: React.MouseEvent) => {

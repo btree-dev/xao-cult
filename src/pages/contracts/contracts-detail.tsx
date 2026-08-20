@@ -85,6 +85,12 @@ const Contractsdetail: React.FC = () => {
   const effectiveParty1 = onChainMatch?.party1Address ?? party1;
   const effectiveParty2 = onChainMatch?.party2Address ?? party2;
 
+  // Fields are read-only only once the contract is finalized (both parties
+  // signed → status >= Approved), or when opened from the Current/Past lists.
+  // Contracts still under negotiation stay editable.
+  const isReadOnly =
+    (onChainMatch?.status ?? 0) >= 3 || source === "current" || source === "past";
+
   const resolvedThread = useResolveEventThread(contractAddr ?? null, onChainMatch?.party1Address, onChainMatch?.party2Address);
   const myAddr = address?.toLowerCase();
   const counterparty = effectiveParty1 && effectiveParty2
@@ -871,9 +877,9 @@ const Contractsdetail: React.FC = () => {
             </div>
           )}
 
-          <div className={styles.readOnlySection}>
+          <div className={isReadOnly ? styles.readOnlySection : undefined}>
             <fieldset
-              disabled
+              disabled={isReadOnly}
               style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'contents' }}
             >
               <CreateContractsection party1={party1 || ''} party2={party2 || ''} initialData={chainInitialData} />

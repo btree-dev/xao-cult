@@ -4,9 +4,10 @@ import Layout from "../../components/Layout";
 import ContractsNav from "../../components/ContractsNav";
 import ShareModal from "../../components/ShareModal";
 import styles from "../../styles/CreateContract.module.css";
-import { Pastcontracts } from "../../backend/contract-services/pastcontract";
 import Scrollbar from "../../components/Scrollbar";
 import { useRouter } from "next/router";
+import { useUserContractsWithSummaries, formatContractDate } from "../../hooks/useGetContracts";
+import { useWeb3 } from "../../hooks/useWeb3";
 
 const PastContract: React.FC = () => {
   const router = useRouter();
@@ -15,15 +16,25 @@ const PastContract: React.FC = () => {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<any>(null);
 
+  const { address, chain } = useWeb3();
+  const { contracts, isLoading } = useUserContractsWithSummaries(chain?.id, address as `0x${string}`);
+
+  // "Past" = a signed contract whose event has already ended.
+  // status 3=Approved, 4=Active, 5=Completed (drafts/negotiations are excluded).
+  const nowSec = BigInt(Math.floor(Date.now() / 1000));
+  const pastContracts = contracts.filter(
+    (contract) =>
+      contract.endDate > BigInt(0) &&
+      contract.endDate < nowSec &&
+      (contract.status === 3 || contract.status === 4 || contract.status === 5),
+  );
+
   const toggleMute = (contractId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setMutedContracts(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(contractId)) {
-        newSet.delete(contractId);
-      } else {
-        newSet.add(contractId);
-      }
+      if (newSet.has(contractId)) newSet.delete(contractId);
+      else newSet.add(contractId);
       return newSet;
     });
   };
@@ -32,11 +43,8 @@ const PastContract: React.FC = () => {
     e.stopPropagation();
     setLikedContracts(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(contractId)) {
-        newSet.delete(contractId);
-      } else {
-        newSet.add(contractId);
-      }
+      if (newSet.has(contractId)) newSet.delete(contractId);
+      else newSet.add(contractId);
       return newSet;
     });
   };
@@ -56,10 +64,12 @@ const PastContract: React.FC = () => {
     router.push({
       pathname: "/contracts/contracts-detail",
       query: {
-        id: contract.id,
-        ticketsold: contract.TicketsSold,
-        totalrevenue: contract.TotalRevenue,
+        id: contract.contractAddress,
+        ticketsold: "0",
+        totalrevenue: "0",
         source: "past",
+        party1: contract.party1Address,
+        party2: contract.party2Address,
       },
     });
   };
@@ -72,69 +82,80 @@ const PastContract: React.FC = () => {
           <title>Past Contract - XAO Cult</title>
         </Head>
         <ContractsNav />
-        <Scrollbar/>
+        <Scrollbar />
         <main className={styles.contractHomecontainer}>
           <div className={styles.topSection}>
             <h1 className={styles.heading}>Past Contract</h1>
           </div>
-          {Pastcontracts.map((contract) => (
-            <div
-              key={contract.id}
-              className={styles.ImageContainer}
-              style={{ cursor: "pointer" }}
-              onClick={() => handleImageClick(contract)}
-            >
-              <img
-                src={contract.image}
-                alt={contract.title}
-                className={styles.pastImage}
-              />
-              <div className={styles.AttentionDetailsOverlay}>
-                <h2 className={styles.promotionTitle}>{contract.title}</h2>
-                <span className={styles.promotionLocation}>
-                  <img src="/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
-                  {contract.Location}
-                </span>
-                <span className={styles.promotionDate}>
-                  <img src="/Calendar_Days.svg" alt="Date" className={styles.promotionIcon} />
-                  {contract.Date}
-                </span>
+          {isLoading ? (
+            <p style={{ color: "white", textAlign: "center", marginTop: "20px" }}>Loading…</p>
+          ) : pastContracts.length === 0 ? (
+            <p style={{ color: "white", textAlign: "center", marginTop: "20px" }}>
+              No past contracts yet. Signed contracts move here once the event date has passed.
+            </p>
+          ) : (
+            pastContracts.map((contract) => (
+              <div
+                key={contract.contractAddress}
+                className={styles.ImageContainer}
+                style={{ cursor: "pointer" }}
+                onClick={() => handleImageClick(contract)}
+              >
+                <img
+                  src={
+                    contract.eventImageUri ||
+                    "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80"
+                  }
+                  alt={contract.eventName}
+                  className={styles.pastImage}
+                />
+                <div className={styles.AttentionDetailsOverlay}>
+                  <h2 className={styles.promotionTitle}>{contract.eventName}</h2>
+                  <span className={styles.promotionLocation}>
+                    <img src="/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
+                    {contract.venueName}
+                  </span>
+                  <span className={styles.promotionDate}>
+                    <img src="/Calendar_Days.svg" alt="Date" className={styles.promotionIcon} />
+                    {formatContractDate(contract.showDate)}
+                  </span>
+                </div>
+                <div className={styles.contractIconsRow}>
+                  <span className={styles.contractIconItem} onClick={(e) => handleShare(contract, e)}>
+                    <img src="/contracts-Icons/Vector.svg" alt="Share" className={styles.contractIconSvg} />
+                    0
+                  </span>
+                  <span className={styles.contractIconItem} onClick={(e) => toggleLike(contract.contractAddress, e)}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path
+                        d="M12 7.69431C10 2.99988 3 3.49988 3 9.49991C3 15.4999 12 20.5001 12 20.5001C12 20.5001 21 15.4999 21 9.49991C21 3.49988 14 2.99988 12 7.69431Z"
+                        fill={likedContracts.has(contract.contractAddress) ? "#DC143C" : "none"}
+                        stroke={likedContracts.has(contract.contractAddress) ? "#DC143C" : "white"}
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    0
+                  </span>
+                  <span className={styles.contractIconItem} onClick={(e) => toggleMute(contract.contractAddress, e)}>
+                    {mutedContracts.has(contract.contractAddress) ? (
+                      <img src="/Volume_Off_02.png" alt="Muted" className={styles.contractIconSvg} />
+                    ) : (
+                      <img src="/contracts-Icons/Volume.svg" alt="Volume" className={styles.contractIconSvg} />
+                    )}
+                  </span>
+                </div>
               </div>
-              <div className={styles.contractIconsRow}>
-                <span className={styles.contractIconItem} onClick={(e) => handleShare(contract, e)}>
-                  <img src="/contracts-Icons/Vector.svg" alt="Share" className={styles.contractIconSvg} />
-                  {contract.views}
-                </span>
-                <span className={styles.contractIconItem} onClick={(e) => toggleLike(contract.id, e)}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                      d="M12 7.69431C10 2.99988 3 3.49988 3 9.49991C3 15.4999 12 20.5001 12 20.5001C12 20.5001 21 15.4999 21 9.49991C21 3.49988 14 2.99988 12 7.69431Z"
-                      fill={likedContracts.has(contract.id) ? "#DC143C" : "none"}
-                      stroke={likedContracts.has(contract.id) ? "#DC143C" : "white"}
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                  {contract.likes}
-                </span>
-                <span className={styles.contractIconItem} onClick={(e) => toggleMute(contract.id, e)}>
-                  {mutedContracts.has(contract.id) ? (
-                    <img src="/Volume_Off_02.png" alt="Muted" className={styles.contractIconSvg} />
-                  ) : (
-                    <img src="/contracts-Icons/Volume.svg" alt="Volume" className={styles.contractIconSvg} />
-                  )}
-                </span>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </main>
 
         <ShareModal
           isOpen={shareModalOpen}
           onClose={closeShareModal}
-          eventTitle={selectedContract?.title || ''}
-          eventUrl={`/contracts/contracts-detail?id=${selectedContract?.id || ''}&source=past`}
+          eventTitle={selectedContract?.eventName || ''}
+          eventUrl={`/event/${selectedContract?.contractAddress || ''}`}
         />
       </div>
     </Layout>

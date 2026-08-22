@@ -333,6 +333,14 @@ export const SHOW_CONTRACT_FACTORY_ABI = [
 ] as const;
 
 export const SHOW_CONTRACT_ABI = [
+  // Batch multiple setter calls in one transaction (one wallet confirmation).
+  {
+    "inputs": [{ "internalType": "bytes[]", "name": "data", "type": "bytes[]" }],
+    "name": "multicall",
+    "outputs": [{ "internalType": "bytes[]", "name": "results", "type": "bytes[]" }],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
   // ── Frontend-parity fields (genres, comps, ticketsSale, resale) — Draft-only, party1 ──
   {
     "inputs": [{ "internalType": "string[]", "name": "_genres", "type": "string[]" }],

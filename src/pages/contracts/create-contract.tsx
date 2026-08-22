@@ -21,8 +21,8 @@ import { config } from "../../wagmi";
 import { useXaoEvent } from "../../hooks/useXaoEvent";
 import { useXaoMsgSession } from "../../hooks/useXaoMsgSession";
 import { ContractProposalMessage } from "../../types/contractMessage";
-import { handleSaveContract, handleSignContract, addTicketsToContract, addPaymentSchedulesToContract, addConfigFieldsToContract, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
-import { useShowContractSchedules, useShowContractConfig } from "../../hooks/useShowContractSchedules";
+import { handleSaveContract, handleSignContract, addTicketsToContract, buildSetupCalldata, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
+import { useShowContractMulticall, useShowContractConfig } from "../../hooks/useShowContractSchedules";
 import { TicketRow } from "./TicketsSection";
 
 // ── Toggle this to enable/disable dummy party values ──
@@ -34,7 +34,7 @@ const CreateContract = () => {
 
   const [selected, setSelected] = useState<"chat" | "contract">("contract");
   const [party1, setParty1] = useState(""); // Wallet address for Party 1 (contract creator)
-  const [party2, setParty2] = useState(ENABLE_DUMMY_DATA ? "0xc426A5300dCd57D8E448DAEda6FA1b583f36604E" : ""); // Wallet address for Party 2 (peer)
+  const [party2, setParty2] = useState(ENABLE_DUMMY_DATA ? "" : ""); // Wallet address for Party 2 (peer)
   const [isContractCreating, setIsContractCreating] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -78,8 +78,8 @@ const CreateContract = () => {
   const { signContractAsync, isLoading: isSignLoading, isSuccess: isSignSuccess, error: signError, transactionHash: signTxHash } = useSignEventContract();
   const { addTicketTypeAsync } = useAddTicketType();
   const { addTier } = useAddTierToXAOTicket();
-  const { addSchedule } = useShowContractSchedules();
-  const configApi = useShowContractConfig();
+  const { multicall } = useShowContractMulticall();
+  const configApi = useShowContractConfig(); // party2 username on sign
   const [ticketRowsToAdd, setTicketRowsToAdd] = useState<TicketRow[]>([]);
 
   // Read signing status from on-chain contract (ShowContract uses hasSigned(address) mapping)
@@ -377,23 +377,23 @@ const CreateContract = () => {
           // (addTicketType requires inDraft modifier on the smart contract)
           await addTicketsToContract(newContractAddress, ticketRowsToAdd, addTicketTypeAsync);
 
-          // Push payment schedules / payouts / cancellation refunds on-chain.
-          // These setters are onlyParty1 + notFinalized, so this must run here
-          // (the deployer is on-chain party1) while the contract is still Draft.
-          // One tx per non-empty row — the user will see a wallet prompt each.
+          // Push ALL Draft setup (payment schedules, payouts, cancellation
+          // refunds, genres, tickets-sale date, resale splits) in a SINGLE
+          // multicall — one wallet confirmation instead of one per field.
+          // These setters are onlyParty1 + notFinalized; multicall preserves
+          // msg.sender, and the deployer is on-chain party1 while still Draft.
           try {
             const scheduleData = contractSectionRef.current?.getContractData
               ? contractSectionRef.current.getContractData()
               : null;
             if (scheduleData) {
-              await addPaymentSchedulesToContract(newContractAddress, scheduleData, addSchedule);
-              // Push genres / comps / tickets-sale date / resale splits on-chain.
-              // Guarded internally so an old-factory deploy (without these
-              // setters) just logs and continues instead of breaking save.
-              await addConfigFieldsToContract(newContractAddress, scheduleData, configApi);
+              const calls = buildSetupCalldata(scheduleData);
+              if (calls.length > 0) {
+                await multicall(newContractAddress, calls);
+              }
             }
           } catch (schedErr) {
-            console.warn("[CreateContract] Failed to add payment schedules:", schedErr);
+            console.warn("[CreateContract] Failed to add contract setup (multicall):", schedErr);
           }
 
           setIsContractCreating(false);
@@ -526,7 +526,8 @@ const CreateContract = () => {
                     party1ResaleBPS,
                     party2ResaleBPS,
                     resellerBPS,
-                    image: row.image || '',
+                    // All tiers use the event flyer as their NFT image.
+                    image: (formData as any)?.eventImageUri || imageUri || '',
                   });
                   console.log(`[CreateContract] Tier added: ${row.ticketType}`);
                 } catch (tierErr) {

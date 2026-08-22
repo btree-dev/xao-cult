@@ -5,6 +5,8 @@ import { validateBaseChain } from '../contracts';
 import { TicketRow } from '../../pages/contracts/TicketsSection';
 import { AddTicketTypeParams, dateTimeToTimestamp, dollarToWei, parseFormattedNumber } from '../../hooks/useAddTicketType';
 import { ScheduleFn, ShowContractConfigApi } from '../../hooks/useShowContractSchedules';
+import { encodeFunctionData, type Hex } from 'viem';
+import { SHOW_CONTRACT_ABI } from '../../lib/web3/eventcontract';
 
 // State setters interface for contract operations
 export interface ContractStateSetters {
@@ -393,6 +395,57 @@ export const addConfigFieldsToContract = async (
   } catch (err) {
     console.warn('[addConfigFields] setResaleSplits failed:', err);
   }
+};
+
+/**
+ * Build the array of ABI-encoded setter calls for a freshly-created (Draft)
+ * ShowContract — payment schedules, payouts, cancellation refunds, genres,
+ * tickets-sale date, and resale splits. Sending these through ShowContract's
+ * `multicall` runs them all in ONE transaction (one wallet confirmation)
+ * instead of one per field. Empty/invalid entries are skipped.
+ */
+export const buildSetupCalldata = (formData: any): Hex[] => {
+  const calls: Hex[] = [];
+  const money = formData?.money || {};
+  const payments = formData?.payments || {};
+
+  const push = (functionName: string, args: any[]) => {
+    calls.push(encodeFunctionData({ abi: SHOW_CONTRACT_ABI as any, functionName: functionName as any, args }));
+  };
+
+  const scheduleGroups: Array<{ rows: any[]; fn: string }> = [
+    { rows: money.securityDepositRows || [], fn: 'addParty1Deposit' },
+    { rows: money.securityDeposit2Rows || [], fn: 'addParty2Deposit' },
+    { rows: payments.party1 || [], fn: 'addParty1Payout' },
+    { rows: payments.party2 || [], fn: 'addParty2Payout' },
+    { rows: money.cancelParty1Rows || [], fn: 'addParty1CancellationRefund' },
+    { rows: money.cancelParty2Rows || [], fn: 'addParty2CancellationRefund' },
+  ];
+  for (const group of scheduleGroups) {
+    for (const row of group.rows) {
+      const ts = dateToTimestamp(row?.dateTime || '');
+      const pct = percentageToBasisPoints(row?.percentage || '0');
+      const amt = dollarToUSDC(row?.dollarAmount || '0');
+      if (ts === BigInt(0) && pct === BigInt(0) && amt === BigInt(0)) continue;
+      push(group.fn, [ts, pct, amt]);
+    }
+  }
+
+  const genres: string[] = (formData?.promotion?.genres || []).filter(
+    (g: unknown) => typeof g === 'string' && g.trim().length > 0,
+  );
+  if (genres.length > 0) push('setGenres', [genres]);
+
+  const saleTs = dateToTimestamp(formData?.datesAndTimes?.ticketsSale || '');
+  if (saleTs > BigInt(0)) push('setTicketsSaleDate', [saleTs]);
+
+  const resale = formData?.tickets?.resale || {};
+  const rp1 = percentageToBasisPoints(resale.party1 || '0');
+  const rp2 = percentageToBasisPoints(resale.party2 || '0');
+  const rReseller = percentageToBasisPoints(resale.reseller || '0');
+  if (rp1 + rp2 + rReseller === BigInt(10000)) push('setResaleSplits', [rp1, rp2, rReseller]);
+
+  return calls;
 };
 
 export const toggleGenreSelection = (

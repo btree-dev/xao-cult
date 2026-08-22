@@ -100,3 +100,24 @@ export const useShowContractConfig = () => {
 };
 
 export type ShowContractConfigApi = ReturnType<typeof useShowContractConfig>;
+
+/**
+ * Hook to send a batch of ABI-encoded calls to a ShowContract's `multicall`,
+ * so all Draft-setup setters run in ONE transaction (one wallet confirmation).
+ */
+export const useShowContractMulticall = () => {
+  const { writeContractAsync, isPending, error } = useWriteContract();
+
+  const multicall = async (contractAddress: `0x${string}`, calls: readonly `0x${string}`[]) => {
+    const hash = await writeContractAsync({
+      address: contractAddress,
+      abi: SHOW_CONTRACT_ABI,
+      functionName: 'multicall',
+      args: [calls],
+    });
+    await waitForTransactionReceipt(config, { hash });
+    return hash;
+  };
+
+  return { multicall, isPending, error };
+};

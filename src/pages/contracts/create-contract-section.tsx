@@ -454,10 +454,11 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
   const fillDummyData = () => {
     // Dates & Times (future-dated so timestamps are ahead of "now")
     // FUTURE-dated so the signed contract shows on the Current Contracts page.
-    setEventStartDate("2026-11-20T19:00");
-    setEventEndDate("2026-11-20T23:00");
-    setEventAnnouncementDate("2026-09-01T10:00");
-    setTicketsSale("2026-09-15T00:00");   // → triggers setTicketsSaleDate on-chain
+    // FUTURE-dated so the signed contract shows on the Current Contracts page.
+    setEventStartDate("2027-01-24T20:00");
+    setEventEndDate("2027-01-24T23:30");
+    setEventAnnouncementDate("2026-11-01T10:00");
+    setTicketsSale("2026-11-15T00:00");   // → triggers setTicketsSaleDate on-chain
     setStartTime("19:00");
     setEndTime("23:00");
     setLoadIn("14:00");
@@ -467,8 +468,8 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     setIsDatesTimeOpen(true);
 
     // Location
-    setVenueName("The Roxy Theatre");
-    setAddress("9009 Sunset Blvd, West Hollywood, CA 90069");
+    setVenueName("Grand Metropolitan Hall");
+    setAddress("233 S Wacker Dr, Chicago, IL 60606");
     setRadiusDistance("50 miles");
     setDays("30 days");
     setIsLocationOpen(true);
@@ -494,30 +495,30 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     setBarsplitInput("15");
     setMerchSplitInput("10");
     setdepositbandInput("1,000");
-    setbandCanceledBy("2026-11-01T12:00");
+    setbandCanceledBy("2027-01-01T12:00");
     setsecuritydepositAdd("");
     setSecurityDepositRows([
-      { dateTime: "2026-10-15T12:00", percentage: "50", dollarAmount: "2,500" },
+      { dateTime: "2026-12-15T12:00", percentage: "50", dollarAmount: "2,500" },
     ]);
     setCancelParty1Rows([
-      { dateTime: "2026-11-01T12:00", percentage: "25", dollarAmount: "1,250" },
+      { dateTime: "2027-01-01T12:00", percentage: "25", dollarAmount: "1,250" },
     ]);
     setCancelParty2Rows([
-      { dateTime: "2026-11-01T12:00", percentage: "25", dollarAmount: "1,250" },
+      { dateTime: "2027-01-01T12:00", percentage: "25", dollarAmount: "1,250" },
     ]);
     setIsMoneyOpen(true);
 
     // Payments
     setPayoutRows([
-      { dateTime: "2026-11-21T12:00", percentage: "100", dollarAmount: "5,000" },
+      { dateTime: "2027-01-25T12:00", percentage: "100", dollarAmount: "5,000" },
     ]);
     setPayout2Rows([
-      { dateTime: "2026-11-21T12:00", percentage: "100", dollarAmount: "5,000" },
+      { dateTime: "2027-01-25T12:00", percentage: "100", dollarAmount: "5,000" },
     ]);
     setIsPaymentsOpen(true);
 
     // Promotion
-    setPromotionValue("Summer Sunset Sessions");
+    setPromotionValue("Velvet Horizon");
     setPromotionGenres(["Rock", "Indie"]);
     setIsPromotionOpen(true);
 

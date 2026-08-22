@@ -515,6 +515,7 @@ const Contractsdetail: React.FC = () => {
           )}
           {isUserAuthorized() && (
             <>
+              {/* Add Ticket Type */}
               <button
                 type="button"
                 className={styles.arbitrateButton}

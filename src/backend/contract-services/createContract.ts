@@ -448,6 +448,73 @@ export const buildSetupCalldata = (formData: any): Hex[] => {
   return calls;
 };
 
+/**
+ * Add ticket tiers to a finalized XAOTicket from the create-contract form's
+ * ticket rows. Shared by create-contract's sign handler AND contracts-detail's
+ * sign handler (which reads the rows from the off-chain draft) so tiers get
+ * added on finalize no matter which page the finalizing signature came from.
+ * All tiers use the event flyer as their NFT image.
+ */
+export const addTiersFromRows = async (
+  ticketCollectionAddr: `0x${string}`,
+  ticketRows: any[],
+  resale: { party1?: string; party2?: string; reseller?: string } | undefined,
+  eventImage: string,
+  addTier: (
+    addr: `0x${string}`,
+    params: {
+      ticketType: number; customName: string; priceUSDC: bigint; quantity: bigint;
+      onSaleTimestamp: bigint; party1ResaleBPS: bigint; party2ResaleBPS: bigint;
+      resellerBPS: bigint; image: string;
+    },
+  ) => Promise<any>,
+): Promise<void> => {
+  if (!Array.isArray(ticketRows) || ticketRows.length === 0) return;
+
+  // Resale royalty split (percentages → BPS). XAOTicket requires them to sum to
+  // 10000; fall back to an even split so a valid tier is still created.
+  const rp1 = percentageToBasisPoints(resale?.party1 || '0');
+  const rp2 = percentageToBasisPoints(resale?.party2 || '0');
+  const rReseller = percentageToBasisPoints(resale?.reseller || '0');
+  const resaleValid = rp1 + rp2 + rReseller === BigInt(10000);
+  const party1ResaleBPS = resaleValid ? rp1 : BigInt(3333);
+  const party2ResaleBPS = resaleValid ? rp2 : BigInt(3333);
+  const resellerBPS = resaleValid ? rReseller : BigInt(3334);
+
+  const nameToEnum = (name: string): number => {
+    const lower = String(name).toLowerCase().trim();
+    if (lower === 'comp' || lower === 'complimentary') return 0;
+    if (lower === 'presale' || lower === 'pre-sale') return 1;
+    if (lower === 'general admission' || lower === 'ga') return 2;
+    if (lower === 'vip') return 3;
+    return 4; // CUSTOM
+  };
+
+  for (const row of ticketRows) {
+    if (!row?.ticketType || !row?.numberOfTickets) continue;
+    const ticketTypeEnum = nameToEnum(row.ticketType);
+    const customName = ticketTypeEnum === 4 ? row.ticketType : '';
+    const priceUSDC = dollarToWei(row.ticketPrice);
+    const quantity = BigInt(parseInt(String(row.numberOfTickets).replace(/,/g, '')) || 0);
+    const onSale = row.onSaleDate ? dateTimeToTimestamp(row.onSaleDate) : BigInt(0);
+    try {
+      await addTier(ticketCollectionAddr, {
+        ticketType: ticketTypeEnum,
+        customName,
+        priceUSDC,
+        quantity,
+        onSaleTimestamp: onSale,
+        party1ResaleBPS,
+        party2ResaleBPS,
+        resellerBPS,
+        image: eventImage || '',
+      });
+    } catch (tierErr) {
+      console.warn(`[addTiersFromRows] Failed to add tier ${row.ticketType}:`, tierErr);
+    }
+  }
+};
+
 export const toggleGenreSelection = (
   genre: string,
   setGenres: React.Dispatch<React.SetStateAction<string[]>>

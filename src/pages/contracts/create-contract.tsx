@@ -21,7 +21,7 @@ import { config } from "../../wagmi";
 import { useXaoEvent } from "../../hooks/useXaoEvent";
 import { useXaoMsgSession } from "../../hooks/useXaoMsgSession";
 import { ContractProposalMessage } from "../../types/contractMessage";
-import { handleSaveContract, handleSignContract, addTicketsToContract, buildSetupCalldata, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
+import { handleSaveContract, handleSignContract, addTicketsToContract, buildSetupCalldata, addTiersFromRows, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
 import { useShowContractMulticall, useShowContractConfig } from "../../hooks/useShowContractSchedules";
 import { TicketRow } from "./TicketsSection";
 
@@ -211,7 +211,7 @@ const CreateContract = () => {
 
   // Waku session + event thread (this draft's own thread — never the DM
   // thread) for sending contract proposals and the mint SYSTEM message.
-  const { session } = useXaoMsgSession();
+  const { session, unlock, isUnlocking, error: sessionError, isWalletReady } = useXaoMsgSession();
   const eventThread = useXaoEvent({
     draftId,
     peer: peerAddress && peerAddress.startsWith('0x') ? (peerAddress as `0x${string}`) : null,
@@ -477,63 +477,16 @@ const CreateContract = () => {
             if (ticketCollectionAddr && ticketCollectionAddr !== '0x0000000000000000000000000000000000000000') {
               console.log("[CreateContract] XAOTicket deployed at:", ticketCollectionAddr);
 
-              // Get ticket rows from form
+              // Get ticket rows from form and add them as tiers (shared helper).
               const formData = contractSectionRef.current?.getContractData?.();
               const rows: TicketRow[] = formData?.tickets?.ticketRows || ticketRowsToAdd || [];
-
-              // Resale royalty split from the form (percentages → BPS). These
-              // are contract-level (same for every tier). XAOTicket.addTier
-              // requires the three to sum to exactly 10000; if the form values
-              // don't (e.g. left blank), fall back to an even 3333/3333/3334
-              // split so a valid tier is still created instead of reverting.
-              const rp1 = percentageToBasisPoints(formData?.tickets?.resale?.party1 || '0');
-              const rp2 = percentageToBasisPoints(formData?.tickets?.resale?.party2 || '0');
-              const rReseller = percentageToBasisPoints(formData?.tickets?.resale?.reseller || '0');
-              const resaleValid = rp1 + rp2 + rReseller === BigInt(10000);
-              const party1ResaleBPS = resaleValid ? rp1 : BigInt(3333);
-              const party2ResaleBPS = resaleValid ? rp2 : BigInt(3333);
-              const resellerBPS = resaleValid ? rReseller : BigInt(3334);
-              if (!resaleValid) {
-                console.warn('[CreateContract] Form resale BPS do not sum to 10000; using default 3333/3333/3334');
-              }
-
-              // Map ticket type names to enum values
-              const nameToEnum = (name: string): number => {
-                const lower = name.toLowerCase().trim();
-                if (lower === 'comp' || lower === 'complimentary') return 0;
-                if (lower === 'presale' || lower === 'pre-sale') return 1;
-                if (lower === 'general admission' || lower === 'ga') return 2;
-                if (lower === 'vip') return 3;
-                return 4; // CUSTOM
-              };
-
-              for (const row of rows) {
-                if (!row.ticketType || !row.numberOfTickets) continue;
-                const ticketTypeEnum = nameToEnum(row.ticketType);
-                const customName = ticketTypeEnum === 4 ? row.ticketType : '';
-                const priceUSDC = dollarToWei(row.ticketPrice);
-                const quantity = BigInt(parseInt(row.numberOfTickets.replace(/,/g, '')) || 0);
-                const onSale = row.onSaleDate ? dateTimeToTimestamp(row.onSaleDate) : BigInt(0);
-
-                try {
-                  console.log(`[CreateContract] Adding tier: ${row.ticketType}, qty=${quantity}, price=${priceUSDC}`);
-                  await addTier(ticketCollectionAddr, {
-                    ticketType: ticketTypeEnum,
-                    customName,
-                    priceUSDC,
-                    quantity,
-                    onSaleTimestamp: onSale,
-                    party1ResaleBPS,
-                    party2ResaleBPS,
-                    resellerBPS,
-                    // All tiers use the event flyer as their NFT image.
-                    image: (formData as any)?.eventImageUri || imageUri || '',
-                  });
-                  console.log(`[CreateContract] Tier added: ${row.ticketType}`);
-                } catch (tierErr) {
-                  console.warn(`Failed to add tier ${row.ticketType}:`, tierErr);
-                }
-              }
+              await addTiersFromRows(
+                ticketCollectionAddr,
+                rows,
+                (formData as any)?.tickets?.resale,
+                (formData as any)?.eventImageUri || imageUri || '',
+                addTier,
+              );
             }
           } catch (err) {
             console.warn("Failed to add ticket tiers after signing:", err);
@@ -744,6 +697,60 @@ const CreateContract = () => {
                   <div style={{ color: "#ff9900", marginTop: "10px", fontSize: "13px" }}>
                     Contract already created: {savedContractAddress.slice(0, 10)}...{savedContractAddress.slice(-8)}
                   </div>
+                )}
+
+                {/* Unlock Chat — the "Send to Party" proposal travels over the
+                    encrypted XaoMsg (Waku) thread, which needs a one-time wallet
+                    signature to derive the chat session. Without it `session` is
+                    null and the send button below can never enable, so surface
+                    the unlock right here instead of forcing a trip to the Chat
+                    page. Shown only while there is no session yet. */}
+                {!session && (
+                  <button
+                    type="button"
+                    onClick={() => { void unlock(); }}
+                    disabled={isUnlocking || !isWalletReady}
+                    className={styles.documentButton}
+                    style={{
+                      marginTop: "10px",
+                      opacity: (!isWalletReady || isUnlocking) ? 0.5 : 1,
+                    }}
+                  >
+                    {isUnlocking ? "Unlocking chat…" : "Unlock Chat to Send"}
+                  </button>
+                )}
+
+                {/* Why the send button is disabled — branch on the REAL event-thread
+                    status so the user knows whether to wait (negotiating), fix an
+                    input (no peer address / no session), or that the counterparty
+                    hasn't set up chat yet (no-peer-key). Encrypted proposals need the
+                    recipient's published chat key, so party2 must unlock chat once
+                    before party1 can send to them. */}
+                {(!peerAddress || !isClientReady) && (
+                  <div style={{ color: "#ff9900", marginTop: "8px", fontSize: "12px", lineHeight: 1.5 }}>
+                    {!peerAddress && (
+                      <div>• Enter the other party&apos;s wallet address (0x…) in the Party {myRole === 'party2' ? '1' : '2'} field.</div>
+                    )}
+                    {peerAddress && !session && (
+                      <div>• Tap &quot;Unlock Chat to Send&quot; above and approve the signature.</div>
+                    )}
+                    {peerAddress && session && eventThread.status === 'negotiating' && (
+                      <div>• Connecting secure chat… this can take up to ~15s.</div>
+                    )}
+                    {peerAddress && session && eventThread.status === 'no-peer-key' && (
+                      <div style={{ color: "#ff5f6d" }}>
+                        • The other party hasn&apos;t set up chat yet. Ask them to open XAO, connect this
+                        wallet, and unlock chat once — then tap Send again.
+                      </div>
+                    )}
+                    {peerAddress && session && eventThread.status === 'error' && (
+                      <div style={{ color: "#ff5f6d" }}>• Secure chat failed to connect. Refresh and try again.</div>
+                    )}
+                  </div>
+                )}
+
+                {sessionError && (
+                  <div style={{ color: "#ff5f6d", marginTop: "6px", fontSize: "12px" }}>{sessionError}</div>
                 )}
 
                 {/* Send Proposal Button */}

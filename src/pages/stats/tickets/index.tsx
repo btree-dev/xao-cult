@@ -1,15 +1,15 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
 import styles from '../../../styles/Home.module.css';
 import StatsNav from '../../../components/StatsNav';
 import Layout from '../../../components/Layout';
 import ShareModal from '../../../components/ShareModal';
-import { TicketsQR } from '../../../backend/ticket-services/ticketdata';
+import { useWeb3 } from '../../../hooks/useWeb3';
+import { useUserTickets } from '../../../hooks/useUserTickets';
 const TicketsPage: NextPage = () => {
-  const [loading, setLoading] = useState(true);
   const [mutedTickets, setMutedTickets] = useState<Set<string>>(new Set());
   const [likedTickets, setLikedTickets] = useState<Set<string>>(new Set());
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -23,45 +23,10 @@ const TicketsPage: NextPage = () => {
   (router.pathname.includes('redeemed-tickets') && 'redeemed') ||
   'unredeemed';
 
-  // Mock ticket data
-  const [tickets, setTickets] = useState<any[]>(TicketsQR);
-
-  // Load the buyer's real purchased tickets (saved by ticket-confirmation into
-  // localStorage on a successful on-chain buy) and merge them ahead of the demo
-  // set. Map the stored shape onto the fields this feed renders, with safe
-  // fallbacks — next/image needs a valid local src, so any remote/data image
-  // falls back to a bundled asset.
-  useEffect(() => {
-    try {
-      const raw = typeof window !== 'undefined' ? localStorage.getItem('purchasedTickets') : null;
-      const purchased = raw ? JSON.parse(raw) : [];
-      const mapped = (Array.isArray(purchased) ? purchased : []).map((t: any) => {
-        // t.image is the NFT tier artwork (any IPFS/remote URL); placeholder if none.
-        return {
-          id: t.id,
-          title: t.title || 'Blockchain Event',
-          image: t.image || '/xao-monster.png',
-          profilePic: '/xao-monster.png',
-          artist: t.title ? String(t.title).split(' ')[0] : 'XAO',
-          tag: 'Owned',
-          location: t.location || '',
-          date: t.date || 'TBD',
-          redeemed: !!t.redeemed,
-          views: 0,
-          likes: 0,
-          isReal: true,
-          contractAddress: t.contractAddress,
-          ticketCode: t.ticketCode,
-          txHash: t.txHash,
-        };
-      });
-      setTickets(mapped.length > 0 ? [...mapped, ...TicketsQR] : TicketsQR);
-    } catch (e) {
-      console.warn('Failed to load purchased tickets:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // The connected wallet's real, on-chain tickets. Redeemed vs unredeemed is
+  // driven by each token's on-chain `scanned` status.
+  const { address, chain } = useWeb3();
+  const { tickets, isLoading: loading } = useUserTickets(chain?.id, address);
 
   const handleTicketClick = (ticketId: string) => {
     router.push(`/stats/tickets/${ticketId}`);

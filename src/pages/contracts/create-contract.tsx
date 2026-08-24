@@ -15,7 +15,7 @@ import { percentageToBasisPoints } from "../../backend/contract-services/contrac
 import { useWeb3 } from "../../hooks/useWeb3";
 import { useProfileCache } from "../../contexts/ProfileCacheContext";
 import { useReadContract } from "wagmi";
-import { SHOW_CONTRACT_ABI } from "../../lib/web3/eventcontract";
+import { SHOW_CONTRACT_ABI, XAO_TICKET_ABI } from "../../lib/web3/eventcontract";
 import { readContract } from "@wagmi/core";
 import { config } from "../../wagmi";
 import { useXaoEvent } from "../../hooks/useXaoEvent";
@@ -77,7 +77,7 @@ const CreateContract = () => {
   const { createEventContract, isLoading, isSuccess, error, transactionHash, contractAddress: newContractAddress } = useCreateEventContract(chain?.id);
   const { signContractAsync, isLoading: isSignLoading, isSuccess: isSignSuccess, error: signError, transactionHash: signTxHash } = useSignEventContract();
   const { addTicketTypeAsync } = useAddTicketType();
-  const { addTier } = useAddTierToXAOTicket();
+  const { addTiers } = useAddTierToXAOTicket();
   const { multicall } = useShowContractMulticall();
   const configApi = useShowContractConfig(); // party2 username on sign
   const [ticketRowsToAdd, setTicketRowsToAdd] = useState<TicketRow[]>([]);
@@ -97,6 +97,70 @@ const CreateContract = () => {
     if (!address || !savedContractAddress) return false;
     return !!currentUserSigned;
   }, [address, savedContractAddress, currentUserSigned]);
+
+  // Whether the contract is finalized (both parties signed). Once finalized,
+  // ticket tiers are frozen on-chain, so the "Add Tickets On-chain" control below
+  // is hidden.
+  const { data: contractFinalized, refetch: refetchFinalized } = useReadContract({
+    address: contractAddr,
+    abi: SHOW_CONTRACT_ABI,
+    functionName: 'isFinalized',
+    query: { enabled: !!contractAddr },
+  });
+
+  // Push any NEW ticket rows (rows beyond what's already on-chain) to the
+  // XAOTicket collection while the contract is still in negotiation (saved but
+  // not finalized). This is how tickets are added AFTER the initial Save — the
+  // Save button only runs once, so without this there is no on-chain path to add
+  // a ticket before both parties sign.
+  const [isAddingTicketsOnChain, setIsAddingTicketsOnChain] = useState(false);
+  const handleAddTicketsOnChain = async () => {
+    if (!savedContractAddress) return;
+    setIsAddingTicketsOnChain(true);
+    try {
+      const ticketCollectionAddr = await readContract(config, {
+        address: savedContractAddress as `0x${string}`,
+        abi: SHOW_CONTRACT_ABI as any,
+        functionName: 'ticketCollection',
+        args: [],
+      }) as `0x${string}`;
+      if (!ticketCollectionAddr || ticketCollectionAddr === '0x0000000000000000000000000000000000000000') {
+        alert("Ticket collection not found for this contract.");
+        return;
+      }
+
+      const onChainTierCount = Number(await readContract(config, {
+        address: ticketCollectionAddr,
+        abi: XAO_TICKET_ABI as any,
+        functionName: 'tierCount',
+        args: [],
+      }));
+
+      const formData = contractSectionRef.current?.getContractData?.();
+      const rows: TicketRow[] = formData?.tickets?.ticketRows || [];
+      // Tiers are added in order, so on-chain tiers [0..count) map to the first
+      // `count` form rows; anything past that is new and needs adding.
+      const newRows = rows.slice(onChainTierCount);
+      if (newRows.length === 0) {
+        alert("No new tickets to add. Add a ticket row in the form first, then tap this.");
+        return;
+      }
+
+      await addTiersFromRows(
+        ticketCollectionAddr,
+        newRows,
+        (formData as any)?.tickets?.resale,
+        (formData as any)?.eventImageUri || imageUri || '',
+        addTiers,
+      );
+      alert(`Added ${newRows.length} new ticket type(s) on-chain.`);
+    } catch (err) {
+      console.warn("[CreateContract] Add tickets on-chain failed:", err);
+      alert("Could not add tickets on-chain: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsAddingTicketsOnChain(false);
+    }
+  };
 
   // State setters object for backend functions
   const stateSetters = {
@@ -324,21 +388,37 @@ const CreateContract = () => {
   };
 
   // Handle save contract (draft) using helper function
-  const handleSave = () => handleSaveContract(
-    isConnected,
-    chain?.id,
-    contractSectionRef,
-    party1,
-    party2,
-    peerAddress || '',
-    stateSetters,
-    createEventContract,
-    imageUri,
-    address as `0x${string}`
-  );
+  const handleSave = () => {
+    // Warn before the on-chain deploy: once saved, the core contract terms
+    // (dates, venue, financials, capacity) are immutable on-chain — there is no
+    // way to edit them afterward. Make all edits before saving.
+    const proceed = window.confirm(
+      "Saving deploys this contract ON-CHAIN. After saving, the contract terms (dates, venue, financials) CANNOT be edited.\n\nMake sure everything is correct. Save now?"
+    );
+    if (!proceed) return;
+    handleSaveContract(
+      isConnected,
+      chain?.id,
+      contractSectionRef,
+      party1,
+      party2,
+      peerAddress || '',
+      stateSetters,
+      createEventContract,
+      imageUri,
+      address as `0x${string}`
+    );
+  };
 
   // Handle sign contract (signs an already-created contract)
   const handleSign = async () => {
+    // Point-of-no-return warning: once both parties sign, the contract is
+    // finalized and nothing — ticket types, dates, or terms — can be changed.
+    // Give the signer (especially party2) a last chance to edit first.
+    const proceed = window.confirm(
+      "Once both parties sign, no more ticket types can be added — the ticket types set now become FINAL.\n\nIf you still want to add a ticket type, cancel and add it now. Continue to sign?"
+    );
+    if (!proceed) return;
     setIsSigning(true);
     try {
       // If I'm party2, record my XAO username on-chain — the constructor leaves
@@ -394,6 +474,34 @@ const CreateContract = () => {
             }
           } catch (schedErr) {
             console.warn("[CreateContract] Failed to add contract setup (multicall):", schedErr);
+          }
+
+          // Add the XAOTicket tiers now, while the contract is still in Draft.
+          // The collection is deployed up-front (in the ShowContract constructor),
+          // so it already exists at Save time — and once BOTH parties sign,
+          // XAOTicket.addTier reverts (tiers frozen). Defining tiers here is what
+          // makes "the ticket types set at on-chain save are the ones sold."
+          try {
+            const ticketCollectionAddr = await readContract(config, {
+              address: newContractAddress as `0x${string}`,
+              abi: SHOW_CONTRACT_ABI as any,
+              functionName: 'ticketCollection',
+              args: [],
+            }) as `0x${string}`;
+
+            if (ticketCollectionAddr && ticketCollectionAddr !== '0x0000000000000000000000000000000000000000') {
+              const formData = contractSectionRef.current?.getContractData?.();
+              const rows: TicketRow[] = formData?.tickets?.ticketRows || ticketRowsToAdd || [];
+              await addTiersFromRows(
+                ticketCollectionAddr,
+                rows,
+                (formData as any)?.tickets?.resale,
+                (formData as any)?.eventImageUri || imageUri || '',
+                addTiers,
+              );
+            }
+          } catch (tierErr) {
+            console.warn("[CreateContract] Failed to add ticket tiers at save:", tierErr);
           }
 
           setIsContractCreating(false);
@@ -463,35 +571,10 @@ const CreateContract = () => {
 
         const contractAddrToShare = savedContractAddress || newContractAddress;
 
-        // After signing, check if XAOTicket was deployed (both parties signed → finalized)
-        // If so, add ticket tiers from the form data
-        if (contractAddrToShare) {
-          try {
-            const ticketCollectionAddr = await readContract(config, {
-              address: contractAddrToShare as `0x${string}`,
-              abi: SHOW_CONTRACT_ABI as any,
-              functionName: 'ticketCollection',
-              args: [],
-            }) as `0x${string}`;
-
-            if (ticketCollectionAddr && ticketCollectionAddr !== '0x0000000000000000000000000000000000000000') {
-              console.log("[CreateContract] XAOTicket deployed at:", ticketCollectionAddr);
-
-              // Get ticket rows from form and add them as tiers (shared helper).
-              const formData = contractSectionRef.current?.getContractData?.();
-              const rows: TicketRow[] = formData?.tickets?.ticketRows || ticketRowsToAdd || [];
-              await addTiersFromRows(
-                ticketCollectionAddr,
-                rows,
-                (formData as any)?.tickets?.resale,
-                (formData as any)?.eventImageUri || imageUri || '',
-                addTier,
-              );
-            }
-          } catch (err) {
-            console.warn("Failed to add ticket tiers after signing:", err);
-          }
-        }
+        // Ticket tiers are NOT added here anymore — they are defined at Save time
+        // (see processContractCreation above), while the contract is still in
+        // Draft. Signing finalizes the contract, which permanently freezes the
+        // tiers on-chain (XAOTicket.addTier reverts once ShowContract.isFinalized).
 
         setAddressModal({ title: 'Contract signed successfully on blockchain', address: String(contractAddrToShare) });
         router.push("/dashboard");
@@ -697,6 +780,28 @@ const CreateContract = () => {
                   <div style={{ color: "#ff9900", marginTop: "10px", fontSize: "13px" }}>
                     Contract already created: {savedContractAddress.slice(0, 10)}...{savedContractAddress.slice(-8)}
                   </div>
+                )}
+
+                {/* Add Tickets On-chain — the Save button runs only once, so after
+                    the initial Save this is the way to push NEW ticket rows on-chain
+                    while the contract is still in negotiation (before both parties
+                    sign). Hidden once finalized, when tiers are frozen. */}
+                {savedContractAddress && !contractFinalized && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleAddTicketsOnChain}
+                      disabled={isAddingTicketsOnChain}
+                      className={styles.documentButton}
+                      style={{ marginTop: "10px", opacity: isAddingTicketsOnChain ? 0.6 : 1 }}
+                    >
+                      {isAddingTicketsOnChain ? "Adding tickets on-chain…" : "Add Tickets On-chain"}
+                    </button>
+                    <div style={{ color: "#ff9900", marginTop: "6px", fontSize: "12px", lineHeight: 1.5 }}>
+                      Add a new ticket row in the Tickets section above, then tap this to save it
+                      on-chain. Only works before both parties sign.
+                    </div>
+                  </>
                 )}
 
                 {/* Unlock Chat — the "Send to Party" proposal travels over the

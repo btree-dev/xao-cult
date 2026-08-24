@@ -455,16 +455,16 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     // Dates & Times (future-dated so timestamps are ahead of "now")
     // FUTURE-dated so the signed contract shows on the Current Contracts page.
     // FUTURE-dated so the signed contract shows on the Current Contracts page.
-    setEventStartDate("2027-01-24T20:00");
-    setEventEndDate("2027-01-24T23:30");
-    setEventAnnouncementDate("2026-11-01T10:00");
-    setTicketsSale("2026-11-15T00:00");   // → triggers setTicketsSaleDate on-chain
-    setStartTime("19:00");
-    setEndTime("23:00");
-    setLoadIn("14:00");
-    setDoors("18:00");
-    setSetTime("20:00");
-    setSetLength("90");
+    setEventStartDate("2027-03-20T21:00");
+    setEventEndDate("2027-03-21T02:00");
+    setEventAnnouncementDate("2026-12-01T10:00");
+    setTicketsSale("2027-01-10T00:00");   // → triggers setTicketsSaleDate on-chain
+    setStartTime("21:00");
+    setEndTime("02:00");
+    setLoadIn("16:00");
+    setDoors("20:00");
+    setSetTime("22:00");
+    setSetLength("120");
     setIsDatesTimeOpen(true);
 
     // Location
@@ -495,31 +495,31 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     setBarsplitInput("15");
     setMerchSplitInput("10");
     setdepositbandInput("1,000");
-    setbandCanceledBy("2027-01-01T12:00");
+    setbandCanceledBy("2027-02-20T12:00");
     setsecuritydepositAdd("");
     setSecurityDepositRows([
-      { dateTime: "2026-12-15T12:00", percentage: "50", dollarAmount: "2,500" },
+      { dateTime: "2027-01-15T12:00", percentage: "50", dollarAmount: "2,500" },
     ]);
     setCancelParty1Rows([
-      { dateTime: "2027-01-01T12:00", percentage: "25", dollarAmount: "1,250" },
+      { dateTime: "2027-02-20T12:00", percentage: "25", dollarAmount: "1,250" },
     ]);
     setCancelParty2Rows([
-      { dateTime: "2027-01-01T12:00", percentage: "25", dollarAmount: "1,250" },
+      { dateTime: "2027-02-20T12:00", percentage: "25", dollarAmount: "1,250" },
     ]);
     setIsMoneyOpen(true);
 
     // Payments
     setPayoutRows([
-      { dateTime: "2027-01-25T12:00", percentage: "100", dollarAmount: "5,000" },
+      { dateTime: "2027-03-21T12:00", percentage: "100", dollarAmount: "5,000" },
     ]);
     setPayout2Rows([
-      { dateTime: "2027-01-25T12:00", percentage: "100", dollarAmount: "5,000" },
+      { dateTime: "2027-03-21T12:00", percentage: "100", dollarAmount: "5,000" },
     ]);
     setIsPaymentsOpen(true);
 
     // Promotion
-    setPromotionValue("Velvet Horizon");
-    setPromotionGenres(["Rock", "Indie"]);
+    setPromotionValue("DJ Night");
+    setPromotionGenres(["Electronic", "House"]);
     setIsPromotionOpen(true);
 
     // Rider

@@ -69,12 +69,6 @@ const Contractsdetail: React.FC = () => {
   const effectiveParty1 = onChainMatch?.party1Address ?? party1;
   const effectiveParty2 = onChainMatch?.party2Address ?? party2;
 
-  // Fields are read-only only once the contract is finalized (both parties
-  // signed → status >= Approved), or when opened from the Current/Past lists.
-  // Contracts still under negotiation stay editable.
-  const isReadOnly =
-    (onChainMatch?.status ?? 0) >= 3 || source === "current" || source === "past";
-
   const resolvedThread = useResolveEventThread(contractAddr ?? null, onChainMatch?.party1Address, onChainMatch?.party2Address);
   const myAddr = address?.toLowerCase();
   const counterparty = effectiveParty1 && effectiveParty2
@@ -129,6 +123,19 @@ const Contractsdetail: React.FC = () => {
     contracts: chainCalls,
     query: { enabled: !!contractAddr },
   });
+
+  // Fields (and the Add Ticket Type button) are read-only/hidden once the
+  // contract is finalized — both parties signed → status >= APPROVED (3).
+  // Prefer the DIRECT on-chain status read (chainData[28]) for the contract
+  // actually being viewed; fall back to the summaries-list match and the
+  // Current/Past source only when the direct read isn't available yet. Using
+  // the direct read avoids the bug where a finalized contract still looked
+  // editable because it wasn't in the summaries list (onChainMatch undefined).
+  const onChainStatusRaw = chainData?.[28]?.status === 'success' ? Number(chainData[28].result) : undefined;
+  const isReadOnly =
+    (onChainStatusRaw ?? onChainMatch?.status ?? 0) >= 3 ||
+    source === "current" ||
+    source === "past";
 
   // Helper to convert timestamp (seconds) to datetime-local string
   const timestampToDatetime = (ts: any): string => {
@@ -323,7 +330,12 @@ const Contractsdetail: React.FC = () => {
     }
 
     if (!hasTicketCollection) {
-      alert("Ticket collection not deployed yet. Both parties must sign the contract first.");
+      alert("Ticket collection not found for this contract.");
+      return;
+    }
+
+    if (isReadOnly) {
+      alert("This contract is finalized — ticket types are locked and can no longer be changed.");
       return;
     }
 
@@ -453,6 +465,13 @@ const Contractsdetail: React.FC = () => {
       return;
     }
 
+    // Point-of-no-return warning: once both parties sign, the contract is
+    // finalized and nothing — ticket types, dates, or terms — can be changed.
+    const proceed = window.confirm(
+      "Once both parties sign, no more ticket types can be added — the ticket types set now become FINAL.\n\nIf you still want to add a ticket type, cancel and add it now. Continue to sign?"
+    );
+    if (!proceed) return;
+
     try {
       setSigning(true);
       console.log("=== SIGNING CONTRACT ===");
@@ -515,15 +534,18 @@ const Contractsdetail: React.FC = () => {
           )}
           {isUserAuthorized() && (
             <>
-              {/* Add Ticket Type */}
-              <button
-                type="button"
-                className={styles.arbitrateButton}
-                onClick={() => setAddingTicket(!addingTicket)}
-                style={{ marginLeft: "10px" }}
-              >
-                {addingTicket ? "Cancel" : "Add Ticket Type"}
-              </button>
+              {/* Add Ticket Type — shown during negotiation (before both sign).
+                  Either party may add a ticket type here; frozen once finalized. */}
+              {!isReadOnly && hasTicketCollection && (
+                <button
+                  type="button"
+                  className={styles.arbitrateButton}
+                  onClick={() => setAddingTicket(!addingTicket)}
+                  style={{ marginLeft: "10px" }}
+                >
+                  {addingTicket ? "Cancel" : "Add Ticket Type"}
+                </button>
+              )}
               {hasTicketCollection && (
                 <button
                   type="button"
@@ -752,8 +774,9 @@ const Contractsdetail: React.FC = () => {
             />
           </div>
 
-          {/* Add Ticket Type Form */}
-          {addingTicket && isUserAuthorized() && (
+          {/* Add Ticket Type Form — shown when the user taps "Add Ticket Type"
+              during negotiation. Hidden once finalized (isReadOnly). */}
+          {addingTicket && !isReadOnly && isUserAuthorized() && (
             <div style={{ marginTop: "20px", padding: "20px", border: "1px solid #ccc", borderRadius: "8px" }}>
               <h3 style={{ color: "white", marginBottom: "15px" }}>Add New Ticket Type</h3>
               <div className={styles.inputRow}>
@@ -847,9 +870,16 @@ const Contractsdetail: React.FC = () => {
             </div>
           )}
 
-          <div className={isReadOnly ? styles.readOnlySection : undefined}>
+          {/* The contract terms are ALWAYS read-only on the detail page. These
+              on-chain fields (dates, venue, financials, capacity) are immutable
+              after deployment — there is no on-chain setter and no Save button
+              here — so the form is a view only. All term editing happens in the
+              create-contract form BEFORE the on-chain Save. (Ticket types can
+              still be added via the separate "Add Ticket Type" button above,
+              which is not part of this fieldset.) */}
+          <div className={styles.readOnlySection}>
             <fieldset
-              disabled={isReadOnly}
+              disabled
               style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'contents' }}
             >
               <CreateContractsection party1={party1 || ''} party2={party2 || ''} initialData={chainInitialData} />

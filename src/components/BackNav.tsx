@@ -146,12 +146,16 @@ const BackNavbar: React.FC<BackNavbarProps> = ({
           {userName ? (
             <div className={styles.userProfileContainer}>
               {userImage ? (
-                <Image
+                // Plain <img>: the profile picture is an arbitrary IPFS/remote
+                // URL that next/image would block unless the domain is whitelisted.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
                   src={userImage}
                   alt={userName}
                   width={40}
                   height={40}
                   className={styles.userProfileImage}
+                  style={{ objectFit: "cover" }}
                 />
               ) : (
                 <div className={styles.userProfilePlaceholder}>

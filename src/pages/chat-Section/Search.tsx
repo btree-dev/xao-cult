@@ -36,6 +36,7 @@ interface EventPreview {
   party2: string;
   eventName: string;
   venueName?: string;
+  eventImageUri?: string;
   createdAt: Date;
   isSigned: boolean;
 }
@@ -135,6 +136,7 @@ export default function Search() {
       party2: c.party2Address,
       eventName: c.eventName,
       venueName: c.venueName,
+      eventImageUri: c.eventImageUri,
       createdAt: new Date(),
       isSigned: c.party1Signed && c.party2Signed,
     }));
@@ -146,6 +148,9 @@ export default function Search() {
       party1: d.party1,
       party2: d.party2,
       eventName: (d.terms as { promotion?: { value?: string } }).promotion?.value || "Untitled draft",
+      eventImageUri:
+        (d.terms as { eventImageUri?: string; promotion?: { imageData?: string } }).eventImageUri ||
+        (d.terms as { promotion?: { imageData?: string } }).promotion?.imageData,
       createdAt: new Date(d.lastActivityUnixMs),
       isSigned: false,
     }));
@@ -482,6 +487,14 @@ export default function Search() {
                             .toUpperCase()}
                         </span>
                       )
+                    ) : (item as EventPreview).eventImageUri ? (
+                      // Plain <img>: the event flyer is an arbitrary IPFS/remote
+                      // URL that next/image would block unless whitelisted.
+                      <img
+                        src={(item as EventPreview).eventImageUri}
+                        alt={(item as EventPreview).eventName || "Event"}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
                     ) : (
                       <Image
                         src="/contracts-Icons/Vector (2).svg"

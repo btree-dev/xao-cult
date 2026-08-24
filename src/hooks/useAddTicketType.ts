@@ -135,8 +135,35 @@ export const useAddTierToXAOTicket = () => {
     });
   };
 
+  // Batch: add many tiers in ONE transaction (one wallet confirmation) instead
+  // of one addTier call per tier. Each item maps to the on-chain TierInput tuple.
+  const addTiers = async (
+    ticketCollectionAddress: `0x${string}`,
+    tiers: Array<{
+      ticketType: number;
+      customName: string;
+      priceUSDC: bigint;
+      quantity: bigint;
+      onSaleTimestamp: bigint;
+      party1ResaleBPS: bigint;
+      party2ResaleBPS: bigint;
+      resellerBPS: bigint;
+      image: string;
+    }>
+  ) => {
+    console.log("=== ADDING TIERS (BATCH) TO XAOTICKET ===");
+    console.log("XAOTicket:", ticketCollectionAddress, "count:", tiers.length);
+    return writeContractAsync({
+      address: ticketCollectionAddress,
+      abi: XAO_TICKET_ABI,
+      functionName: 'addTiers',
+      args: [tiers],
+    });
+  };
+
   return {
     addTier,
+    addTiers,
     isLoading: isPending || isWaiting,
     isSuccess,
     error,

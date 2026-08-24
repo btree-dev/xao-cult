@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { listDrafts, isMinted, type OffchainContractDraft } from '../lib/xaomsg/offchainContracts';
 import type { ContractSummary } from './useGetContracts';
 
 export interface UseOffchainContractsResult {
   drafts: OffchainContractDraft[];
+  /** Force a re-read of the localStorage draft store — call after a background
+   *  inbox sync (syncAllKnownThreads) writes new drafts, so they appear without
+   *  a navigation. */
+  reload: () => void;
 }
 
 // `useAllContractsWithSummaries`'s `contracts` array is rebuilt (new array,
@@ -29,6 +33,7 @@ function summariesKey(summaries: ContractSummary[]): string {
 export function useOffchainContracts(onChainSummaries: ContractSummary[]): UseOffchainContractsResult {
   const { address } = useAccount();
   const [drafts, setDrafts] = useState<OffchainContractDraft[]>([]);
+  const [reloadToken, setReloadToken] = useState(0);
   const key = summariesKey(onChainSummaries);
 
   useEffect(() => {
@@ -39,7 +44,9 @@ export function useOffchainContracts(onChainSummaries: ContractSummary[]): UseOf
     );
     setDrafts(mine.filter((d) => !isMinted(d, onChainSummaries)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, key]);
+  }, [address, key, reloadToken]);
 
-  return { drafts };
+  const reload = useCallback(() => setReloadToken((t) => t + 1), []);
+
+  return { drafts, reload };
 }

@@ -455,19 +455,19 @@ export const buildSetupCalldata = (formData: any): Hex[] => {
  * added on finalize no matter which page the finalizing signature came from.
  * All tiers use the event flyer as their NFT image.
  */
+interface TierParams {
+  ticketType: number; customName: string; priceUSDC: bigint; quantity: bigint;
+  onSaleTimestamp: bigint; party1ResaleBPS: bigint; party2ResaleBPS: bigint;
+  resellerBPS: bigint; image: string;
+}
+
 export const addTiersFromRows = async (
   ticketCollectionAddr: `0x${string}`,
   ticketRows: any[],
   resale: { party1?: string; party2?: string; reseller?: string } | undefined,
   eventImage: string,
-  addTier: (
-    addr: `0x${string}`,
-    params: {
-      ticketType: number; customName: string; priceUSDC: bigint; quantity: bigint;
-      onSaleTimestamp: bigint; party1ResaleBPS: bigint; party2ResaleBPS: bigint;
-      resellerBPS: bigint; image: string;
-    },
-  ) => Promise<any>,
+  // Batch writer — adds ALL tiers in a single transaction (one wallet confirm).
+  addTiers: (addr: `0x${string}`, tiers: TierParams[]) => Promise<any>,
 ): Promise<void> => {
   if (!Array.isArray(ticketRows) || ticketRows.length === 0) return;
 
@@ -490,6 +490,7 @@ export const addTiersFromRows = async (
     return 4; // CUSTOM
   };
 
+  const tiers: TierParams[] = [];
   for (const row of ticketRows) {
     if (!row?.ticketType || !row?.numberOfTickets) continue;
     const ticketTypeEnum = nameToEnum(row.ticketType);
@@ -497,22 +498,21 @@ export const addTiersFromRows = async (
     const priceUSDC = dollarToWei(row.ticketPrice);
     const quantity = BigInt(parseInt(String(row.numberOfTickets).replace(/,/g, '')) || 0);
     const onSale = row.onSaleDate ? dateTimeToTimestamp(row.onSaleDate) : BigInt(0);
-    try {
-      await addTier(ticketCollectionAddr, {
-        ticketType: ticketTypeEnum,
-        customName,
-        priceUSDC,
-        quantity,
-        onSaleTimestamp: onSale,
-        party1ResaleBPS,
-        party2ResaleBPS,
-        resellerBPS,
-        image: eventImage || '',
-      });
-    } catch (tierErr) {
-      console.warn(`[addTiersFromRows] Failed to add tier ${row.ticketType}:`, tierErr);
-    }
+    tiers.push({
+      ticketType: ticketTypeEnum,
+      customName,
+      priceUSDC,
+      quantity,
+      onSaleTimestamp: onSale,
+      party1ResaleBPS,
+      party2ResaleBPS,
+      resellerBPS,
+      image: eventImage || '',
+    });
   }
+  if (tiers.length === 0) return;
+  // One transaction for every tier — a single wallet confirmation.
+  await addTiers(ticketCollectionAddr, tiers);
 };
 
 export const toggleGenreSelection = (

@@ -5,7 +5,7 @@ import ContractsNav from "../../components/ContractsNav";
 import ShareModal from "../../components/ShareModal";
 import styles from "../../styles/CreateContract.module.css";
 import { useRouter } from "next/router";
-import { useUserContractsWithSummaries } from "../../hooks/useGetContracts";
+import { useUserContractsWithSummaries, formatContractDate } from "../../hooks/useGetContracts";
 import { useWeb3 } from "../../hooks/useWeb3";
 
 const CurrentContract: React.FC = () => {
@@ -133,7 +133,7 @@ const CurrentContract: React.FC = () => {
                       alt="Date"
                       className={styles.promotionIcon}
                     />
-                    {contract.showDate}
+                    {formatContractDate(contract.showDate)}
                   </span>
                 </div>
                 <div className={styles.contractIconsRow}>

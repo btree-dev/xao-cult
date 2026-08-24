@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Head from "next/head";
 import Layout from "../../components/Layout";
 import ContractsNav from "../../components/ContractsNav";
 import styles from "../../styles/CreateContract.module.css";
-import { useAllContractsWithSummaries } from "../../hooks/useGetContracts";
+import { useAllContractsWithSummaries, formatContractDate } from "../../hooks/useGetContracts";
 import { useWeb3 } from "../../hooks/useWeb3";
 import { useRouter } from "next/router";
 import { useOffchainContracts } from "../../hooks/useOffchainContracts";
+import { useXaoMsgSession } from "../../hooks/useXaoMsgSession";
+import { syncAllKnownThreads } from "../../lib/xaomsg/sync";
 import type { OffchainContractDraft } from "../../lib/xaomsg/offchainContracts";
 import { CONTRACT_MESSAGE_VERSION, type ContractProposalMessage } from "../../types/contractMessage";
 
@@ -14,7 +16,23 @@ const Negotiation: React.FC = () => {
   const router = useRouter();
   const { address, chain } = useWeb3();
   const { contracts, isLoading } = useAllContractsWithSummaries(chain?.id);
-  const { drafts } = useOffchainContracts(contracts);
+  const { drafts, reload } = useOffchainContracts(contracts);
+  const { session } = useXaoMsgSession();
+
+  // Off-chain drafts (e.g. a proposal the counterparty sent over chat before any
+  // on-chain save) only land in the local draft store once an inbox sync has run.
+  // That normally happens at login (unlock-chat) or while the Search page is open
+  // — NOT on this page — so a party2 who navigates straight here would see nothing.
+  // Backfill the inbox on mount (once the chat session is unlocked), then re-read
+  // the store so freshly-received drafts show without visiting Search first.
+  useEffect(() => {
+    if (!address || !session) return;
+    let cancelled = false;
+    void syncAllKnownThreads(address, session)
+      .then(() => { if (!cancelled) reload(); })
+      .catch((err) => console.warn("[Negotiation] inbox sync failed:", err));
+    return () => { cancelled = true; };
+  }, [address, session, reload]);
 
   console.log("=== NEGOTIATION DEBUG ===");
   console.log("Connected address:", address);
@@ -116,7 +134,7 @@ const Negotiation: React.FC = () => {
                     alt="Date"
                     className={styles.promotionIcon}
                   />
-                  {contract.showDate}
+                  {formatContractDate(contract.showDate)}
                 </span>
               </div>
             </div>
@@ -175,7 +193,7 @@ const Negotiation: React.FC = () => {
                     alt="Date"
                     className={styles.promotionIcon}
                   />
-                  {waiting.showDate}
+                  {formatContractDate(waiting.showDate)}
                 </span>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import Image from "next/image";
 import styles from "../../styles/CreateContract.module.css";
 import { useProfileCache } from "../../contexts/ProfileCacheContext";
@@ -57,6 +57,16 @@ const TicketsSection: React.FC<TicketsProps> = ({
   const { currentUserProfile } = useProfileCache();
   // Create refs for each ticket row's On Sale Date input
   const onSaleDateRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Rows the user put into "custom" mode by picking "Text input" from the Ticket
+  // Type dropdown — they get a free-text field to type a custom type name (which
+  // maps to the on-chain CUSTOM tier). A row is also treated as custom if its
+  // value is already a non-predefined string (e.g. loaded from a saved draft).
+  const PREDEFINED_TICKET_TYPES = ["Comp", "Presale", "General Admission", "VIP"];
+  const [customTypeRows, setCustomTypeRows] = useState<Set<number>>(new Set());
+  const isCustomRow = (row: TicketRow, index: number): boolean =>
+    customTypeRows.has(index) ||
+    (!!row.ticketType && !PREDEFINED_TICKET_TYPES.includes(row.ticketType) && row.ticketType !== "Text input");
 
 
   // Helper function to parse formatted numbers (remove commas)
@@ -282,7 +292,7 @@ const TicketsSection: React.FC<TicketsProps> = ({
                   <input
                     type="text"
                     className={styles.input}
-                    value={row.ticketType || ""}
+                    value={isCustomRow(row, index) ? "Custom" : (row.ticketType || "")}
                     readOnly
                     placeholder="Ticket Type"
                     style={{ cursor: "pointer", border: "none", background: "transparent", color: "white", flex: 1 }}
@@ -305,7 +315,19 @@ const TicketsSection: React.FC<TicketsProps> = ({
                           className={styles.dropdownOption}
                           onClick={(e) => {
                             e.stopPropagation();
-                            updateTicketRow(index, "ticketType", option);
+                            if (option === "Text input") {
+                              // Enter custom mode: reveal the free-text field and
+                              // clear any predefined value so they can type a name.
+                              setCustomTypeRows(prev => new Set(prev).add(index));
+                              updateTicketRow(index, "ticketType", "");
+                            } else {
+                              setCustomTypeRows(prev => {
+                                const next = new Set(prev);
+                                next.delete(index);
+                                return next;
+                              });
+                              updateTicketRow(index, "ticketType", option);
+                            }
                             setActiveDropdown(null);
                           }}
                         >
@@ -315,6 +337,19 @@ const TicketsSection: React.FC<TicketsProps> = ({
                     </div>
                   )}
                 </div>
+                {/* Custom ticket-type name — shown when "Text input" is picked.
+                    Edits the row's ticketType directly; a non-predefined name
+                    maps to the on-chain CUSTOM tier. */}
+                {isCustomRow(row, index) && (
+                  <input
+                    type="text"
+                    className={styles.input}
+                    value={row.ticketType || ""}
+                    onChange={(e) => updateTicketRow(index, "ticketType", e.target.value)}
+                    placeholder="Enter custom ticket type"
+                    style={{ marginTop: "8px", color: "white" }}
+                  />
+                )}
               </div>
                 <div className={styles.ticketColumn}>
                   <label className={styles.ticketColumnLabel}>On Sale Date</label>

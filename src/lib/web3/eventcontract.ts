@@ -3031,6 +3031,36 @@ export const XAO_TICKET_ABI = [
   {
     "inputs": [
       {
+        "components": [
+          { "internalType": "enum XAOTicket.TicketType", "name": "ticketType", "type": "uint8" },
+          { "internalType": "string", "name": "customName", "type": "string" },
+          { "internalType": "uint256", "name": "priceUSDC", "type": "uint256" },
+          { "internalType": "uint256", "name": "quantity", "type": "uint256" },
+          { "internalType": "uint256", "name": "onSaleTimestamp", "type": "uint256" },
+          { "internalType": "uint256", "name": "party1ResaleBPS", "type": "uint256" },
+          { "internalType": "uint256", "name": "party2ResaleBPS", "type": "uint256" },
+          { "internalType": "uint256", "name": "resellerBPS", "type": "uint256" },
+          { "internalType": "string", "name": "image", "type": "string" }
+        ],
+        "internalType": "struct XAOTicket.TierInput[]",
+        "name": "inputs",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "addTiers",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "ids",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "",
         "type": "address"

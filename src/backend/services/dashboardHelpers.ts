@@ -337,16 +337,20 @@ export const applyContractFilters = async (
   // Step 1: Only show signed contracts (both parties signed)
   filtered = filtered.filter(c => c.party1Signed && c.party2Signed);
 
-  // Step 2: Show events whose start date is today or later
+  // Step 2: Keep an event until it has ENDED (its end date is today or later),
+  // matching the Current list — so an in-progress event (already started but not
+  // over) still shows on the dashboard instead of disappearing the day it starts.
+  // Fall back to the start date when no end date is set.
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
 
   filtered = filtered.filter((c) => {
-    const startDate = timestampToDate(c.showDate);
-    if (!startDate) return true; // keep contracts without a date
-    const startDay = new Date(startDate);
-    startDay.setHours(0, 0, 0, 0);
-    return startDay >= todayStart;
+    const relevantTs = c.endDate && c.endDate > BigInt(0) ? c.endDate : c.showDate;
+    const relevantDate = timestampToDate(relevantTs);
+    if (!relevantDate) return true; // keep contracts without a date
+    const relevantDay = new Date(relevantDate);
+    relevantDay.setHours(0, 0, 0, 0);
+    return relevantDay >= todayStart;
   });
 
   // Step 3: Apply date range filter if set

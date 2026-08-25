@@ -9,7 +9,7 @@ import { useRouter } from "next/router";
 import { useOffchainContracts } from "../../hooks/useOffchainContracts";
 import { useXaoMsgSession } from "../../hooks/useXaoMsgSession";
 import { syncAllKnownThreads } from "../../lib/xaomsg/sync";
-import type { OffchainContractDraft } from "../../lib/xaomsg/offchainContracts";
+import { dismissDraft, type OffchainContractDraft } from "../../lib/xaomsg/offchainContracts";
 import { CONTRACT_MESSAGE_VERSION, type ContractProposalMessage } from "../../types/contractMessage";
 
 const Negotiation: React.FC = () => {
@@ -17,7 +17,23 @@ const Negotiation: React.FC = () => {
   const { address, chain } = useWeb3();
   const { contracts, isLoading } = useAllContractsWithSummaries(chain?.id);
   const { drafts, reload } = useOffchainContracts(contracts);
-  const { session } = useXaoMsgSession();
+  const { session, unlock, isUnlocking, isWalletReady } = useXaoMsgSession();
+  const [syncing, setSyncing] = React.useState(false);
+
+  // Manually pull the inbox again — for a party2 whose incoming draft hasn't
+  // appeared yet (Waku store propagation, or they just unlocked chat).
+  const handleRefresh = async () => {
+    if (!address || !session) return;
+    setSyncing(true);
+    try {
+      await syncAllKnownThreads(address, session);
+      reload();
+    } catch (err) {
+      console.warn("[Negotiation] manual refresh failed:", err);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // Off-chain drafts (e.g. a proposal the counterparty sent over chat before any
   // on-chain save) only land in the local draft store once an inbox sync has run.
@@ -75,6 +91,15 @@ const Negotiation: React.FC = () => {
     });
   };
 
+  // Permanently delete a device-local draft (also blocks a later sync from
+  // restoring it). Used to clear old/stale off-chain drafts.
+  const handleDeleteDraft = (e: React.MouseEvent, draftId: string) => {
+    e.stopPropagation();
+    if (!window.confirm("Delete this off-chain draft from this device? This can't be undone.")) return;
+    dismissDraft(draftId);
+    reload();
+  };
+
   const handleDraftClick = (draft: OffchainContractDraft) => {
     const myAddr = address?.toLowerCase();
     const peer = draft.party1.toLowerCase() === myAddr ? draft.party2 : draft.party1;
@@ -102,6 +127,38 @@ const Negotiation: React.FC = () => {
           <div className={styles.topSection}>
             <h1 className={styles.heading}>Contract Under Negotiation</h1>
           </div>
+
+          {/* Incoming off-chain drafts arrive over encrypted chat. Receiving them
+              needs the chat session unlocked; and because Waku history can take a
+              few seconds to propagate, offer a manual pull too. */}
+          {!session ? (
+            <div style={{ textAlign: "center", margin: "0 auto 16px", maxWidth: 420, color: "#ff9900", fontSize: 13, lineHeight: 1.5 }}>
+              Unlock chat to receive drafts the other party sends you.
+              <div>
+                <button
+                  type="button"
+                  onClick={() => { void unlock(); }}
+                  disabled={isUnlocking || !isWalletReady}
+                  className={styles.confirmButton}
+                  style={{ marginTop: 10, maxWidth: 240, opacity: (isUnlocking || !isWalletReady) ? 0.5 : 1 }}
+                >
+                  {isUnlocking ? "Unlocking chat…" : "Unlock Chat"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", marginBottom: 14 }}>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={syncing}
+                className={styles.confirmButton}
+                style={{ maxWidth: 240, opacity: syncing ? 0.6 : 1 }}
+              >
+                {syncing ? "Checking for drafts…" : "Refresh drafts"}
+              </button>
+            </div>
+          )}
           {attentionContracts.map((contract) => (
             <div
               key={contract.contractAddress}
@@ -146,9 +203,24 @@ const Negotiation: React.FC = () => {
               <div
                 key={draft.draftId}
                 className={styles.ImageContainer}
-                style={{ cursor: "pointer" }}
+                style={{ cursor: "pointer", position: "relative" }}
                 onClick={() => handleDraftClick(draft)}
               >
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteDraft(e, draft.draftId)}
+                  title="Delete draft"
+                  aria-label="Delete draft"
+                  style={{
+                    position: "absolute", top: "8px", right: "8px", zIndex: 3,
+                    width: "28px", height: "28px", borderRadius: "50%", border: "none",
+                    background: "rgba(0,0,0,0.6)", color: "#fff", cursor: "pointer",
+                    fontSize: "15px", lineHeight: 1, display: "flex",
+                    alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  ✕
+                </button>
                 <div className={styles.waitingTitle}>Draft — off-chain</div>
                 <img
                   src={imageUri || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80"}

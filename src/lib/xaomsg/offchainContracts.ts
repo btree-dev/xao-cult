@@ -2,6 +2,20 @@ import type { Address } from 'viem';
 import type { IContract } from '../../backend/services/types/api';
 
 const LS_KEY = 'xao-cult-offchain-contracts';
+// draftIds the user explicitly deleted. Kept separately so that a later inbox
+// sync (which can re-write a draft into the store from Waku history) can never
+// bring a deleted draft back — listDrafts filters these out.
+const LS_DISMISSED = 'xao-cult-offchain-dismissed';
+
+function readDismissed(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try { return new Set(JSON.parse(localStorage.getItem(LS_DISMISSED) || '[]') as string[]); }
+  catch { return new Set(); }
+}
+function writeDismissed(s: Set<string>): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(LS_DISMISSED, JSON.stringify(Array.from(s)));
+}
 
 export interface OffchainContractDraft {
   draftId: string;
@@ -28,11 +42,62 @@ function writeStore(s: Store): void {
 }
 
 export function listDrafts(): OffchainContractDraft[] {
-  return Object.values(readStore()).sort((a, b) => b.lastActivityUnixMs - a.lastActivityUnixMs);
+  const dismissed = readDismissed();
+  return Object.values(readStore())
+    .filter((d) => !dismissed.has(d.draftId))
+    .sort((a, b) => b.lastActivityUnixMs - a.lastActivityUnixMs);
+}
+
+/** Permanently delete a draft from this device: remove it from the store AND
+ *  remember its id as dismissed, so a later inbox sync can't restore it. */
+export function dismissDraft(draftId: string): void {
+  const store = readStore();
+  delete store[draftId];
+  writeStore(store);
+  const dismissed = readDismissed();
+  dismissed.add(draftId);
+  writeDismissed(dismissed);
+}
+
+/** Delete ALL current off-chain drafts (bulk cleanup). Each id is remembered as
+ *  dismissed so a sync can't bring them back. */
+export function dismissAllDrafts(): void {
+  const store = readStore();
+  const dismissed = readDismissed();
+  Object.keys(store).forEach((id) => dismissed.add(id));
+  writeStore({});
+  writeDismissed(dismissed);
+}
+
+/** Un-dismiss everything: forget the deleted-draft list so a subsequent inbox
+ *  sync can bring previously-deleted drafts back (recovery for an accidental
+ *  delete). Drafts that were only ever local and not re-published to Waku can't
+ *  be recovered this way — nothing remains to re-fetch them from. */
+export function clearDismissed(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(LS_DISMISSED);
+}
+
+/** How many drafts are currently hidden (dismissed). Lets the UI show a
+ *  "restore" affordance only when there is something to restore. */
+export function dismissedCount(): number {
+  return readDismissed().size;
 }
 
 export function loadDraft(draftId: string): OffchainContractDraft | null {
   return readStore()[draftId] ?? null;
+}
+
+/** Save (overwrite) a device-local draft unconditionally — no revision guard.
+ *  Backs the create-contract "Save" button: a local checkpoint the user can
+ *  return to and keep editing before the contract is signed on-chain. Unlike
+ *  `upsertDraft` (which drops a non-newer revision to protect the proposal
+ *  sync order), this always writes the latest form state. */
+export function saveLocalDraft(next: OffchainContractDraft): OffchainContractDraft {
+  const store = readStore();
+  store[next.draftId] = next;
+  writeStore(store);
+  return next;
 }
 
 /** Upsert a draft revision. A strictly-newer `revisionNumber` always wins; a

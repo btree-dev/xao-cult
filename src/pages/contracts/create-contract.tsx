@@ -24,6 +24,7 @@ import { ContractProposalMessage } from "../../types/contractMessage";
 import { handleSaveContract, handleSignContract, addTicketsToContract, buildSetupCalldata, addTiersFromRows, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
 import { useShowContractMulticall, useShowContractConfig } from "../../hooks/useShowContractSchedules";
 import { TicketRow } from "./TicketsSection";
+import { saveLocalDraft } from "../../lib/xaomsg/offchainContracts";
 
 // ── Toggle this to enable/disable dummy party values ──
 const ENABLE_DUMMY_DATA = true;
@@ -39,7 +40,12 @@ const CreateContract = () => {
   const [isSigning, setIsSigning] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [creationError, setCreationError] = useState("");
+  const [draftSaved, setDraftSaved] = useState(false);
   const contractSectionRef = useRef<any>(null);
+  // When the Sign button triggers the on-chain deploy (the deploy IS the
+  // on-chain step now — Save is device-local), this flag tells the post-deploy
+  // effect to continue straight into signing once setup finishes.
+  const signAfterDeployRef = useRef(false);
 
   // Contract proposal state
   const [activeProposal, setActiveProposal] = useState<ContractProposalMessage | null>(null);
@@ -387,36 +393,88 @@ const CreateContract = () => {
     }
   };
 
-  // Handle save contract (draft) using helper function
-  const handleSave = () => {
-    // Warn before the on-chain deploy: once saved, the core contract terms
-    // (dates, venue, financials, capacity) are immutable on-chain — there is no
-    // way to edit them afterward. Make all edits before saving.
-    const proceed = window.confirm(
-      "Saving deploys this contract ON-CHAIN. After saving, the contract terms (dates, venue, financials) CANNOT be edited.\n\nMake sure everything is correct. Save now?"
-    );
-    if (!proceed) return;
-    handleSaveContract(
-      isConnected,
-      chain?.id,
-      contractSectionRef,
-      party1,
-      party2,
-      peerAddress || '',
-      stateSetters,
-      createEventContract,
-      imageUri,
-      address as `0x${string}`
-    );
+  // Save = device-local draft ONLY (no blockchain, no gas). Lets the user step
+  // away and come back to keep editing — before sending to the other party and
+  // during negotiation. Putting the contract ON-CHAIN happens when they SIGN.
+  const handleSave = async () => {
+    try {
+      const termsObject = contractSectionRef.current?.getContractData
+        ? contractSectionRef.current.getContractData()
+        : { party1, party2 };
+
+      // Upload the selected promotion image to IPFS so the draft carries an
+      // eventImageUri — the form restore and the Negotiation preview both render
+      // from that, not from the (stripped) base64 imageData. Best-effort: if the
+      // upload fails, still save the rest of the draft.
+      try {
+        await handleImageUpload(termsObject, setIsUploading, imageUri);
+        if (termsObject.eventImageUri) setImageUri(termsObject.eventImageUri);
+      } catch (imgErr) {
+        console.warn('[CreateContract] Draft image upload failed (saving without image):', imgErr);
+      }
+
+      if (termsObject.promotion) delete termsObject.promotion.imageData;
+      termsObject.draftId = draftId;
+      applyPartyRoles(termsObject);
+
+      const ZERO = '0x0000000000000000000000000000000000000000';
+      saveLocalDraft({
+        draftId,
+        party1: (termsObject.party1 || address || ZERO) as `0x${string}`,
+        party2: (termsObject.party2 || peerAddress || ZERO) as `0x${string}`,
+        terms: termsObject,
+        revisionNumber,
+        approvals: [],
+        lastActivityUnixMs: Date.now(),
+      });
+      setDraftSaved(true);
+      setTimeout(() => setDraftSaved(false), 4000);
+    } catch (err) {
+      console.warn('[CreateContract] Save draft failed:', err);
+      alert('Could not save the draft to this device.');
+    }
   };
 
-  // Handle sign contract (signs an already-created contract)
+  // Sign = the on-chain step. If the contract isn't on-chain yet, signing first
+  // DEPLOYS it (creator / Party 1), then adds the signature; the post-deploy
+  // effect continues into signing via signAfterDeployRef. If it's already
+  // on-chain (Party 2, or a re-sign), this just adds the signature.
   const handleSign = async () => {
-    // Point-of-no-return warning: once both parties sign, the contract is
-    // finalized and nothing — ticket types, dates, or terms — can be changed.
-    // Give the signer (especially party2) a last chance to edit first.
+    // Not on-chain yet → this Sign deploys the contract.
+    if (!savedContractAddress) {
+      if (myRole === 'party2') {
+        alert(
+          "Party 1 must sign first — signing is what puts the contract on-chain. " +
+          "Once Party 1 has signed, you can review and add your signature."
+        );
+        return;
+      }
+      const proceed = window.confirm(
+        "Signing places this contract ON-CHAIN and adds your signature. After both parties sign, the terms and ticket types become final.\n\nContinue?"
+      );
+      if (!proceed) return;
+      signAfterDeployRef.current = true;
+      setIsSigning(true);
+      setIsContractCreating(true);
+      // Deploy now — processContractCreation will continue into signing.
+      handleSaveContract(
+        isConnected,
+        chain?.id,
+        contractSectionRef,
+        party1,
+        party2,
+        peerAddress || '',
+        stateSetters,
+        createEventContract,
+        imageUri,
+        address as `0x${string}`
+      );
+      return;
+    }
+
+    // Already on-chain → just add my signature.
     const proceed = window.confirm(
-      "Once both parties sign, no more ticket types can be added — the ticket types set now become FINAL.\n\nIf you still want to add a ticket type, cancel and add it now. Continue to sign?"
+      "Signing is final. Once both parties have signed, the contract is LOCKED — nothing can be changed after that: not the terms, dates, or ticket types.\n\nIf you still want to change anything, cancel and do it now. Continue to sign?"
     );
     if (!proceed) return;
     setIsSigning(true);
@@ -551,10 +609,33 @@ const CreateContract = () => {
             }
           }
 
-          setAddressModal({ title: 'Contract saved as draft on blockchain', address: String(newContractAddress) });
+          // The deploy is the on-chain step, triggered by the Sign button. Now
+          // continue into the actual signature so one click = deploy + sign.
+          if (signAfterDeployRef.current) {
+            signAfterDeployRef.current = false;
+            try {
+              await handleSignContract(
+                isConnected,
+                chain?.id,
+                newContractAddress,
+                party1,
+                stateSetters,
+                signContractAsync,
+                contractSectionRef
+              );
+            } catch (signErr) {
+              console.warn('[CreateContract] Sign after deploy failed:', signErr);
+              setIsSigning(false);
+              setAddressModal({ title: 'Contract is on-chain — tap Sign to finish', address: String(newContractAddress) });
+            }
+          } else {
+            setAddressModal({ title: 'Contract placed on blockchain', address: String(newContractAddress) });
+          }
         } catch (err) {
           setCreationError(err instanceof Error ? err.message : "Failed to process contract");
           setIsContractCreating(false);
+          setIsSigning(false);
+          signAfterDeployRef.current = false;
         }
       }
     };
@@ -765,44 +846,34 @@ const CreateContract = () => {
                   </div>
                 )}
 
-                {/* Save/Draft Button */}
+                {/* Save Draft Button — saves to THIS DEVICE only (no blockchain,
+                    no gas). Re-savable; the on-chain step is Sign. */}
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={isContractCreating || isLoading || isSigning || isUploading || !isConnected || !!savedContractAddress}
+                  disabled={isContractCreating || isSigning || isUploading}
                   className={styles.confirmButton}
                 >
-                  {isUploading ? "Uploading Image..." : isContractCreating || isLoading ? "Saving Draft..." : savedContractAddress ? "Already Saved" : "Save"}
+                  {isUploading ? "Uploading Image..." : "Save Draft"}
                 </button>
 
-                {/* Contract already exists notice */}
-                {savedContractAddress && (
-                  <div style={{ color: "#ff9900", marginTop: "10px", fontSize: "13px" }}>
-                    Contract already created: {savedContractAddress.slice(0, 10)}...{savedContractAddress.slice(-8)}
+                {draftSaved && (
+                  <div style={{ color: "#35C08A", marginTop: "8px", fontSize: "13px" }}>
+                    ✓ Draft saved to this device — you can come back to it later.
                   </div>
                 )}
 
-                {/* Add Tickets On-chain — the Save button runs only once, so after
-                    the initial Save this is the way to push NEW ticket rows on-chain
-                    while the contract is still in negotiation (before both parties
-                    sign). Hidden once finalized, when tiers are frozen. */}
-                {savedContractAddress && !contractFinalized && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleAddTicketsOnChain}
-                      disabled={isAddingTicketsOnChain}
-                      className={styles.documentButton}
-                      style={{ marginTop: "10px", opacity: isAddingTicketsOnChain ? 0.6 : 1 }}
-                    >
-                      {isAddingTicketsOnChain ? "Adding tickets on-chain…" : "Add Tickets On-chain"}
-                    </button>
-                    <div style={{ color: "#ff9900", marginTop: "6px", fontSize: "12px", lineHeight: 1.5 }}>
-                      Add a new ticket row in the Tickets section above, then tap this to save it
-                      on-chain. Only works before both parties sign.
-                    </div>
-                  </>
+                {/* On-chain notice — set once Sign has deployed the contract. */}
+                {savedContractAddress && (
+                  <div style={{ color: "#ff9900", marginTop: "10px", fontSize: "13px" }}>
+                    On-chain: {savedContractAddress.slice(0, 10)}...{savedContractAddress.slice(-8)}
+                  </div>
                 )}
+
+                {/* Ticket types are set ONLY in the Tickets section above, before
+                    signing — they are added on-chain when the contract is signed,
+                    and none can be added afterward. (The old post-deploy "Add
+                    Tickets On-chain" control was removed for that reason.) */}
 
                 {/* Unlock Chat — the "Send to Party" proposal travels over the
                     encrypted XaoMsg (Waku) thread, which needs a one-time wallet
@@ -875,17 +946,22 @@ const CreateContract = () => {
                     : `Send to ${myRole === 'party2' ? "Party 1" : "Party 2"} (Rev. ${revisionNumber})`}
                 </button>
 
-                {/* Sign Button — only enabled after contract is saved as draft and not already signed */}
+                {/* Sign Button — the on-chain step. Enabled without an on-chain
+                    contract too: for Party 1 the first Sign deploys + signs. */}
                 <button
                   type="button"
                   onClick={handleSign}
-                  disabled={isSigning || isContractCreating || isLoading || isUploading || !isConnected || !savedContractAddress || hasAlreadySigned}
+                  disabled={isSigning || isContractCreating || isLoading || isUploading || !isConnected || hasAlreadySigned}
                   className={styles.documentButton}
                   style={{
-                    opacity: (!savedContractAddress || hasAlreadySigned || !isConnected) ? 0.4 : 1,
+                    opacity: (hasAlreadySigned || !isConnected) ? 0.4 : 1,
                   }}
                 >
-                  {isSigning ? "Signing..." : hasAlreadySigned ? "Already Signed" : "Sign"}
+                  {isSigning
+                    ? "Signing..."
+                    : hasAlreadySigned
+                      ? "Already Signed"
+                      : savedContractAddress ? "Sign" : "Sign & Place On-chain"}
                 </button>
 
               </>

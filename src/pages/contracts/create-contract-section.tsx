@@ -456,10 +456,10 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     // FUTURE-dated so the signed contract shows on the Current Contracts page.
     // FUTURE-dated so the signed contract shows on the Current Contracts page.
     // Future event → shows on the Current list.
-    setEventStartDate("2026-11-14T20:00");
-    setEventEndDate("2026-11-15T02:00");
-    setEventAnnouncementDate("2026-09-01T10:00");
-    setTicketsSale("2026-10-01T00:00");
+    setEventStartDate("2026-12-05T20:00");
+    setEventEndDate("2026-12-06T02:00");
+    setEventAnnouncementDate("2026-09-15T10:00");
+    setTicketsSale("2026-10-15T00:00");
     setStartTime("20:00");
     setEndTime("02:00");
     setLoadIn("16:00");
@@ -469,8 +469,8 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     setIsDatesTimeOpen(true);
 
     // Location
-    setVenueName("Skyline Rooftop");
-    setAddress("88 Highline Ave, New York, NY 10011");
+    setVenueName("Riverside Amphitheater");
+    setAddress("500 Riverside Dr, Austin, TX 78701");
     setRadiusDistance("50 miles");
     setDays("30 days");
     setIsLocationOpen(true);
@@ -496,30 +496,30 @@ const CreateContractsection = forwardRef<any, CreateContractsectionProps>((props
     setBarsplitInput("15");
     setMerchSplitInput("10");
     setdepositbandInput("1,000");
-    setbandCanceledBy("2026-11-01T12:00");
+    setbandCanceledBy("2026-11-20T12:00");
     setsecuritydepositAdd("");
     setSecurityDepositRows([
-      { dateTime: "2026-10-15T12:00", percentage: "50", dollarAmount: "2,500" },
+      { dateTime: "2026-11-05T12:00", percentage: "50", dollarAmount: "2,500" },
     ]);
     setCancelParty1Rows([
-      { dateTime: "2026-11-01T12:00", percentage: "25", dollarAmount: "1,250" },
+      { dateTime: "2026-11-20T12:00", percentage: "25", dollarAmount: "1,250" },
     ]);
     setCancelParty2Rows([
-      { dateTime: "2026-11-01T12:00", percentage: "25", dollarAmount: "1,250" },
+      { dateTime: "2026-11-20T12:00", percentage: "25", dollarAmount: "1,250" },
     ]);
     setIsMoneyOpen(true);
 
     // Payments
     setPayoutRows([
-      { dateTime: "2026-11-16T12:00", percentage: "100", dollarAmount: "5,000" },
+      { dateTime: "2026-12-07T12:00", percentage: "100", dollarAmount: "5,000" },
     ]);
     setPayout2Rows([
-      { dateTime: "2026-11-16T12:00", percentage: "100", dollarAmount: "5,000" },
+      { dateTime: "2026-12-07T12:00", percentage: "100", dollarAmount: "5,000" },
     ]);
     setIsPaymentsOpen(true);
 
     // Promotion
-    setPromotionValue("Aurora Festival");
+    setPromotionValue("Electric Bloom");
     setPromotionGenres(["Electronic", "House"]);
     setIsPromotionOpen(true);
 

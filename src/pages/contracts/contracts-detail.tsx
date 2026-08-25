@@ -468,7 +468,7 @@ const Contractsdetail: React.FC = () => {
     // Point-of-no-return warning: once both parties sign, the contract is
     // finalized and nothing — ticket types, dates, or terms — can be changed.
     const proceed = window.confirm(
-      "Once both parties sign, no more ticket types can be added — the ticket types set now become FINAL.\n\nIf you still want to add a ticket type, cancel and add it now. Continue to sign?"
+      "Signing is final. Once both parties have signed, the contract is LOCKED — nothing can be changed after that: not the terms, dates, or ticket types.\n\nIf you still want to change anything, cancel and do it now. Continue to sign?"
     );
     if (!proceed) return;
 
@@ -534,8 +534,9 @@ const Contractsdetail: React.FC = () => {
           )}
           {isUserAuthorized() && (
             <>
-              {/* Add Ticket Type — shown during negotiation (before both sign).
-                  Either party may add a ticket type here; frozen once finalized. */}
+              {/* Add Ticket Type — REMOVED. Ticket types are set only in the
+                  create-contract form BEFORE signing and are added on-chain at
+                  signing; none can be added afterward. Kept commented for reference.
               {!isReadOnly && hasTicketCollection && (
                 <button
                   type="button"
@@ -546,6 +547,7 @@ const Contractsdetail: React.FC = () => {
                   {addingTicket ? "Cancel" : "Add Ticket Type"}
                 </button>
               )}
+              */}
               {hasTicketCollection && (
                 <button
                   type="button"
@@ -774,9 +776,10 @@ const Contractsdetail: React.FC = () => {
             />
           </div>
 
-          {/* Add Ticket Type Form — shown when the user taps "Add Ticket Type"
-              during negotiation. Hidden once finalized (isReadOnly). */}
-          {addingTicket && !isReadOnly && isUserAuthorized() && (
+          {/* Add Ticket Type Form — DISABLED. Ticket types are set only in the
+              create-contract form before signing; none are added here. Guarded
+              with `false` so it never renders (kept for reference). */}
+          {false && addingTicket && !isReadOnly && isUserAuthorized() && (
             <div style={{ marginTop: "20px", padding: "20px", border: "1px solid #ccc", borderRadius: "8px" }}>
               <h3 style={{ color: "white", marginBottom: "15px" }}>Add New Ticket Type</h3>
               <div className={styles.inputRow}>

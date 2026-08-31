@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useReadContracts } from 'wagmi';
 import { SHOW_CONTRACT_ABI, XAO_TICKET_ABI } from '../lib/web3/eventcontract';
 import {
-  useUserContractsWithSummaries,
+  useAllContractsWithSummaries,
   formatContractDate,
   ContractSummary,
 } from './useGetContracts';
@@ -64,8 +64,11 @@ interface OwnedToken extends TokenDescriptor {
  * The owned tokens are then mapped onto the shape the tickets feed renders.
  */
 export const useUserTickets = (chainId?: number, address?: `0x${string}`) => {
-  // Stage 0: the user's ShowContracts (with summaries).
-  const { contracts, isLoading: contractsLoading } = useUserContractsWithSummaries(chainId, address);
+  // Stage 0: ALL ShowContracts (not just the ones where this wallet is a party).
+  // A buyer holds tickets in collections belonging to events they didn't create,
+  // so we must scan every collection and let the per-token balanceOf (Stage 3)
+  // keep only the tokens THIS wallet actually owns.
+  const { contracts, isLoading: contractsLoading } = useAllContractsWithSummaries(chainId);
 
   // Stage 1: read the ticketCollection address for each ShowContract.
   const collectionCalls = useMemo(

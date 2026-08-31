@@ -169,11 +169,27 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
 
         console.log("Scan successful! Tx:", txHash);
 
+        // Distinguish a full REDEEM (scanned at/after doors → ticket consumed)
+        // from an AUTHENTICATION (scanned before doors → valid but not consumed):
+        // the ticket is only marked `scanned` on redeem. Re-read it to know which.
+        let wasRedeemed = false;
+        try {
+          wasRedeemed = await readContract(config, {
+            address: ticketCollectionAddr,
+            abi: XAO_TICKET_ABI as any,
+            functionName: 'scanned',
+            args: [tokenId],
+          }) as boolean;
+        } catch {
+          // Read failed — treat as authentication (safer: doesn't claim redeemed).
+        }
+        const mode = wasRedeemed ? 'redeemed' : 'authenticated';
+
         if (onScanSuccess) {
           onScanSuccess(scannedData);
         }
 
-        router.push(`/TicketAuthenticate/Access?status=success&ticketId=${tokenId.toString()}&ticketType=${encodeURIComponent(tierName)}`);
+        router.push(`/TicketAuthenticate/Access?status=success&mode=${mode}&ticketId=${tokenId.toString()}&ticketType=${encodeURIComponent(tierName)}`);
       } catch (scanErr: any) {
         console.error("Scan transaction failed:", scanErr);
 
@@ -216,7 +232,7 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
         </div>
 
         <p className={styles.scanInstruction}>
-          {scanStatus === 'detected' ? "QR Code detected! Press Redeem to verify" : "Align the QR code within the frame to scan"}
+          {scanStatus === 'detected' ? "QR Code detected! Press Scan to verify" : "Align the QR code within the frame to scan"}
         </p>
 
         <button
@@ -224,7 +240,7 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
           onClick={handleAuthenticate}
           disabled={isAuthenticating || !scannedData}
         >
-          {isAuthenticating ? "Redeeming..." : "Redeem"}
+          {isAuthenticating ? "Scanning..." : "Scan"}
         </button>
       </div>
     </div>

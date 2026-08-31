@@ -336,11 +336,15 @@ const CreateContract = () => {
         ? contractSectionRef.current.getContractData()
         : { party1, party2 };
 
-      // Upload image to IPFS via Pinata (or reuse existing URI)
-      await handleImageUpload(termsObject, setIsUploading, imageUri);
-      // Store the uploaded URI for reuse in save/sign
-      if (termsObject.eventImageUri) {
-        setImageUri(termsObject.eventImageUri);
+      // Upload image to IPFS via Pinata (or reuse existing URI). Best-effort:
+      // an image upload hiccup must not block sending the proposal.
+      try {
+        await handleImageUpload(termsObject, setIsUploading, imageUri);
+        if (termsObject.eventImageUri) {
+          setImageUri(termsObject.eventImageUri);
+        }
+      } catch (imgErr) {
+        console.warn('[CreateContract] Proposal image upload failed (sending without a new upload):', imgErr);
       }
 
       // Remove base64 imageData before sending over Waku
@@ -387,7 +391,8 @@ const CreateContract = () => {
       setSelected("chat");
     } catch (err) {
       console.error("Failed to send proposal:", err);
-      setCreationError("Failed to send contract proposal");
+      const msg = err instanceof Error ? err.message : String(err);
+      setCreationError(`Failed to send proposal: ${msg}`);
     } finally {
       setIsSendingProposal(false);
     }

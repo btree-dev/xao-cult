@@ -20,6 +20,15 @@ export default function Access() {
   const isSuccess = authStatus === "success";
   const reason = router.query.reason as string | undefined;
   const ticketType = router.query.ticketType ? decodeURIComponent(router.query.ticketType as string) : '';
+  // 'redeemed' = scanned after doors (entry granted, ticket consumed);
+  // 'authenticated' = scanned before doors (valid, NOT yet redeemed).
+  const mode = router.query.mode as string | undefined;
+  const isRedeemed = mode === 'redeemed';
+
+  const successTitle = isRedeemed ? 'Redeemed' : 'Authenticated';
+  const successSubtitle = isRedeemed
+    ? (ticketType ? `${ticketType} — checked in` : 'Checked in — entry granted')
+    : (ticketType ? `${ticketType} — valid, not yet redeemed` : 'Valid ticket — not yet redeemed (doors not open)');
 
   const getErrorMessage = () => {
     switch (reason) {
@@ -89,10 +98,10 @@ export default function Access() {
 
             <div className={styles.accessMessageContainer}>
               <h1 className={styles.accessTitle}>
-                {isSuccess ? "Authenticate" : "Authentication"}
+                {isSuccess ? successTitle : "Authentication"}
               </h1>
               <h2 className={styles.accessSubtitle}>
-                {isSuccess ? (ticketType ? `${ticketType} — successful` : "successful") : getErrorMessage()}
+                {isSuccess ? successSubtitle : getErrorMessage()}
               </h2>
             </div>
 

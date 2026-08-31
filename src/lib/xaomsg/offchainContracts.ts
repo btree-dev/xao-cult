@@ -84,6 +84,16 @@ export function dismissedCount(): number {
   return readDismissed().size;
 }
 
+/** Remove a draftId from the dismissed set. Called on any FRESH activity for a
+ *  draft (a local Save, or a received proposal/counter-proposal) so that new
+ *  activity un-hides a previously-deleted draft — deletion only hides stale
+ *  drafts, it must never swallow a live update (e.g. party2's counter-proposal
+ *  arriving for a draft party1 had cleared). */
+function undismissDraft(draftId: string): void {
+  const dismissed = readDismissed();
+  if (dismissed.delete(draftId)) writeDismissed(dismissed);
+}
+
 export function loadDraft(draftId: string): OffchainContractDraft | null {
   return readStore()[draftId] ?? null;
 }
@@ -97,6 +107,7 @@ export function saveLocalDraft(next: OffchainContractDraft): OffchainContractDra
   const store = readStore();
   store[next.draftId] = next;
   writeStore(store);
+  undismissDraft(next.draftId); // fresh activity un-hides a previously-deleted draft
   return next;
 }
 
@@ -109,6 +120,10 @@ export function upsertDraft(next: OffchainContractDraft): OffchainContractDraft 
   const winner = !existing || next.revisionNumber > existing.revisionNumber ? next : existing;
   store[next.draftId] = winner;
   writeStore(store);
+  // A received proposal/counter-proposal is fresh activity — never let a prior
+  // deletion keep it hidden (this is what made party2's counter-proposal not
+  // show for a party1 who had cleared the draft).
+  undismissDraft(next.draftId);
   return winner;
 }
 

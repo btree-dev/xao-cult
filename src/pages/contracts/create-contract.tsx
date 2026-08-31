@@ -24,7 +24,7 @@ import { ContractProposalMessage } from "../../types/contractMessage";
 import { handleSaveContract, handleSignContract, addTicketsToContract, buildSetupCalldata, addTiersFromRows, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
 import { useShowContractMulticall, useShowContractConfig } from "../../hooks/useShowContractSchedules";
 import { TicketRow } from "./TicketsSection";
-import { saveLocalDraft } from "../../lib/xaomsg/offchainContracts";
+import { saveLocalDraft, loadDraft } from "../../lib/xaomsg/offchainContracts";
 
 // ── Toggle this to enable/disable dummy party values ──
 const ENABLE_DUMMY_DATA = true;
@@ -418,13 +418,31 @@ const CreateContract = () => {
       applyPartyRoles(termsObject);
 
       const ZERO = '0x0000000000000000000000000000000000000000';
+      const isAddr = (a: unknown): a is `0x${string}` =>
+        typeof a === 'string' && a.startsWith('0x') && a.length === 42 && a.toLowerCase() !== ZERO;
+
+      // Preserve the ORIGINAL parties from an existing draft. party1 (the creator)
+      // must never change, and editing (e.g. party2 reopening party1's draft) must
+      // not reassign it — otherwise a mis-resolved role (peer address not ready)
+      // could overwrite party1 with the editor's own address, and the draft would
+      // stop matching party1 and vanish from their Negotiation list.
+      const existing = loadDraft(draftId);
+      const p1 = (isAddr(existing?.party1) ? existing!.party1
+        : isAddr(termsObject.party1) ? termsObject.party1
+        : (address || ZERO)) as `0x${string}`;
+      const p2 = (isAddr(existing?.party2) ? existing!.party2
+        : isAddr(termsObject.party2) ? termsObject.party2
+        : (peerAddress || ZERO)) as `0x${string}`;
+      termsObject.party1 = p1;
+      termsObject.party2 = p2;
+
       saveLocalDraft({
         draftId,
-        party1: (termsObject.party1 || address || ZERO) as `0x${string}`,
-        party2: (termsObject.party2 || peerAddress || ZERO) as `0x${string}`,
+        party1: p1,
+        party2: p2,
         terms: termsObject,
         revisionNumber,
-        approvals: [],
+        approvals: existing?.approvals || [],
         lastActivityUnixMs: Date.now(),
       });
       setDraftSaved(true);

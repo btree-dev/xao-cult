@@ -9,12 +9,21 @@ import { mockTickets } from '../../../backend/ticket-services/ticketdata';
 import { readContract } from '@wagmi/core';
 import { config } from '../../../wagmi';
 import { SHOW_CONTRACT_ABI, XAO_TICKET_ABI } from '../../../lib/web3/eventcontract';
+import { useWeb3 } from '../../../hooks/useWeb3';
+import { useUserTickets } from '../../../hooks/useUserTickets';
 const TicketDetailPage: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [ticket, setTicket] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(0);
+  const [slideIdx, setSlideIdx] = useState(0);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const router = useRouter();
   const { id } = router.query;
+
+  // All of THIS wallet's tickets for the same event (collection) — powers the
+  // QR slider so multiple tickets show in one detail page, like the list card.
+  const { address, chain } = useWeb3();
+  const { tickets: allUserTickets } = useUserTickets(chain?.id, address);
 
   // Matches both old 'blockchain-' and new 'chain-' prefixed IDs
   const isBlockchainTicket = typeof id === 'string' && (id.startsWith('blockchain-') || id.startsWith('chain-'));
@@ -32,11 +41,50 @@ const TicketDetailPage: NextPage = () => {
     return null;
   };
 
+  // The wallet's tickets for THIS event (same collection) — for the QR slider.
+  const collectionAddr = typeof id === 'string' ? parseChainId(id)?.contractAddress?.toLowerCase() : undefined;
+  const eventGroup = collectionAddr
+    ? allUserTickets.filter((t) => t.ticketCollection.toLowerCase() === collectionAddr)
+    : [];
+  const groupCount = eventGroup.length;
+  const activeGroupTicket = groupCount > 0 ? eventGroup[Math.min(slideIdx, groupCount - 1)] : null;
+  // The QR code + redeemed status track the current slide; fall back to the
+  // single fetched ticket when the group hasn't loaded yet.
+  const activeTicketCode = activeGroupTicket
+    ? `${activeGroupTicket.ticketCollection}:${activeGroupTicket.tokenId}`
+    : (ticket?.ticketCode as string | undefined);
+  const activeRedeemed = activeGroupTicket ? activeGroupTicket.redeemed : ticket?.redeemed;
+  const goSlide = (delta: number) => {
+    if (groupCount < 2) return;
+    const nextIdx = (Math.min(slideIdx, groupCount - 1) + delta + groupCount) % groupCount;
+    setSlideIdx(nextIdx);
+    // Keep the URL pointing at the ticket currently shown, so refresh/share/back
+    // land on this exact ticket. Shallow so it doesn't trigger a full navigation.
+    const nextTicket = eventGroup[nextIdx];
+    if (nextTicket?.id) {
+      router.replace(`/stats/tickets/${nextTicket.id}`, undefined, { shallow: true });
+    }
+  };
+
+  // Start the slider on the ticket the user actually tapped.
+  useEffect(() => {
+    if (typeof id !== 'string' || groupCount === 0) return;
+    const parsed = parseChainId(id);
+    const tid = parsed ? Number(parsed.onChainTicketId) : -1;
+    const i = eventGroup.findIndex((t) => t.tokenId === tid);
+    if (i >= 0) setSlideIdx(i);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, groupCount]);
+
   useEffect(() => {
     const getTicketData = async () => {
       if (!id) return;
 
-      setLoading(true);
+      // Only show the full-page loader on the first load. When the id changes
+      // because the user slid to another ticket in the same event, re-fetch
+      // silently — the QR/status already come from the slider group, so a
+      // loading flicker on every swipe would be jarring.
+      if (!ticket) setLoading(true);
 
       try {
         // Check if this is a blockchain purchased ticket
@@ -188,19 +236,29 @@ const TicketDetailPage: NextPage = () => {
         <link href="/favicon.ico" rel="icon" />
       </Head>
 
-      <Navbar showBackButton={true} pageTitle={currentPage === 0 ? `${ticket.redeemed ? 'Redeemed' : 'Unredeemed'} Ticket` : ticket.title} />
+      <Navbar showBackButton={true} pageTitle={currentPage === 0 ? `${activeRedeemed ? 'Redeemed' : 'Unredeemed'} Ticket` : ticket.title} />
 
       {currentPage === 0 ? (
         <div className={styles.ticketQrContainer}>
-          <div className={styles.qrPagination}>
+          <div className={styles.qrPagination} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+            {isBlockchainTicket && groupCount > 1 && (
+              <button type="button" aria-label="Previous ticket" onClick={() => goSlide(-1)}
+                style={{ background: 'none', border: 'none', color: '#fff', fontSize: 24, cursor: 'pointer', lineHeight: 1 }}>‹</button>
+            )}
             <span className={styles.qrPageIndicator}>
-              {isBlockchainTicket ? '1 / 1' : `${mockTickets.findIndex(t => t.id === id) + 1} / ${mockTickets.length}`}
+              {isBlockchainTicket
+                ? (groupCount > 1 ? `${Math.min(slideIdx, groupCount - 1) + 1} / ${groupCount}` : '1 / 1')
+                : `${mockTickets.findIndex(t => t.id === id) + 1} / ${mockTickets.length}`}
             </span>
+            {isBlockchainTicket && groupCount > 1 && (
+              <button type="button" aria-label="Next ticket" onClick={() => goSlide(1)}
+                style={{ background: 'none', border: 'none', color: '#fff', fontSize: 24, cursor: 'pointer', lineHeight: 1 }}>›</button>
+            )}
           </div>
           <div className={styles.qrCodeWrapper}>
             <div className={styles.qrCode}>
               <Image
-                src={getQRCodeUrl(ticket.ticketCode)}
+                src={getQRCodeUrl(activeTicketCode || ticket.ticketCode)}
                 alt="Ticket QR Code"
                 width={200}
                 height={200}
@@ -303,8 +361,21 @@ const TicketDetailPage: NextPage = () => {
 
           <div className={styles.ticketDetailSection}>
             <h3 className={styles.sectionTitle}>DETAILS</h3>
-            <p className={styles.detailText}>{ticket.details}</p>
-            <button className={styles.readMoreButton}>Read more</button>
+            <p
+              className={styles.detailText}
+              style={!detailsExpanded ? { display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' } : undefined}
+            >
+              {ticket.details}
+            </p>
+            {typeof ticket.details === 'string' && ticket.details.length > 140 && (
+              <button
+                type="button"
+                className={styles.readMoreButton}
+                onClick={() => setDetailsExpanded((v) => !v)}
+              >
+                {detailsExpanded ? 'Show less' : 'Read more'}
+              </button>
+            )}
           </div>
 
           <div className={styles.ticketDetailSection}>

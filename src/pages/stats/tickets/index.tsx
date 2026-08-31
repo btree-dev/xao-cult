@@ -9,6 +9,7 @@ import Layout from '../../../components/Layout';
 import ShareModal from '../../../components/ShareModal';
 import { useWeb3 } from '../../../hooks/useWeb3';
 import { useUserTickets } from '../../../hooks/useUserTickets';
+
 const TicketsPage: NextPage = () => {
   const [mutedTickets, setMutedTickets] = useState<Set<string>>(new Set());
   const [likedTickets, setLikedTickets] = useState<Set<string>>(new Set());
@@ -84,6 +85,20 @@ const TicketsPage: NextPage = () => {
     activeTab === 'unredeemed' ? !ticket.redeemed : ticket.redeemed
   );
 
+  // ONE card per event (ticketCollection). Multiple tickets for the same event
+  // collapse into a single card with a count; tapping it opens the detail page,
+  // which has the per-ticket QR slider. Keep the first ticket for display.
+  const eventCards = (() => {
+    const byEvent = new Map<string, { ticket: typeof filteredTickets[number]; count: number }>();
+    filteredTickets.forEach((t) => {
+      const key = t.ticketCollection || t.contractAddress || t.id;
+      const existing = byEvent.get(key);
+      if (existing) existing.count += 1;
+      else byEvent.set(key, { ticket: t, count: 1 });
+    });
+    return Array.from(byEvent.values());
+  })();
+
   return (
     <Layout>
     <div className={styles.ticketsPage}>
@@ -100,10 +115,10 @@ const TicketsPage: NextPage = () => {
       </h2>
 
       <div className={styles.ticketsGrid}>
-        {filteredTickets.length > 0 ? (
-          filteredTickets.map((ticket, index) => (
+        {eventCards.length > 0 ? (
+          eventCards.map(({ ticket, count }, index) => (
             <div
-              key={index}
+              key={ticket.ticketCollection || ticket.id || index}
               className={styles.feedItem}
               onClick={() => handleTicketClick(ticket.id)}
             >
@@ -113,8 +128,8 @@ const TicketsPage: NextPage = () => {
                       <Image src={ticket.profilePic} alt={ticket.artist} width={32} height={32} />
                     </div>
                     <div className={styles.authorName}>@{ticket.artist}</div>
-                    <div className={styles.headerTag}>{ticket.tag}</div>
-                  </div> 
+                    <div className={styles.headerTag}>{count > 1 ? `${count} tickets` : ticket.tag}</div>
+                  </div>
                 </div>
                 <div className={styles.feedContent}>
                   <div className={ticket.redeemed ? styles.redeemedImageWrapper : styles.unredeemedImageWrapper}>

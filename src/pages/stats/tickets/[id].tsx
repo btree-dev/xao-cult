@@ -42,10 +42,19 @@ const TicketDetailPage: NextPage = () => {
   };
 
   // The wallet's tickets for THIS event (same collection) — for the QR slider.
-  const collectionAddr = typeof id === 'string' ? parseChainId(id)?.contractAddress?.toLowerCase() : undefined;
-  const eventGroup = collectionAddr
+  const parsedForGroup = typeof id === 'string' ? parseChainId(id) : null;
+  const collectionAddr = parsedForGroup?.contractAddress?.toLowerCase();
+  const clickedTokenId = parsedForGroup ? Number(parsedForGroup.onChainTicketId) : -1;
+  const collectionTickets = collectionAddr
     ? allUserTickets.filter((t) => t.ticketCollection.toLowerCase() === collectionAddr)
     : [];
+  // Slider must stay within ONE redeemed state: a ticket opened from the
+  // Redeemed tab only sliders through redeemed tickets, and an Unredeemed one
+  // only through unredeemed — never mix the two. Anchor on the tapped ticket's
+  // status (fall back to the fetched ticket while the list loads).
+  const clickedTicket = collectionTickets.find((t) => t.tokenId === clickedTokenId);
+  const wantRedeemed = clickedTicket ? clickedTicket.redeemed : (ticket?.redeemed ?? false);
+  const eventGroup = collectionTickets.filter((t) => t.redeemed === wantRedeemed);
   const groupCount = eventGroup.length;
   const activeGroupTicket = groupCount > 0 ? eventGroup[Math.min(slideIdx, groupCount - 1)] : null;
   // The QR code + redeemed status track the current slide; fall back to the

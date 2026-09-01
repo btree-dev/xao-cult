@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/router";
 import styles from "../../styles/ticketAuthenticate.module.css";
 import { readContract, writeContract, waitForTransactionReceipt } from "@wagmi/core";
 import { config } from "../../wagmi";
 import { XAO_TICKET_ABI } from "../../lib/web3/eventcontract";
 import { useWeb3 } from "../../hooks/useWeb3";
+import TicketScan from "./TicketScan";
 
 // Manual counterpart to the camera-based Scan tab: type in the ticket's
 // collection address + number and run the same on-chain scanTicket flow (auth
@@ -18,41 +19,15 @@ export default function TicketAuthentication() {
   const [error, setError] = useState("");
   const [scanning, setScanning] = useState(false);
 
-  // Optional camera QR reader that FILLS the fields (it doesn't scan on-chain —
-  // the user reviews and taps Authenticate). The QR encodes "collection:tokenId".
-  useEffect(() => {
-    if (!scanning) return;
-    let html5QrCode: any = null;
-    let cancelled = false;
-    (async () => {
-      try {
-        const { Html5Qrcode } = await import("html5-qrcode");
-        html5QrCode = new Html5Qrcode("auth-reader");
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 220, height: 220 } },
-          (decodedText: string) => {
-            const [c, t] = decodedText.split(":");
-            if (c) setCollection(c.trim());
-            if (t) setTokenIdInput(t.trim());
-            setError("");
-            setScanning(false); // stop after one successful read
-          },
-          () => {},
-        );
-      } catch (err) {
-        console.warn("[Authenticate] QR camera failed:", err);
-        if (!cancelled) {
-          setError("Couldn't open the camera — enter the details manually.");
-          setScanning(false);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-      if (html5QrCode) html5QrCode.stop().catch(() => {});
-    };
-  }, [scanning]);
+  // Reuse the Scan tab's scanner (fill-only): a decoded QR ("collection:tokenId")
+  // fills the fields; the on-chain check-in still happens on Authenticate below.
+  const handleFill = (code: string) => {
+    const [c, t] = code.split(":");
+    if (c) setCollection(c.trim());
+    if (t) setTokenIdInput(t.trim());
+    setError("");
+    setScanning(false);
+  };
 
   const handleAuthenticate = async () => {
     setError("");
@@ -163,8 +138,8 @@ export default function TicketAuthentication() {
           Scan the QR to fill the fields, or enter the ticket details manually, then check in.
         </p>
 
-        {/* Scan-to-fill: reads a QR into the fields; the on-chain check-in still
-            happens on the Authenticate button below. */}
+        {/* Scan-to-fill: reuses the Scan tab's exact scanner UI to read a QR into
+            the fields; the on-chain check-in still happens on Authenticate below. */}
         <button
           type="button"
           className={styles.authenticateButton}
@@ -173,17 +148,7 @@ export default function TicketAuthentication() {
         >
           {scanning ? "Stop camera" : "Scan QR to fill"}
         </button>
-        {scanning && (
-          <div className={styles.scannerFrame}>
-            <div id="auth-reader" className={styles.qrReaderContainer}></div>
-            <div className={`${styles.scannerOverlay} ${styles.neutralCorner}`}>
-              <div className={`${styles.cornerTopLeft} ${styles.neutralCorner}`}></div>
-              <div className={`${styles.cornerTopRight} ${styles.neutralCorner}`}></div>
-              <div className={`${styles.cornerBottomLeft} ${styles.neutralCorner}`}></div>
-              <div className={`${styles.cornerBottomRight} ${styles.neutralCorner}`}></div>
-            </div>
-          </div>
-        )}
+        {scanning && <TicketScan fillOnly onScanSuccess={handleFill} />}
 
         <div className={styles.authenticateForm}>
           <div className={styles.formGroup}>

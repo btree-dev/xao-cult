@@ -8,9 +8,13 @@ import { useWeb3 } from "../../hooks/useWeb3";
 
 interface TicketScanProps {
   onScanSuccess?: (decodedText: string) => void;
+  // Fill-only mode: decode the QR and hand it back via onScanSuccess WITHOUT
+  // running the on-chain scan. Used by the Authenticate tab to reuse this exact
+  // scanner UI just to populate its fields.
+  fillOnly?: boolean;
 }
 
-export default function TicketScan({ onScanSuccess }: TicketScanProps) {
+export default function TicketScan({ onScanSuccess, fillOnly }: TicketScanProps) {
   const router = useRouter();
   const { address, isConnected } = useWeb3();
   const [scannedData, setScannedData] = useState<string | null>(null);
@@ -45,6 +49,11 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
             lastDetectionTime = Date.now();
             setScanStatus('detected');
             setScannedData(decodedText);
+            // Fill-only: hand the decoded QR to the parent and stop here — no
+            // on-chain scan. The parent unmounts this (stops the camera).
+            if (fillOnly && onScanSuccess) {
+              onScanSuccess(decodedText);
+            }
           },
           (errorMessage: string) => {
             const timeSinceLastDetection = Date.now() - lastDetectionTime;
@@ -232,16 +241,20 @@ export default function TicketScan({ onScanSuccess }: TicketScanProps) {
         </div>
 
         <p className={styles.scanInstruction}>
-          {scanStatus === 'detected' ? "QR Code detected! Press Scan to verify" : "Align the QR code within the frame to scan"}
+          {fillOnly
+            ? "Align the QR code within the frame"
+            : (scanStatus === 'detected' ? "QR Code detected! Press Scan to verify" : "Align the QR code within the frame to scan")}
         </p>
 
-        <button
-          className={styles.authenticateButton}
-          onClick={handleAuthenticate}
-          disabled={isAuthenticating || !scannedData}
-        >
-          {isAuthenticating ? "Scanning..." : "Scan"}
-        </button>
+        {!fillOnly && (
+          <button
+            className={styles.authenticateButton}
+            onClick={handleAuthenticate}
+            disabled={isAuthenticating || !scannedData}
+          >
+            {isAuthenticating ? "Scanning..." : "Scan"}
+          </button>
+        )}
       </div>
     </div>
   );

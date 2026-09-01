@@ -369,6 +369,19 @@ const TicketDetailPage: NextPage = () => {
           )}
 
           <div className={styles.ticketDetailSection}>
+            <h3 className={styles.sectionTitle}>TICKET ID</h3>
+            {/* The token number + collection the QR encodes — shown so the
+                holder/staff can read it and, if the QR won't scan, authenticate
+                the ticket manually on the Authenticate tab. */}
+            <div className={styles.detailText} style={{ marginBottom: 6 }}>
+              Ticket Number: <strong>#{(activeTicketCode || ticket.ticketCode || '').split(':')[1] ?? '—'}</strong>
+            </div>
+            <div className={styles.detailText} style={{ wordBreak: 'break-all', opacity: 0.85, fontSize: 13 }}>
+              Collection: {(activeTicketCode || ticket.ticketCode || '').split(':')[0] || '—'}
+            </div>
+          </div>
+
+          <div className={styles.ticketDetailSection}>
             <h3 className={styles.sectionTitle}>DETAILS</h3>
             <p
               className={styles.detailText}

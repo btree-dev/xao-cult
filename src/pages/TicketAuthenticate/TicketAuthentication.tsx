@@ -1,36 +1,51 @@
 import { useState } from "react";
-import { useRouter } from "next/router";
 import styles from "../../styles/ticketAuthenticate.module.css";
-import { readContract, writeContract, waitForTransactionReceipt } from "@wagmi/core";
-import { config } from "../../wagmi";
+import { createPublicClient, http } from "viem";
+import { baseSepolia } from "viem/chains";
 import { XAO_TICKET_ABI } from "../../lib/web3/eventcontract";
-import { useWeb3 } from "../../hooks/useWeb3";
 import TicketScan from "./TicketScan";
 
-// Manual counterpart to the camera-based Scan tab: type in the ticket's
-// collection address + number and run the same on-chain scanTicket flow (auth
-// before doors, redeem at/after doors). Useful when the QR can't be scanned.
+// Standalone read-only client over the public RPC — deliberately NOT the wagmi
+// wallet config, so verifying a ticket never touches MetaMask (no connect /
+// chain-switch prompt). Anyone can check a ticket, connected or not.
+const publicClient = createPublicClient({
+  chain: baseSepolia,
+  transport: http("https://sepolia.base.org"),
+});
+
+// READ-ONLY ticket check — anyone can verify a ticket here (no SCANNER_ROLE, no
+// wallet needed): it only READS the chain to report whether the ticket exists,
+// which tier it is, and whether it's been redeemed. Actually checking someone in
+// (the on-chain scan/redeem) is the Scan tab, which needs SCANNER_ROLE.
+interface CheckResult {
+  ok: boolean;        // ticket exists
+  redeemed: boolean;  // already scanned/redeemed
+  tier: string;
+  message: string;
+}
+
 export default function TicketAuthentication() {
-  const router = useRouter();
-  const { address, isConnected } = useWeb3();
   const [collection, setCollection] = useState("");
   const [tokenIdInput, setTokenIdInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [scanning, setScanning] = useState(false);
+  const [result, setResult] = useState<CheckResult | null>(null);
 
-  // Reuse the Scan tab's scanner (fill-only): a decoded QR ("collection:tokenId")
-  // fills the fields; the on-chain check-in still happens on Authenticate below.
+  // Reuse the Scan tab's scanner (fill-only) — a decoded QR ("collection:tokenId")
+  // fills the fields; the check below is read-only.
   const handleFill = (code: string) => {
     const [c, t] = code.split(":");
     if (c) setCollection(c.trim());
     if (t) setTokenIdInput(t.trim());
     setError("");
+    setResult(null);
     setScanning(false);
   };
 
-  const handleAuthenticate = async () => {
+  const handleCheck = async () => {
     setError("");
+    setResult(null);
     const coll = collection.trim();
     if (!coll.startsWith("0x") || coll.length !== 42) {
       setError("Enter a valid ticket collection address (0x…, 42 characters).");
@@ -40,106 +55,80 @@ export default function TicketAuthentication() {
       setError("Enter a valid ticket number (digits only).");
       return;
     }
-    if (!isConnected || !address) {
-      setError("Connect your wallet first.");
-      return;
-    }
 
     const ticketCollectionAddr = coll as `0x${string}`;
     const tokenId = BigInt(tokenIdInput.trim());
     setBusy(true);
 
     try {
-      // Pre-check: already redeemed?
-      let isScanned = false;
-      try {
-        isScanned = (await readContract(config, {
-          address: ticketCollectionAddr,
-          abi: XAO_TICKET_ABI as any,
-          functionName: "scanned",
-          args: [tokenId],
-        })) as boolean;
-      } catch {
-        setError("Couldn't read this ticket — double-check the collection address and number.");
-        setBusy(false);
-        return;
-      }
-      if (isScanned) {
-        router.push("/TicketAuthenticate/Access?status=error&reason=already_redeemed");
+      // Does the ticket exist? Tokens mint sequentially 0..totalSold-1.
+      const totalSold = (await publicClient.readContract({
+        address: ticketCollectionAddr,
+        abi: XAO_TICKET_ABI as any,
+        functionName: "totalSold",
+        args: [],
+      })) as bigint;
+
+      if (tokenId >= totalSold) {
+        setResult({ ok: false, redeemed: false, tier: "", message: "Ticket not found — this number hasn't been sold on this collection." });
         return;
       }
 
-      // Tier name for the result screen (non-critical).
-      let tierName = "Ticket";
+      const scanned = (await publicClient.readContract({
+        address: ticketCollectionAddr,
+        abi: XAO_TICKET_ABI as any,
+        functionName: "scanned",
+        args: [tokenId],
+      })) as boolean;
+
+      // Tier name (non-critical).
+      let tier = "Ticket";
       try {
-        const tierId = (await readContract(config, {
+        const tierId = (await publicClient.readContract({
           address: ticketCollectionAddr,
           abi: XAO_TICKET_ABI as any,
           functionName: "tokenToTier",
           args: [tokenId],
         })) as bigint;
-        const tier = (await readContract(config, {
+        const t = (await publicClient.readContract({
           address: ticketCollectionAddr,
           abi: XAO_TICKET_ABI as any,
           functionName: "getTier",
           args: [tierId],
         })) as any;
-        const typeEnum = Number(tier.ticketType ?? tier[0] ?? 0);
+        const typeEnum = Number(t.ticketType ?? t[0] ?? 0);
         const names = ["Comp", "Presale", "General Admission", "VIP", "Custom"];
-        tierName = typeEnum === 4 ? tier.customName ?? tier[1] ?? "Custom" : names[typeEnum] || "Ticket";
+        tier = typeEnum === 4 ? t.customName ?? t[1] ?? "Custom" : names[typeEnum] || "Ticket";
       } catch {
         /* keep default */
       }
 
-      // Scan on-chain (requires SCANNER_ROLE).
-      const txHash = await writeContract(config, {
-        address: ticketCollectionAddr,
-        abi: XAO_TICKET_ABI as any,
-        functionName: "scanTicket",
-        args: [tokenId],
-        gas: BigInt(200_000),
+      setResult({
+        ok: true,
+        redeemed: scanned,
+        tier,
+        message: scanned ? "Already redeemed — this ticket has been checked in." : "Valid ticket — not yet redeemed.",
       });
-      await waitForTransactionReceipt(config, { hash: txHash });
-
-      // Redeemed (scanned at/after doors) vs authenticated (before doors)?
-      let wasRedeemed = false;
-      try {
-        wasRedeemed = (await readContract(config, {
-          address: ticketCollectionAddr,
-          abi: XAO_TICKET_ABI as any,
-          functionName: "scanned",
-          args: [tokenId],
-        })) as boolean;
-      } catch {
-        /* treat as authenticated */
-      }
-      const mode = wasRedeemed ? "redeemed" : "authenticated";
-      router.push(
-        `/TicketAuthenticate/Access?status=success&mode=${mode}&ticketId=${tokenId.toString()}&ticketType=${encodeURIComponent(tierName)}`,
-      );
-    } catch (err: any) {
-      const msg = err?.message || "";
-      if (msg.includes("SCANNER_ROLE") || msg.includes("AccessControl")) {
-        router.push("/TicketAuthenticate/Access?status=error&reason=not_organizer");
-      } else if (msg.includes("Already redeemed")) {
-        router.push("/TicketAuthenticate/Access?status=error&reason=already_redeemed");
-      } else {
-        setError("Authentication failed. " + (msg ? String(msg).slice(0, 120) : "Please try again."));
-        setBusy(false);
-      }
+    } catch (err) {
+      console.warn("[Authenticate] check failed:", err);
+      setError("Couldn't check this ticket — double-check the collection address and number.");
+    } finally {
+      setBusy(false);
     }
   };
+
+  const resultColor = result ? (!result.ok ? "#ff5f6d" : result.redeemed ? "#C4791A" : "#35C08A") : undefined;
 
   return (
     <div className={styles.authenticateContainer}>
       <div className={styles.authenticateContent}>
-        <h2 className={styles.authenticateTitle}>Authenticate Ticket</h2>
+        <h2 className={styles.authenticateTitle}>Check Ticket</h2>
         <p className={styles.authenticateDescription}>
-          Scan the QR to fill the fields, or enter the ticket details manually, then check in.
+          Anyone can verify a ticket here — no permission needed. Scan or enter the details to see if
+          it&apos;s valid and whether it&apos;s been redeemed. (Checking someone in is done from the Scan tab.)
         </p>
 
-        {/* Scan-to-fill: reuses the Scan tab's exact scanner UI to read a QR into
-            the fields; the on-chain check-in still happens on Authenticate below. */}
+        {/* Scan-to-fill: reuses the Scan tab's exact scanner UI. */}
         <button
           type="button"
           className={styles.authenticateButton}
@@ -158,7 +147,7 @@ export default function TicketAuthentication() {
               className={styles.formInput}
               placeholder="0x…"
               value={collection}
-              onChange={(e) => setCollection(e.target.value)}
+              onChange={(e) => { setCollection(e.target.value); setResult(null); }}
             />
           </div>
 
@@ -170,21 +159,39 @@ export default function TicketAuthentication() {
               className={styles.formInput}
               placeholder="e.g. 0"
               value={tokenIdInput}
-              onChange={(e) => setTokenIdInput(e.target.value)}
+              onChange={(e) => { setTokenIdInput(e.target.value); setResult(null); }}
             />
           </div>
 
-          {error && (
-            <p style={{ color: "#ff5f6d", fontSize: 13, margin: "4px 0 0" }}>{error}</p>
+          {error && <p style={{ color: "#ff5f6d", fontSize: 13, margin: "4px 0 0" }}>{error}</p>}
+
+          {result && (
+            <div
+              style={{
+                margin: "6px 0 0",
+                padding: "12px 14px",
+                borderRadius: 12,
+                border: `1px solid ${resultColor}`,
+                color: resultColor,
+                fontSize: 14,
+                lineHeight: 1.5,
+              }}
+            >
+              <strong>
+                {!result.ok ? "✗ Invalid" : result.redeemed ? "⚠ Redeemed" : "✓ Valid"}
+                {result.ok && result.tier ? ` · ${result.tier}` : ""}
+              </strong>
+              <div style={{ opacity: 0.9, marginTop: 2 }}>{result.message}</div>
+            </div>
           )}
 
           <button
             className={styles.authenticateButton}
-            onClick={handleAuthenticate}
+            onClick={handleCheck}
             disabled={busy}
             style={busy ? { opacity: 0.6 } : undefined}
           >
-            {busy ? "Authenticating…" : "Authenticate Ticket"}
+            {busy ? "Checking…" : "Check Ticket"}
           </button>
         </div>
       </div>

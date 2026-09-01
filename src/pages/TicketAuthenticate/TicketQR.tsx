@@ -45,7 +45,6 @@ export default function TicketQR() {
               <button
                 className={`${styles.button} ${activeTab === "Authenticate" ? styles.buttonSelected : ""}`}
                 onClick={() => setActiveTab("Authenticate")}
-                disabled
               >
                 Authenticate
               </button>

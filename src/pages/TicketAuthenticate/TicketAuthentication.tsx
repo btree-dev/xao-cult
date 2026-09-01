@@ -174,7 +174,15 @@ export default function TicketAuthentication() {
           {scanning ? "Stop camera" : "Scan QR to fill"}
         </button>
         {scanning && (
-          <div id="auth-reader" style={{ width: "100%", maxWidth: 300, margin: "0 auto 14px", borderRadius: 12, overflow: "hidden" }} />
+          <div className={styles.scannerFrame}>
+            <div id="auth-reader" className={styles.qrReaderContainer}></div>
+            <div className={`${styles.scannerOverlay} ${styles.neutralCorner}`}>
+              <div className={`${styles.cornerTopLeft} ${styles.neutralCorner}`}></div>
+              <div className={`${styles.cornerTopRight} ${styles.neutralCorner}`}></div>
+              <div className={`${styles.cornerBottomLeft} ${styles.neutralCorner}`}></div>
+              <div className={`${styles.cornerBottomRight} ${styles.neutralCorner}`}></div>
+            </div>
+          </div>
         )}
 
         <div className={styles.authenticateForm}>

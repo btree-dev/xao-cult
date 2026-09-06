@@ -64,30 +64,21 @@ describe('offchainContracts', () => {
     expect(recordApproval('nope', ALICE)).toBeNull();
   });
 
-  it('recordMint sets mintedContractAddress; isMinted becomes true (exact path)', () => {
+  it('recordMint sets mintedContractAddress; isMinted becomes true', () => {
     upsertDraft(makeDraft());
     const CONTRACT = '0xCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCcCc' as Address;
     recordMint('draft-1', CONTRACT);
     const draft = loadDraft('draft-1')!;
     expect(draft.mintedContractAddress).toBe(CONTRACT);
-    expect(isMinted(draft, [])).toBe(true);
+    expect(isMinted(draft)).toBe(true);
   });
 
-  it('isMinted: fallback matches an on-chain summary by parties (either order) + event name', () => {
+  it('isMinted: false for a draft that has not actually been minted', () => {
+    // A draft is only "minted" once its mint is recorded (mintedContractAddress).
+    // It must NOT be inferred from a coincidental parties/event-name match, or a
+    // brand-new local draft would wrongly vanish from Negotiation.
     const draft = makeDraft({ terms: { promotion: { value: 'Big Show' } } as any });
-    const match = isMinted(draft, [{ party1Address: BOB, party2Address: ALICE, eventName: 'Big Show' }]);
-    expect(match).toBe(true);
-  });
-
-  it('isMinted: fallback does not match a different event name', () => {
-    const draft = makeDraft({ terms: { promotion: { value: 'Big Show' } } as any });
-    const match = isMinted(draft, [{ party1Address: ALICE, party2Address: BOB, eventName: 'Other Show' }]);
-    expect(match).toBe(false);
-  });
-
-  it('isMinted: false with no mint record, no matching summary, and no event name set', () => {
-    const draft = makeDraft({ terms: {} });
-    expect(isMinted(draft, [{ party1Address: ALICE, party2Address: BOB, eventName: 'anything' }])).toBe(false);
+    expect(isMinted(draft)).toBe(false);
   });
 
   describe('resolveDraftForContract', () => {

@@ -192,26 +192,16 @@ export function resolveDraftForContract(
   }) ?? null;
 }
 
-function draftEventName(draft: OffchainContractDraft): string {
-  // IContract has no top-level `eventName`; the create-contract form nests it
-  // under `promotion.value` (see backend/contract-services/createContract.ts).
-  return String((draft.terms as { promotion?: { value?: string } }).promotion?.value || '').trim().toLowerCase();
-}
-
-/** True once a draft is retired: either an exact recorded mint (normal path —
- *  the SYSTEM `{ draftId, contractAddress }` message arrived), or, as a
- *  fallback for a contract minted on a device that never saw that message, an
- *  on-chain summary with matching parties (either order) and event name. */
-export function isMinted(
-  draft: OffchainContractDraft,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _onChainSummaries: { party1Address: string; party2Address: string; eventName: string }[],
-): boolean {
-  // A draft is "minted" ONLY once its mint has actually been recorded (the mint
-  // SYSTEM notice → recordMint → mintedContractAddress). The old fallback that
-  // matched purely on parties + event name wrongly hid a BRAND-NEW local draft
-  // whenever an unrelated on-chain contract happened to share the same test
-  // event name and parties — so a saved draft vanished from Negotiation. The
-  // reliable signal is mintedContractAddress.
+/** True once a draft is retired (its contract has been minted). A draft is
+ *  minted ONLY once the mint has actually been recorded — the SYSTEM
+ *  `{ draftId, contractAddress }` notice → recordMint → mintedContractAddress.
+ *  The old fallback that matched purely on parties + event name wrongly hid a
+ *  BRAND-NEW local draft whenever an unrelated on-chain contract happened to
+ *  share the same test event name and parties, so a saved draft vanished from
+ *  Negotiation. `mintedContractAddress` is the reliable signal.
+ *
+ *  The second arg (on-chain summaries) is kept for call-site compatibility but
+ *  no longer consulted. */
+export function isMinted(draft: OffchainContractDraft): boolean {
   return !!draft.mintedContractAddress;
 }

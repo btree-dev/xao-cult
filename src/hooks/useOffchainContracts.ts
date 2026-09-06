@@ -42,7 +42,7 @@ export function useOffchainContracts(onChainSummaries: ContractSummary[]): UseOf
     const mine = listDrafts().filter(
       (d) => d.party1.toLowerCase() === myAddr || d.party2.toLowerCase() === myAddr,
     );
-    setDrafts(mine.filter((d) => !isMinted(d, onChainSummaries)));
+    setDrafts(mine.filter((d) => !isMinted(d)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, key, reloadToken]);
 

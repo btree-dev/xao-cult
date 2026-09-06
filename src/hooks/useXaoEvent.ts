@@ -12,9 +12,13 @@ import {
 } from '../lib/xaomsg/inbox';
 import { deriveEventConversationKeyRaw } from '../lib/xaomsg/ecies';
 import { applyDraftMessage, type ProposalHashIndex } from '../lib/xaomsg/draftSync';
-import type { ResolvedMessage, SessionCert } from '../lib/xaomsg/types';
+import { ContentType, type ContactCardPayload, type ResolvedMessage, type SessionCert } from '../lib/xaomsg/types';
 import { useXaoThread, type UseXaoThreadResult } from './useXaoThread';
 import type { PersistedSession } from '../lib/xaomsg/session';
+import {
+  applyContactCard, buildContactCardPayload, hasSentContactCard, markContactCardSent,
+} from '../lib/xaomsg/contactCard';
+import { useProfileCache } from '../contexts/ProfileCacheContext';
 
 export type EventStatus = 'idle' | 'negotiating' | 'ready' | 'no-peer-key' | 'error';
 
@@ -61,6 +65,7 @@ export function useXaoEvent(
   { draftId, peer, session }: { draftId: string | null; peer: Address | null; session: PersistedSession | null },
 ): UseXaoEventResult {
   const { address: myAddress } = useAccount();
+  const { setProfile, currentUserProfile } = useProfileCache();
 
   const threadId = useMemo<Hex | null>(
     () => (draftId ? threadIdForDraft(draftId) : null),
@@ -119,10 +124,40 @@ export function useXaoEvent(
 
   const onMessage = (resolved: ResolvedMessage) => {
     if (!myAddress || !peer || !draftId) return;
+    const { body } = resolved.envelope;
+    // Contact cards ride this thread too now, so negotiating a contract also
+    // syncs the counterparty's profile (username/picture) — otherwise the
+    // create-contract chat would never populate it (that used to happen only on
+    // the separate DM thread). Same sender/payload verification as useXaoDm.
+    if (body.contentType === ContentType.CONTACT_CARD) {
+      const card = body.payload as ContactCardPayload;
+      if (
+        body.sender.toLowerCase() === peer.toLowerCase() &&
+        card.walletAddress.toLowerCase() === body.sender.toLowerCase()
+      ) {
+        setProfile(applyContactCard(card));
+      }
+      return;
+    }
     applyDraftMessage(resolved, myAddress, peer, draftByProposalHash.current, draftId);
   };
 
   const thread = useXaoThread({ threadId, contentTopic, threadKey, session, onMessage });
+
+  // Auto-send our own contact card once the event thread is ready, so the
+  // counterparty caches our username/picture during contract negotiation.
+  // Once per thread (localStorage-backed), never re-sent on remount.
+  useEffect(() => {
+    if (status !== 'ready' || !threadId || !currentUserProfile || !myAddress) return;
+    if (hasSentContactCard(threadId)) return;
+    markContactCardSent(threadId);
+    thread.postContactCard(buildContactCardPayload({
+      walletAddress: myAddress,
+      username: currentUserProfile.username,
+      profilePictureUrl: currentUserProfile.profilePictureUrl,
+    })).catch((err) => console.warn('[xaomsg] event contact card send failed:', err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, threadId, currentUserProfile, myAddress]);
 
   const notifyThread = async (contractAddress?: Address): Promise<void> => {
     if (!myAddress || !peer || !draftId || !threadId || !session) return;

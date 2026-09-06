@@ -460,6 +460,27 @@ const CreateContract = () => {
       });
       setDraftSaved(true);
       setTimeout(() => setDraftSaved(false), 4000);
+
+      // Best-effort: also publish the draft to the other party over encrypted
+      // chat, so they see it on their Negotiation page WITHOUT a separate "Send"
+      // click. Only possible when the chat thread is ready (i.e. party2 has
+      // unlocked chat and published their key); if it isn't, the draft is still
+      // saved locally and this simply does nothing (never blocks the save).
+      if (isClientReady && peerAddress && postProposalRef.current) {
+        try {
+          await postProposalRef.current({
+            kind: activeProposal ? 'counter-proposal' : 'proposal',
+            revisionNumber,
+            data: termsObject,
+          });
+          await notifyThreadRef.current().catch((err) => {
+            console.warn('[CreateContract] Auto-send discovery notice failed:', err);
+          });
+          setRevisionNumber((prev) => prev + 1);
+        } catch (err) {
+          console.warn('[CreateContract] Auto-send on save failed (draft still saved locally):', err);
+        }
+      }
     } catch (err) {
       console.warn('[CreateContract] Save draft failed:', err);
       alert('Could not save the draft to this device.');

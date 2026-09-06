@@ -19,6 +19,7 @@ import { SHOW_CONTRACT_ABI, XAO_TICKET_ABI } from "../../lib/web3/eventcontract"
 import { readContract } from "@wagmi/core";
 import { config } from "../../wagmi";
 import { useXaoEvent } from "../../hooks/useXaoEvent";
+import { useOnchainUsernames } from "../../hooks/useOnchainUsernames";
 import { useXaoMsgSession } from "../../hooks/useXaoMsgSession";
 import { ContractProposalMessage } from "../../types/contractMessage";
 import { handleSaveContract, handleSignContract, addTicketsToContract, buildSetupCalldata, addTiersFromRows, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
@@ -79,10 +80,19 @@ const CreateContract = () => {
   const { address, isConnected, chain } = useWeb3();
   const { currentUserProfile, getProfile } = useProfileCache();
 
+  // Once the draft is on-chain, the contract itself holds both usernames
+  // (party1's from construction, party2's from setParty2Username on sign) —
+  // read them directly so the label is correct even when the Waku contact-card
+  // exchange never reached this device.
+  const { byAddress: onchainUsernames } = useOnchainUsernames(savedContractAddress);
+
   // Username for a party by ADDRESS (never assume "current user is party1"):
-  // my own address → my profile; anyone else → the cached profile (from chat).
+  // on-chain value first (authoritative once deployed), then my own profile for
+  // my address, then the cached profile from chat (the pre-deploy fallback).
   const usernameFor = (addr?: string): string => {
     if (!addr) return "";
+    const onchain = onchainUsernames[addr.toLowerCase()];
+    if (onchain) return onchain;
     if (address && addr.toLowerCase() === address.toLowerCase()) return currentUserProfile?.username || "";
     return getProfile(addr)?.username || "";
   };

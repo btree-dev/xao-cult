@@ -150,12 +150,16 @@ export function useXaoEvent(
   useEffect(() => {
     if (status !== 'ready' || !threadId || !currentUserProfile || !myAddress) return;
     if (hasSentContactCard(threadId)) return;
-    markContactCardSent(threadId);
+    // Mark sent only AFTER the publish succeeds — if Waku is momentarily
+    // unreachable the card would otherwise be flagged "sent" forever and never
+    // retried, which is exactly why a counterparty's username could stay blank.
     thread.postContactCard(buildContactCardPayload({
       walletAddress: myAddress,
       username: currentUserProfile.username,
       profilePictureUrl: currentUserProfile.profilePictureUrl,
-    })).catch((err) => console.warn('[xaomsg] event contact card send failed:', err));
+    }))
+      .then(() => markContactCardSent(threadId))
+      .catch((err) => console.warn('[xaomsg] event contact card send failed (will retry on next open):', err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, threadId, currentUserProfile, myAddress]);
 

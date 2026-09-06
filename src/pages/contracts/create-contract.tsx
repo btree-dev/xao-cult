@@ -77,7 +77,15 @@ const CreateContract = () => {
   const [draftId, setDraftId] = useState<string>(() => crypto.randomUUID());
 
   const { address, isConnected, chain } = useWeb3();
-  const { currentUserProfile } = useProfileCache();
+  const { currentUserProfile, getProfile } = useProfileCache();
+
+  // Username for a party by ADDRESS (never assume "current user is party1"):
+  // my own address → my profile; anyone else → the cached profile (from chat).
+  const usernameFor = (addr?: string): string => {
+    if (!addr) return "";
+    if (address && addr.toLowerCase() === address.toLowerCase()) return currentUserProfile?.username || "";
+    return getProfile(addr)?.username || "";
+  };
 
   // Contract creation hooks
   const { createEventContract, isLoading, isSuccess, error, transactionHash, contractAddress: newContractAddress } = useCreateEventContract(chain?.id);
@@ -812,7 +820,7 @@ const CreateContract = () => {
                   </div>
                   <div className={styles.ticketInputWrapper}>
                     <label className={styles.ticketsLabel}>
-                      Party 1{currentUserProfile?.username ? ` - ${currentUserProfile.username}` : ""}
+                      Party 1{usernameFor(party1) ? ` - ${usernameFor(party1)}` : ""}
                     </label>
                     <div className={styles.inputRow}>
                       <input
@@ -827,7 +835,9 @@ const CreateContract = () => {
                   </div>
 
                   <div className={styles.ticketInputWrapper}>
-                    <label className={styles.ticketsLabel}>Party 2</label>
+                    <label className={styles.ticketsLabel}>
+                      Party 2{usernameFor(party2) ? ` - ${usernameFor(party2)}` : ""}
+                    </label>
                     <div className={styles.inputRow}>
                       <input
                         type="text"

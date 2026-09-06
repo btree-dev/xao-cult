@@ -204,17 +204,14 @@ function draftEventName(draft: OffchainContractDraft): string {
  *  on-chain summary with matching parties (either order) and event name. */
 export function isMinted(
   draft: OffchainContractDraft,
-  onChainSummaries: { party1Address: string; party2Address: string; eventName: string }[],
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _onChainSummaries: { party1Address: string; party2Address: string; eventName: string }[],
 ): boolean {
-  if (draft.mintedContractAddress) return true;
-  const p1 = draft.party1.toLowerCase();
-  const p2 = draft.party2.toLowerCase();
-  const name = draftEventName(draft);
-  if (!name) return false;
-  return onChainSummaries.some((s) => {
-    const sp1 = s.party1Address.toLowerCase();
-    const sp2 = s.party2Address.toLowerCase();
-    const sameParties = (sp1 === p1 && sp2 === p2) || (sp1 === p2 && sp2 === p1);
-    return sameParties && s.eventName.trim().toLowerCase() === name;
-  });
+  // A draft is "minted" ONLY once its mint has actually been recorded (the mint
+  // SYSTEM notice → recordMint → mintedContractAddress). The old fallback that
+  // matched purely on parties + event name wrongly hid a BRAND-NEW local draft
+  // whenever an unrelated on-chain contract happened to share the same test
+  // event name and parties — so a saved draft vanished from Negotiation. The
+  // reliable signal is mintedContractAddress.
+  return !!draft.mintedContractAddress;
 }

@@ -8,7 +8,7 @@ import { useXaoEvent } from '../../hooks/useXaoEvent';
 import { useXaoMsgSession } from '../../hooks/useXaoMsgSession';
 import {
   ContentType,
-  type ContactCardPayload, type ProposalPayload, type RejectPayload,
+  type ProposalPayload, type RejectPayload,
   type ResolvedMessage, type SystemPayload, type TextPayload,
 } from '../../lib/xaomsg/types';
 import { CONTRACT_MESSAGE_VERSION, type ContractProposalMessage } from '../../types/contractMessage';
@@ -209,8 +209,10 @@ function renderMessage(
     return <div key={key} className={cls}>{t.text}</div>;
   }
   if (body.contentType === ContentType.CONTACT_CARD) {
-    const c = body.payload as ContactCardPayload;
-    return <div key={key} className={styles.systemLine}>{shortWho(c.walletAddress, myAddress)} updated their profile details</div>;
+    // Profile-sync only — never rendered. The card is (re)broadcast each time a
+    // thread opens to keep the counterparty's username reliably in sync, so
+    // showing it would spam the chat with "updated their profile" lines.
+    return null;
   }
   if (body.contentType === ContentType.PROPOSAL || body.contentType === ContentType.COUNTER_PROPOSAL) {
     const p = body.payload as ProposalPayload;

@@ -16,9 +16,19 @@ import { ContentType, type ContactCardPayload, type ResolvedMessage, type Sessio
 import { useXaoThread, type UseXaoThreadResult } from './useXaoThread';
 import type { PersistedSession } from '../lib/xaomsg/session';
 import {
-  applyContactCard, buildContactCardPayload, hasSentContactCard, markContactCardSent,
+  applyContactCard, buildContactCardPayload,
 } from '../lib/xaomsg/contactCard';
 import { useProfileCache } from '../contexts/ProfileCacheContext';
+
+// In-memory (NOT localStorage) once-per-page-session guard for the event-thread
+// contact-card broadcast. Deliberately not persisted: a persisted "already
+// sent" flag is what let a single missed delivery (peer not subscribed at the
+// time, Waku store gap) leave the counterparty's username blank forever. Reset
+// on every page load, so simply re-opening the chat rebroadcasts our card —
+// making username delivery as reliable as the text chat that rides the same
+// topic. Shared across both useXaoEvent instances (page + embedded chat) so a
+// given thread still broadcasts only once per load, not twice.
+const sentThisSession = new Set<string>();
 
 export type EventStatus = 'idle' | 'negotiating' | 'ready' | 'no-peer-key' | 'error';
 
@@ -149,17 +159,19 @@ export function useXaoEvent(
   // Once per thread (localStorage-backed), never re-sent on remount.
   useEffect(() => {
     if (status !== 'ready' || !threadId || !currentUserProfile || !myAddress) return;
-    if (hasSentContactCard(threadId)) return;
-    // Mark sent only AFTER the publish succeeds — if Waku is momentarily
-    // unreachable the card would otherwise be flagged "sent" forever and never
-    // retried, which is exactly why a counterparty's username could stay blank.
+    if (sentThisSession.has(threadId)) return;
+    // Reserve the slot before the async publish so the two useXaoEvent instances
+    // (page + embedded chat) don't both send this load; clear it again if the
+    // publish fails so it retries the next time the thread reaches 'ready'.
+    sentThisSession.add(threadId);
     thread.postContactCard(buildContactCardPayload({
       walletAddress: myAddress,
       username: currentUserProfile.username,
       profilePictureUrl: currentUserProfile.profilePictureUrl,
-    }))
-      .then(() => markContactCardSent(threadId))
-      .catch((err) => console.warn('[xaomsg] event contact card send failed (will retry on next open):', err));
+    })).catch((err) => {
+      sentThisSession.delete(threadId);
+      console.warn('[xaomsg] event contact card send failed (will retry):', err);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, threadId, currentUserProfile, myAddress]);
 

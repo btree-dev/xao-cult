@@ -158,6 +158,11 @@ export interface IContract {
   eventId?: string;
   party1?: string;
   party2?: string;
+  /** XAO usernames carried alongside the party wallet addresses, so a received
+   *  proposal/draft shows both display names directly — no dependency on a
+   *  separate profile-cache lookup. Each side fills in its own when it sends. */
+  party1Username?: string;
+  party2Username?: string;
   status?: string;
   terms?: string;
   contractAddress?: string;

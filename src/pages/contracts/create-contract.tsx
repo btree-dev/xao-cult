@@ -22,6 +22,7 @@ import { useXaoEvent } from "../../hooks/useXaoEvent";
 import { useOnchainUsernames } from "../../hooks/useOnchainUsernames";
 import { useXaoMsgSession } from "../../hooks/useXaoMsgSession";
 import { ContractProposalMessage } from "../../types/contractMessage";
+import type { IContract } from "../../backend/services/types/api";
 import { handleSaveContract, handleSignContract, addTicketsToContract, buildSetupCalldata, addTiersFromRows, handleImageUpload, deleteProposalImageGroup } from "../../backend/contract-services/createContract";
 import { useShowContractMulticall, useShowContractConfig } from "../../hooks/useShowContractSchedules";
 import { TicketRow } from "./TicketsSection";
@@ -78,7 +79,22 @@ const CreateContract = () => {
   const [draftId, setDraftId] = useState<string>(() => crypto.randomUUID());
 
   const { address, isConnected, chain } = useWeb3();
-  const { currentUserProfile, getProfile } = useProfileCache();
+  const { currentUserProfile, getProfile, setProfile } = useProfileCache();
+
+  // Cache the usernames carried on a received proposal's data, keyed by the
+  // matching party address — so the Party 1/Party 2 labels resolve straight
+  // from the contract even if no live message piggyback reached this device.
+  const cacheProposalUsernames = useCallback((data?: Partial<IContract> | null) => {
+    if (!data) return;
+    if (data.party1 && data.party1.startsWith('0x') && data.party1Username) {
+      const existing = getProfile(data.party1);
+      setProfile({ ...existing, walletAddress: data.party1, username: data.party1Username, cachedAt: Date.now() });
+    }
+    if (data.party2 && data.party2.startsWith('0x') && data.party2Username) {
+      const existing = getProfile(data.party2);
+      setProfile({ ...existing, walletAddress: data.party2, username: data.party2Username, cachedAt: Date.now() });
+    }
+  }, [getProfile, setProfile]);
 
   // Once the draft is on-chain, the contract itself holds both usernames
   // (party1's from construction, party2's from setParty2Username on sign) —
@@ -229,14 +245,24 @@ const CreateContract = () => {
   // just because I'm the one clicking Send. Party1 is whoever created the
   // contract; that never changes, even when Party2 sends a counter-proposal.
   const applyPartyRoles = useCallback((formData: any) => {
+    // Carry usernames on the proposal itself so the counterparty shows both
+    // display names straight from the received contract data. Set my own from
+    // my profile; keep the other side's from what's already on the payload
+    // (echoed from a received proposal), falling back to my cached copy.
+    const myUsername = currentUserProfile?.username;
+    const peerUsername = peerAddress ? getProfile(peerAddress)?.username : undefined;
     if (myRole === 'party2') {
       formData.party1 = peerAddress;
       formData.party2 = address;
+      if (myUsername) formData.party2Username = myUsername;
+      formData.party1Username = formData.party1Username || peerUsername || undefined;
     } else {
       formData.party1 = address;
       formData.party2 = peerAddress;
+      if (myUsername) formData.party1Username = myUsername;
+      formData.party2Username = formData.party2Username || peerUsername || undefined;
     }
-  }, [myRole, address, peerAddress]);
+  }, [myRole, address, peerAddress, currentUserProfile, getProfile]);
 
   // Load a stored proposal (if navigating from Chat/Negotiation) — or, if
   // there isn't one, fall back to the connected-wallet/URL-param defaults.
@@ -276,6 +302,7 @@ const CreateContract = () => {
         if (proposal.data.party2) setParty2(proposal.data.party2);
         if (proposal.data.contractAddress) setSavedContractAddress(proposal.data.contractAddress);
         if (proposal.proposedBy) setLastProposalSender(proposal.proposedBy);
+        cacheProposalUsernames(proposal.data);
         // Clear the stored proposal after loading
         sessionStorage.removeItem("selectedContractProposal");
         return;
@@ -329,9 +356,10 @@ const CreateContract = () => {
     if (proposal.data.contractAddress) setSavedContractAddress(proposal.data.contractAddress);
     // Track who sent this proposal so we can reply to them
     if (proposal.proposedBy) setLastProposalSender(proposal.proposedBy);
+    cacheProposalUsernames(proposal.data);
     // Switch to contract view to show the form
     setSelected("contract");
-  }, []);
+  }, [cacheProposalUsernames]);
 
   // Send contract proposal to Party2 over Waku
   const handleSendProposal = async () => {

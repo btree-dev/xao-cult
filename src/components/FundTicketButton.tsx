@@ -1,10 +1,10 @@
 import React, { useCallback, useState } from 'react';
 import {
   ONRAMP_ENABLED,
-  CDP_PROJECT_ID,
   buildOnrampUrl,
   openOnrampPopup,
   networkForChainId,
+  fetchOnrampSessionToken,
 } from '../lib/coinbase/onramp';
 
 interface FundTicketButtonProps {
@@ -23,51 +23,52 @@ export const FundTicketButton: React.FC<FundTicketButtonProps> = ({
   onPopupClose,
 }) => {
   const [opening, setOpening] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleClick = useCallback(() => {
-    if (!walletAddress || !CDP_PROJECT_ID) return;
-    const fundingUrl = buildOnrampUrl({
-      projectId: CDP_PROJECT_ID,
-      address: walletAddress,
-      amountUsd,
-      network: networkForChainId(chainId),
-    });
+  const handleClick = useCallback(async () => {
+    if (!walletAddress) return;
     setOpening(true);
-    openOnrampPopup(fundingUrl, () => {
+    setError(null);
+    try {
+      const network = networkForChainId(chainId);
+      const sessionToken = await fetchOnrampSessionToken(walletAddress, network);
+      const fundingUrl = buildOnrampUrl({ sessionToken, amountUsd, network });
+      openOnrampPopup(fundingUrl, () => {
+        setOpening(false);
+        onPopupClose?.();
+      });
+    } catch (err) {
       setOpening(false);
-      onPopupClose?.();
-    });
+      setError(err instanceof Error ? err.message : 'Could not start card payment.');
+    }
   }, [walletAddress, amountUsd, chainId, onPopupClose]);
 
   if (!ONRAMP_ENABLED) return null;
-  if (!CDP_PROJECT_ID) {
-    if (typeof window !== 'undefined') {
-      console.warn('[FundTicketButton] NEXT_PUBLIC_CDP_PROJECT_ID not set — onramp disabled');
-    }
-    return null;
-  }
   if (!walletAddress) return null;
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={opening}
-      className={className}
-      style={{
-        background: 'transparent',
-        border: '2px solid',
-        borderImage: 'linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%) 1',
-        color: '#fff',
-        padding: '10px 18px',
-        borderRadius: '30px',
-        cursor: opening ? 'wait' : 'pointer',
-        fontSize: '14px',
-        fontWeight: 600,
-      }}
-    >
-      {opening ? 'Opening Coinbase…' : 'Buy USDC with card'}
-    </button>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={opening}
+        className={className}
+        style={{
+          background: 'transparent',
+          border: '2px solid',
+          borderImage: 'linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%) 1',
+          color: '#fff',
+          padding: '10px 18px',
+          borderRadius: '30px',
+          cursor: opening ? 'wait' : 'pointer',
+          fontSize: '14px',
+          fontWeight: 600,
+        }}
+      >
+        {opening ? 'Opening Coinbase…' : 'Buy USDC with card'}
+      </button>
+      {error && <span style={{ color: '#ff8080', fontSize: 12, textAlign: 'center' }}>{error}</span>}
+    </div>
   );
 };
 

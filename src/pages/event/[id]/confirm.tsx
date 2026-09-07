@@ -13,10 +13,10 @@ import { USDC_ADDRESS_TESTNET, USDC_ADDRESS_MAINNET } from "../../../lib/web3/ch
 import { readUsdcBalance, waitForUsdcBalance, USDC_DECIMALS } from "../../../lib/web3/usdc";
 import {
   ONRAMP_ENABLED,
-  CDP_PROJECT_ID,
   buildOnrampUrl,
   openOnrampPopup,
   networkForChainId,
+  fetchOnrampSessionToken,
 } from "../../../lib/coinbase/onramp";
 
 import Navbar from "../../../components/Navbar";
@@ -130,20 +130,46 @@ const PurchaseConfirmation: NextPage = () => {
           return sum + priceWei * BigInt(t.count);
         }, BigInt(0));
 
-        // Check current balance and top up via Coinbase Onramp if short
-        if (ONRAMP_ENABLED && CDP_PROJECT_ID && address) {
+        // Default payment is the wallet's own USDC. Always check the balance up
+        // front so a shortfall can be topped up by card (Coinbase Onramp) —
+        // rather than letting buyTicket revert with a cryptic error. When the
+        // wallet already holds enough, we skip straight to the on-chain buy.
+        if (address) {
           const balance = await readUsdcBalance(address as `0x${string}`, chain?.id);
           if (balance < totalUsdcWei) {
             const deficitWei = totalUsdcWei - balance;
             const deficitUsd = Number(deficitWei) / 10 ** USDC_DECIMALS;
+
+            // Card top-up only when the onramp is enabled; otherwise tell the
+            // user plainly instead of failing deep in the transaction. (The CDP
+            // API key check lives server-side in /api/onramp-session.)
+            if (!ONRAMP_ENABLED) {
+              setPurchaseError(
+                `Not enough USDC in your wallet — you're short about $${deficitUsd.toFixed(2)}. ` +
+                `Card payment isn't available right now; please add USDC to your wallet and try again.`,
+              );
+              setIsPurchasing(false);
+              return;
+            }
+
             setFundsDeficitUsd(deficitUsd);
             setWaitingForFunds(true);
 
+            const network = networkForChainId(chain?.id);
+            let sessionToken: string;
+            try {
+              sessionToken = await fetchOnrampSessionToken(address as `0x${string}`, network);
+            } catch (tokenErr) {
+              setWaitingForFunds(false);
+              setPurchaseError(tokenErr instanceof Error ? tokenErr.message : 'Could not start card payment.');
+              setIsPurchasing(false);
+              return;
+            }
+
             const fundingUrl = buildOnrampUrl({
-              projectId: CDP_PROJECT_ID,
-              address: address as `0x${string}`,
+              sessionToken,
               amountUsd: deficitUsd,
-              network: networkForChainId(chain?.id),
+              network,
             });
             openOnrampPopup(fundingUrl);
 

@@ -7,23 +7,35 @@ export function networkForChainId(chainId?: number): OnrampNetwork {
   return chainId === 8453 ? 'base' : 'base-sepolia';
 }
 
+/** Mint a Coinbase Onramp session token via our server route (required for CDP
+ *  projects with "secure initialization" enabled — the wallet address is baked
+ *  into the token server-side; the browser never sees the CDP API key). Throws
+ *  with a user-friendly message on failure. */
+export async function fetchOnrampSessionToken(
+  address: `0x${string}`,
+  network: OnrampNetwork,
+): Promise<string> {
+  const res = await fetch('/api/onramp-session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address, network }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.sessionToken) {
+    throw new Error(data.error || 'Could not start card payment. Please try again.');
+  }
+  return data.sessionToken as string;
+}
+
+/** Build the Onramp URL from a server-minted session token. The token already
+ *  carries the destination wallet + asset, so no appId/destinationWallets here. */
 export function buildOnrampUrl(params: {
-  projectId: string;
-  address: `0x${string}`;
+  sessionToken: string;
   amountUsd: number;
   network: OnrampNetwork;
 }): string {
-  const destinationWallets = [
-    {
-      address: params.address,
-      blockchains: [params.network],
-      assets: ['USDC'],
-    },
-  ];
-
   const url = new URL('https://pay.coinbase.com/buy/select-asset');
-  url.searchParams.set('appId', params.projectId);
-  url.searchParams.set('destinationWallets', JSON.stringify(destinationWallets));
+  url.searchParams.set('sessionToken', params.sessionToken);
   url.searchParams.set('defaultAsset', 'USDC');
   url.searchParams.set('defaultNetwork', params.network);
   if (params.amountUsd > 0) {

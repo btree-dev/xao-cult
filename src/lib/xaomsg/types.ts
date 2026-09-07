@@ -71,6 +71,12 @@ export interface MessageBody {
   sentAt: number;
   /** Address claiming authorship — verifier checks against cert.walletAddress. */
   sender: Address;
+  /** Optional: the sender's own XAO username at send time. Piggybacked on EVERY
+   *  message so the counterparty's display name arrives with the very first
+   *  message they receive — no dependency on a separate CONTACT_CARD reaching
+   *  them. Optional + undefined-filtered in the canonical hash, so it's fully
+   *  backward-compatible with peers/messages that don't carry it. */
+  senderUsername?: string;
 }
 
 /** What goes on the wire (and on disk for storage tests). */

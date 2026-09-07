@@ -32,6 +32,9 @@ export interface UseXaoThreadOptions {
    *  off-chain contract store upserts) by `resolved.envelope.body.contentType`
    *  without this hook knowing about those concerns. */
   onMessage?: (resolved: ResolvedMessage) => void;
+  /** The sender's own XAO username, piggybacked on every outbound message so
+   *  the counterparty's display name arrives with the message itself. */
+  senderUsername?: string | null;
 }
 
 export interface UseXaoThreadResult {
@@ -46,10 +49,12 @@ export interface UseXaoThreadResult {
   postSystem: (payload: SystemPayload) => Promise<ResolvedMessage>;
 }
 
-export function useXaoThread({ threadId, contentTopic, threadKey, session, onMessage }: UseXaoThreadOptions): UseXaoThreadResult {
+export function useXaoThread({ threadId, contentTopic, threadKey, session, onMessage, senderUsername }: UseXaoThreadOptions): UseXaoThreadResult {
   const [messages, setMessages] = useState<ResolvedMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const senderUsernameRef = useRef(senderUsername);
+  senderUsernameRef.current = senderUsername;
 
   // Guards onMessage against firing twice for the same message — Waku echoes
   // a light-pushed message back through our own filter subscription, and that
@@ -139,6 +144,7 @@ export function useXaoThread({ threadId, contentTopic, threadKey, session, onMes
 
       const body = buildUnsignedBody({
         threadId, contentType, payload, parentHash, sender: session.cert.walletAddress,
+        senderUsername: senderUsernameRef.current ?? undefined,
       });
       const envelope = await buildEnvelope(body, session.privateKeyHex, session.cert);
       const ciphertextB64 = await encryptBody(JSON.stringify(envelope), threadKey);

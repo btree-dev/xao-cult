@@ -37,6 +37,7 @@ export function buildUnsignedBody(input: {
   payload: MessagePayload;
   parentHash: Hex;
   sender: Address;
+  senderUsername?: string;
   messageId?: Hex;
   sentAt?: number;
 }): MessageBody {
@@ -49,6 +50,9 @@ export function buildUnsignedBody(input: {
     payload: input.payload,
     sentAt: input.sentAt ?? Date.now(),
     sender: input.sender,
+    // Only include when non-empty — an undefined key is filtered from the
+    // canonical hash, so omitting it stays byte-identical to the old shape.
+    ...(input.senderUsername ? { senderUsername: input.senderUsername } : {}),
   };
 }
 

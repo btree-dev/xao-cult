@@ -75,7 +75,7 @@ export function useXaoEvent(
   { draftId, peer, session }: { draftId: string | null; peer: Address | null; session: PersistedSession | null },
 ): UseXaoEventResult {
   const { address: myAddress } = useAccount();
-  const { setProfile, currentUserProfile } = useProfileCache();
+  const { setProfile, getProfile, currentUserProfile } = useProfileCache();
 
   const threadId = useMemo<Hex | null>(
     () => (draftId ? threadIdForDraft(draftId) : null),
@@ -135,6 +135,16 @@ export function useXaoEvent(
   const onMessage = (resolved: ResolvedMessage) => {
     if (!myAddress || !peer || !draftId) return;
     const { body } = resolved.envelope;
+    // Username piggybacked on EVERY message — the moment ANY message from the
+    // peer arrives (text, proposal, accept…), their display name is cached.
+    // This is what makes "if the chat message got through, the username did
+    // too" literally true, instead of relying on a separate card also landing.
+    if (body.senderUsername && body.sender.toLowerCase() === peer.toLowerCase()) {
+      // Preserve a picture already cached (e.g. from a full CONTACT_CARD) —
+      // the piggyback only carries the username, so don't clobber the rest.
+      const existing = getProfile(body.sender);
+      setProfile({ ...existing, walletAddress: body.sender, username: body.senderUsername, cachedAt: Date.now() });
+    }
     // Contact cards ride this thread too now, so negotiating a contract also
     // syncs the counterparty's profile (username/picture) — otherwise the
     // create-contract chat would never populate it (that used to happen only on
@@ -152,7 +162,10 @@ export function useXaoEvent(
     applyDraftMessage(resolved, myAddress, peer, draftByProposalHash.current, draftId);
   };
 
-  const thread = useXaoThread({ threadId, contentTopic, threadKey, session, onMessage });
+  const thread = useXaoThread({
+    threadId, contentTopic, threadKey, session, onMessage,
+    senderUsername: currentUserProfile?.username,
+  });
 
   // Auto-send our own contact card once the event thread is ready, so the
   // counterparty caches our username/picture during contract negotiation.

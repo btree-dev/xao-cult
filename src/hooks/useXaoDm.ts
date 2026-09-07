@@ -67,7 +67,7 @@ async function negotiateKey(
 
 export function useXaoDm({ peer, session }: { peer: Address | null; session: PersistedSession | null }): UseXaoDmResult {
   const { address: myAddress } = useAccount();
-  const { setProfile, currentUserProfile } = useProfileCache();
+  const { setProfile, getProfile, currentUserProfile } = useProfileCache();
 
   const threadId = useMemo<Hex | null>(
     () => (myAddress && peer && isAddress(peer) ? dmThreadId(myAddress, peer) : null),
@@ -114,6 +114,12 @@ export function useXaoDm({ peer, session }: { peer: Address | null; session: Per
   const onMessage = (resolved: ResolvedMessage) => {
     if (!myAddress || !peer) return;
     const { body } = resolved.envelope;
+    // Username piggybacked on every message — caches the peer's display name
+    // from the first message they send, without waiting on a CONTACT_CARD.
+    if (body.senderUsername && body.sender.toLowerCase() === peer.toLowerCase()) {
+      const existing = getProfile(body.sender);
+      setProfile({ ...existing, walletAddress: body.sender, username: body.senderUsername, cachedAt: Date.now() });
+    }
     if (body.contentType === ContentType.CONTACT_CARD) {
       const card = body.payload as ContactCardPayload;
       // Two independent checks, both required: `body.sender` is the
@@ -144,7 +150,10 @@ export function useXaoDm({ peer, session }: { peer: Address | null; session: Per
     }
   };
 
-  const thread = useXaoThread({ threadId, contentTopic, threadKey, session, onMessage });
+  const thread = useXaoThread({
+    threadId, contentTopic, threadKey, session, onMessage,
+    senderUsername: currentUserProfile?.username,
+  });
 
   // Auto-send our contact card once per thread, once the secure channel is
   // ready — mirrors the design's "on opening/first-contact" rule without

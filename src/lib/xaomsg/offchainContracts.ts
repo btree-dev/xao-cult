@@ -7,14 +7,32 @@ const LS_KEY = 'xao-cult-offchain-contracts';
 // bring a deleted draft back — listDrafts filters these out.
 const LS_DISMISSED = 'xao-cult-offchain-dismissed';
 
-function readDismissed(): Set<string> {
-  if (typeof window === 'undefined') return new Set();
-  try { return new Set(JSON.parse(localStorage.getItem(LS_DISMISSED) || '[]') as string[]); }
-  catch { return new Set(); }
+// draftId -> the revisionNumber the draft was at when it was dismissed. A later
+// upsert only un-hides the draft if it carries a STRICTLY-NEWER revision (a
+// genuine new proposal/counter) — a plain history replay during an inbox sync
+// re-fetches the SAME revision, so a deleted draft no longer keeps coming back
+// every time the user hits "Refresh drafts".
+type DismissedMap = Record<string, number>;
+
+function readDismissed(): DismissedMap {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS_DISMISSED) || '{}');
+    if (Array.isArray(raw)) {
+      // Migrate the legacy string[] format. Those ids were explicitly deleted
+      // with no recorded revision, so pin them at a sentinel no real revision
+      // can exceed — a stale replay must never resurrect them.
+      const migrated: DismissedMap = {};
+      for (const id of raw as string[]) migrated[id] = Number.MAX_SAFE_INTEGER;
+      writeDismissed(migrated);
+      return migrated;
+    }
+    return raw && typeof raw === 'object' ? (raw as DismissedMap) : {};
+  } catch { return {}; }
 }
-function writeDismissed(s: Set<string>): void {
+function writeDismissed(m: DismissedMap): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(LS_DISMISSED, JSON.stringify(Array.from(s)));
+  localStorage.setItem(LS_DISMISSED, JSON.stringify(m));
 }
 
 export interface OffchainContractDraft {
@@ -44,27 +62,30 @@ function writeStore(s: Store): void {
 export function listDrafts(): OffchainContractDraft[] {
   const dismissed = readDismissed();
   return Object.values(readStore())
-    .filter((d) => !dismissed.has(d.draftId))
+    .filter((d) => !(d.draftId in dismissed))
     .sort((a, b) => b.lastActivityUnixMs - a.lastActivityUnixMs);
 }
 
 /** Permanently delete a draft from this device: remove it from the store AND
- *  remember its id as dismissed, so a later inbox sync can't restore it. */
+ *  remember its id (with the revision it was at) as dismissed, so a later inbox
+ *  sync re-fetching the same history can't restore it — only a strictly-newer
+ *  revision will. */
 export function dismissDraft(draftId: string): void {
   const store = readStore();
+  const rev = store[draftId]?.revisionNumber ?? Number.MAX_SAFE_INTEGER;
   delete store[draftId];
   writeStore(store);
   const dismissed = readDismissed();
-  dismissed.add(draftId);
+  dismissed[draftId] = rev;
   writeDismissed(dismissed);
 }
 
 /** Delete ALL current off-chain drafts (bulk cleanup). Each id is remembered as
- *  dismissed so a sync can't bring them back. */
+ *  dismissed (at its current revision) so a sync replay can't bring them back. */
 export function dismissAllDrafts(): void {
   const store = readStore();
   const dismissed = readDismissed();
-  Object.keys(store).forEach((id) => dismissed.add(id));
+  Object.values(store).forEach((d) => { dismissed[d.draftId] = d.revisionNumber; });
   writeStore({});
   writeDismissed(dismissed);
 }
@@ -81,17 +102,29 @@ export function clearDismissed(): void {
 /** How many drafts are currently hidden (dismissed). Lets the UI show a
  *  "restore" affordance only when there is something to restore. */
 export function dismissedCount(): number {
-  return readDismissed().size;
+  return Object.keys(readDismissed()).length;
 }
 
-/** Remove a draftId from the dismissed set. Called on any FRESH activity for a
- *  draft (a local Save, or a received proposal/counter-proposal) so that new
- *  activity un-hides a previously-deleted draft — deletion only hides stale
- *  drafts, it must never swallow a live update (e.g. party2's counter-proposal
- *  arriving for a draft party1 had cleared). */
-function undismissDraft(draftId: string): void {
+/** Un-hide a draft the USER is actively working on locally (a Save) — always
+ *  restores it regardless of revision, since the local action is itself the
+ *  fresh intent. */
+function forceUndismiss(draftId: string): void {
   const dismissed = readDismissed();
-  if (dismissed.delete(draftId)) writeDismissed(dismissed);
+  if (draftId in dismissed) { delete dismissed[draftId]; writeDismissed(dismissed); }
+}
+
+/** Un-hide a previously-deleted draft ONLY when genuinely-newer activity
+ *  arrives — a received proposal/counter whose revision is strictly higher than
+ *  the revision at which the user dismissed it. A stale history replay (same or
+ *  older revision) leaves it hidden, so "Refresh drafts" no longer resurrects
+ *  drafts the user deleted. A live counter-proposal (higher revision) still
+ *  correctly re-surfaces the draft. */
+function undismissIfNewer(draftId: string, revisionNumber: number): void {
+  const dismissed = readDismissed();
+  if (draftId in dismissed && revisionNumber > dismissed[draftId]) {
+    delete dismissed[draftId];
+    writeDismissed(dismissed);
+  }
 }
 
 export function loadDraft(draftId: string): OffchainContractDraft | null {
@@ -107,7 +140,7 @@ export function saveLocalDraft(next: OffchainContractDraft): OffchainContractDra
   const store = readStore();
   store[next.draftId] = next;
   writeStore(store);
-  undismissDraft(next.draftId); // fresh activity un-hides a previously-deleted draft
+  forceUndismiss(next.draftId); // the user's own local Save is fresh intent
   return next;
 }
 
@@ -120,10 +153,11 @@ export function upsertDraft(next: OffchainContractDraft): OffchainContractDraft 
   const winner = !existing || next.revisionNumber > existing.revisionNumber ? next : existing;
   store[next.draftId] = winner;
   writeStore(store);
-  // A received proposal/counter-proposal is fresh activity — never let a prior
-  // deletion keep it hidden (this is what made party2's counter-proposal not
-  // show for a party1 who had cleared the draft).
-  undismissDraft(next.draftId);
+  // Only a strictly-newer revision (a genuine new proposal/counter) un-hides a
+  // previously-deleted draft — this still surfaces party2's counter-proposal to
+  // a party1 who cleared the draft, but a same-revision history replay during
+  // an inbox sync no longer resurrects drafts the user deliberately deleted.
+  undismissIfNewer(next.draftId, next.revisionNumber);
   return winner;
 }
 

@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { Address } from 'viem';
 import {
-  listDrafts, loadDraft, upsertDraft, recordApproval, recordMint, isMinted, resolveDraftForContract, type OffchainContractDraft,
+  listDrafts, loadDraft, upsertDraft, recordApproval, recordMint, isMinted, resolveDraftForContract,
+  dismissDraft, saveLocalDraft, type OffchainContractDraft,
 } from './offchainContracts';
 
 const ALICE = '0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa' as Address;
@@ -79,6 +80,38 @@ describe('offchainContracts', () => {
     // brand-new local draft would wrongly vanish from Negotiation.
     const draft = makeDraft({ terms: { promotion: { value: 'Big Show' } } as any });
     expect(isMinted(draft)).toBe(false);
+  });
+
+  describe('dismiss + revision-aware restore', () => {
+    it('dismissDraft hides a draft from listDrafts', () => {
+      upsertDraft(makeDraft({ revisionNumber: 2 }));
+      dismissDraft('draft-1');
+      expect(listDrafts()).toHaveLength(0);
+    });
+
+    it('a same-revision upsert (history replay) does NOT resurrect a dismissed draft', () => {
+      upsertDraft(makeDraft({ revisionNumber: 2 }));
+      dismissDraft('draft-1');
+      // e.g. an inbox sync re-fetching the same rev-2 proposal from Waku history
+      upsertDraft(makeDraft({ revisionNumber: 2 }));
+      expect(listDrafts()).toHaveLength(0);
+    });
+
+    it('a strictly-newer-revision upsert (a real counter-proposal) DOES resurrect it', () => {
+      upsertDraft(makeDraft({ revisionNumber: 2 }));
+      dismissDraft('draft-1');
+      upsertDraft(makeDraft({ revisionNumber: 3, terms: { promotion: { value: 'countered' } } as any }));
+      const all = listDrafts();
+      expect(all).toHaveLength(1);
+      expect(all[0].revisionNumber).toBe(3);
+    });
+
+    it('saveLocalDraft (the user editing locally) always un-hides a dismissed draft', () => {
+      upsertDraft(makeDraft({ revisionNumber: 5 }));
+      dismissDraft('draft-1');
+      saveLocalDraft(makeDraft({ revisionNumber: 5 })); // same revision, but a deliberate local Save
+      expect(listDrafts()).toHaveLength(1);
+    });
   });
 
   describe('resolveDraftForContract', () => {

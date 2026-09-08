@@ -102,15 +102,30 @@ const CreateContract = () => {
   // exchange never reached this device.
   const { byAddress: onchainUsernames } = useOnchainUsernames(savedContractAddress);
 
-  // Username for a party by ADDRESS (never assume "current user is party1"):
-  // on-chain value first (authoritative once deployed), then my own profile for
-  // my address, then the cached profile from chat (the pre-deploy fallback).
+  // Username for a party by ADDRESS (never assume "current user is party1").
+  // Same multi-source fallback for BOTH parties — including the current user's
+  // own name, which must also resolve even when its profile-cache entry is
+  // empty on this device:
+  //   1. on-chain (authoritative once the contract is deployed)
+  //   2. my own profile, when this is my address
+  //   3. the cached profile from chat (populated by the message piggyback)
+  //   4. the usernames carried on the active proposal/contract card
   const usernameFor = (addr?: string): string => {
     if (!addr) return "";
-    const onchain = onchainUsernames[addr.toLowerCase()];
+    const lower = addr.toLowerCase();
+    const onchain = onchainUsernames[lower];
     if (onchain) return onchain;
-    if (address && addr.toLowerCase() === address.toLowerCase()) return currentUserProfile?.username || "";
-    return getProfile(addr)?.username || "";
+    if (address && lower === address.toLowerCase() && currentUserProfile?.username) {
+      return currentUserProfile.username;
+    }
+    const cached = getProfile(addr)?.username;
+    if (cached) return cached;
+    const data = activeProposal?.data;
+    if (data) {
+      if (data.party1 && data.party1.toLowerCase() === lower && data.party1Username) return data.party1Username;
+      if (data.party2 && data.party2.toLowerCase() === lower && data.party2Username) return data.party2Username;
+    }
+    return "";
   };
 
   // Contract creation hooks

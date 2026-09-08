@@ -130,8 +130,18 @@ export async function syncAllKnownThreads(myAddress: Address, session: Persisted
   const dmPeers = new Set<string>();
   const events: { draftId: string; from: Address; contractAddress?: Address }[] = [];
 
+  // Re-publishing our own key bundle uses light-push, which can transiently
+  // have "No peer available" — but that must NOT block discovery, because
+  // reading the inbox below is a Store (history) query that works independently.
+  // (Our cert was already published when chat was first unlocked; this is just a
+  // refresh.) So keep it best-effort and never let it abort the read path.
   try {
     await publishKeyBundle(session.cert);
+  } catch (err) {
+    console.warn('[xaomsg] sync: key bundle republish failed (continuing to read inbox):', err);
+  }
+
+  try {
     await queryInboxNotices(myAddress, session.privateKeyHex, (notice: ThreadNotice) => {
       if (notice.kind === 'event') {
         if (!notice.draftId) return;

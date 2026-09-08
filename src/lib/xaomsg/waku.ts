@@ -26,7 +26,16 @@ export async function getWakuClient(): Promise<LightNode> {
       // no longer has to be the single point of failure for every send.
       const node = await createLightNode({ defaultBootstrap: true, lightPush: { numPeersToUse: 3 } });
       await node.start();
-      await waitForRemotePeer(node, [Protocols.LightPush, Protocols.Filter], 30_000);
+      // Best-effort: don't let a slow/absent peer for ONE protocol reject node
+      // init and take down every operation. Each op already waits for the peer
+      // it needs (publishToTopic → LightPush w/ retry, queryHistory → Store,
+      // subscribeToTopic → Filter), so a read/subscribe path can still work even
+      // when no LightPush peer is available (the "No peer available" case).
+      try {
+        await waitForRemotePeer(node, [Protocols.LightPush, Protocols.Filter], 30_000);
+      } catch (err) {
+        console.warn('[xaomsg] waku: not all protocol peers ready at startup (continuing):', err);
+      }
       return node;
     })();
   }

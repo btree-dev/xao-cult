@@ -5,6 +5,7 @@ import {
   openOnrampPopup,
   networkForChainId,
   fetchOnrampSessionToken,
+  isOnrampSupportedChain,
 } from '../lib/coinbase/onramp';
 
 interface FundTicketButtonProps {
@@ -45,6 +46,8 @@ export const FundTicketButton: React.FC<FundTicketButtonProps> = ({
 
   if (!ONRAMP_ENABLED) return null;
   if (!walletAddress) return null;
+  // Coinbase Onramp is mainnet-only; hide the card button on testnet.
+  if (!isOnrampSupportedChain(chainId)) return null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>

@@ -86,17 +86,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }),
     });
 
-    const data = await cdpRes.json().catch(() => ({}));
+    const rawBody = await cdpRes.text();
+    let data: Record<string, unknown> = {};
+    try { data = rawBody ? JSON.parse(rawBody) : {}; } catch { /* non-JSON body */ }
+
+    // Surface the real CDP error while debugging (dev only) — it's an error
+    // message, never the API key. Set ONRAMP_DEBUG=true to expose it in prod too.
+    const debug = process.env.NODE_ENV !== 'production' || process.env.ONRAMP_DEBUG === 'true';
+
     if (!cdpRes.ok) {
-      console.error('[onramp-session] CDP token request failed:', cdpRes.status, data);
-      return res.status(502).json({ error: 'Could not start card payment. Please try again.' });
+      console.error('[onramp-session] CDP token request failed:', cdpRes.status, rawBody);
+      return res.status(502).json({
+        error: 'Could not start card payment. Please try again.',
+        ...(debug ? { cdpStatus: cdpRes.status, cdpError: data && Object.keys(data).length ? data : rawBody } : {}),
+      });
     }
 
     // CDP returns the session token as `token` (older responses used `sessionToken`).
-    const sessionToken = data.token || data.sessionToken;
+    const sessionToken = (data.token || data.sessionToken) as string | undefined;
     if (!sessionToken) {
-      console.error('[onramp-session] no token in CDP response:', data);
-      return res.status(502).json({ error: 'Could not start card payment. Please try again.' });
+      console.error('[onramp-session] no token in CDP response:', rawBody);
+      return res.status(502).json({
+        error: 'Could not start card payment. Please try again.',
+        ...(debug ? { cdpStatus: cdpRes.status, cdpBody: data && Object.keys(data).length ? data : rawBody } : {}),
+      });
     }
     return res.status(200).json({ sessionToken });
   } catch (err) {

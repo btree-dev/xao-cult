@@ -17,6 +17,7 @@ import {
   openOnrampPopup,
   networkForChainId,
   fetchOnrampSessionToken,
+  isOnrampSupportedChain,
 } from "../../../lib/coinbase/onramp";
 
 import Navbar from "../../../components/Navbar";
@@ -147,6 +148,17 @@ const PurchaseConfirmation: NextPage = () => {
               setPurchaseError(
                 `Not enough USDC in your wallet — you're short about $${deficitUsd.toFixed(2)}. ` +
                 `Card payment isn't available right now; please add USDC to your wallet and try again.`,
+              );
+              setIsPurchasing(false);
+              return;
+            }
+
+            // Coinbase Onramp is mainnet-only — on a testnet it rejects the
+            // session token. Don't attempt it; say so plainly.
+            if (!isOnrampSupportedChain(chain?.id)) {
+              setPurchaseError(
+                `Not enough USDC — you're short about $${deficitUsd.toFixed(2)}. ` +
+                `Card top-up works on Base mainnet only; on testnet, please add test USDC to your wallet and try again.`,
               );
               setIsPurchasing(false);
               return;
@@ -398,7 +410,21 @@ const PurchaseConfirmation: NextPage = () => {
             {/* Confirm Button */}
             <div className={styles.confirmButtonContainer}>
               {purchaseError && (
-                <div style={{ color: 'red', marginBottom: '10px', textAlign: 'center' }}>
+                <div
+                  role="alert"
+                  style={{
+                    color: '#fff',
+                    background: 'rgba(10, 10, 14, 0.78)',
+                    border: '1px solid rgba(255, 95, 109, 0.55)',
+                    borderRadius: '14px',
+                    padding: '12px 16px',
+                    marginBottom: '12px',
+                    textAlign: 'center',
+                    fontSize: '13.5px',
+                    lineHeight: 1.5,
+                    backdropFilter: 'blur(2px)',
+                  }}
+                >
                   {purchaseError}
                 </div>
               )}

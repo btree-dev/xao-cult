@@ -7,6 +7,14 @@ export function networkForChainId(chainId?: number): OnrampNetwork {
   return chainId === 8453 ? 'base' : 'base-sepolia';
 }
 
+/** Coinbase Onramp funds real assets and only supports mainnet networks — a
+ *  session token for base-sepolia is rejected ("address is not valid for
+ *  blockchain [base-sepolia]"). Gate the card UI on this so testnet shows a
+ *  clear message instead of a failed request. */
+export function isOnrampSupportedChain(chainId?: number): boolean {
+  return chainId === 8453; // Base mainnet
+}
+
 /** Mint a Coinbase Onramp session token via our server route (required for CDP
  *  projects with "secure initialization" enabled — the wallet address is baked
  *  into the token server-side; the browser never sees the CDP API key). Throws
@@ -22,6 +30,9 @@ export async function fetchOnrampSessionToken(
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.sessionToken) {
+    // Log the full server payload (includes cdpStatus/cdpError in dev) so the
+    // real Coinbase reason is visible in the browser console, not just a 502.
+    console.error('[onramp] session token request failed:', res.status, data);
     throw new Error(data.error || 'Could not start card payment. Please try again.');
   }
   return data.sessionToken as string;

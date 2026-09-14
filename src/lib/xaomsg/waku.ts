@@ -10,9 +10,18 @@ import {
   createDecoder,
   waitForRemotePeer,
   Protocols,
+  ProtocolError,
   type LightNode,
 } from '@waku/sdk';
 import { XAOMSG_DEBUG_BUILD, wakuDebugLog, wakuDebugWarn, wakuDebugError } from './debugBuild';
+
+// `LightPush`'s `peerManager` field isn't part of the SDK's public types (it's
+// a bare class field, not truly private at runtime) — reaching into it lets us
+// force an RLN-requiring peer out of the locked light-push pool immediately,
+// instead of waiting on the SDK's own background RetryManager (which does the
+// same renewal, but only on its own timer, and only for whichever single peer
+// its internal queue happens to be retrying at that moment).
+type PeerRenewable = { peerManager: { requestRenew: (peerId: unknown) => unknown } };
 
 let nodeP: Promise<LightNode> | null = null;
 
@@ -28,11 +37,16 @@ export async function getWakuClient(): Promise<LightNode> {
       // Top-level numPeersToUse (SDK default 2) is what Filter's subscribe
       // draws its locked-peer pool from — bump it too, not just lightPush's,
       // so a single dropped peer doesn't transiently zero out Filter's pool.
+      // Even at 4, it's still possible for *every* selected peer to enforce
+      // RLN (observed live: all 4 locked peers rejected with "Proof
+      // generation failed") — publishToTopic's retry loop below actively
+      // renews peers that fail this way rather than just hoping a bigger
+      // pool avoids it.
       wakuDebugLog(`[xaomsg] waku#1 [build ${XAOMSG_DEBUG_BUILD}]: creating light node`);
       const node = await createLightNode({
         defaultBootstrap: true,
-        numPeersToUse: 3,
-        lightPush: { numPeersToUse: 3 },
+        numPeersToUse: 4,
+        lightPush: { numPeersToUse: 4 },
       });
       wakuDebugLog('[xaomsg] waku#2: light node created, starting');
       await node.start();
@@ -91,6 +105,25 @@ export async function publishToTopic(contentTopic: string, payload: Uint8Array):
 
     lastFailures = result.failures;
     console.warn(`[xaomsg] light-push attempt ${attempt}/${MAX_ATTEMPTS} failed:`, result.failures);
+
+    // `node.lightPush.send()` re-selects peers from the SAME locked pool
+    // every call — a plain retry re-sends to the identical peer(s) that just
+    // failed. For peers that failed specifically because they require an RLN
+    // proof this client never generates, force them out of the locked pool
+    // now (swapping in a different connected-but-unlocked peer if one is
+    // available) so the *next* attempt actually tries someone else instead
+    // of repeating the same failure MAX_ATTEMPTS times.
+    const rlnFailures = (result.failures ?? []).filter(
+      (f) => f.error === ProtocolError.RLN_PROOF_GENERATION && f.peerId,
+    );
+    if (rlnFailures.length > 0) {
+      const peerManager = (node.lightPush as unknown as PeerRenewable).peerManager;
+      for (const failure of rlnFailures) {
+        wakuDebugWarn(`[xaomsg] waku#7: renewing RLN-requiring light-push peer ${String(failure.peerId)}`);
+        peerManager.requestRenew(failure.peerId);
+      }
+    }
+
     if (attempt < MAX_ATTEMPTS) {
       await new Promise((resolve) => setTimeout(resolve, 1500));
     }

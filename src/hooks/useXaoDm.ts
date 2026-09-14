@@ -14,7 +14,8 @@ import { deriveDmConversationKeyRaw } from '../lib/xaomsg/ecies';
 import { upsertConversation } from '../lib/xaomsg/conversationStore';
 import { formatMessagePreview } from '../lib/xaomsg/messagePreview';
 import {
-  buildContactCardPayload, applyContactCard, hasSentContactCard, markContactCardSent,
+  buildContactCardPayload, applyContactCard, hashContactCardProfile,
+  lastSentContactCardHash, markContactCardSent,
 } from '../lib/xaomsg/contactCard';
 import {
   ContentType, type ContactCardPayload, type ResolvedMessage,
@@ -166,13 +167,16 @@ export function useXaoDm({ peer, session }: { peer: Address | null; session: Per
     senderUsername: currentUserProfile?.username,
   });
 
-  // Auto-send our contact card once per thread, once the secure channel is
-  // ready — mirrors the design's "on opening/first-contact" rule without
-  // re-sending on every remount (hasSentContactCard is localStorage-backed).
+  // Auto-send our contact card on first contact, and again whenever our
+  // profile (username or avatar) has changed since the last card we sent on
+  // this thread — mirrors the design's "on opening/first-contact" rule
+  // without re-sending on every remount (the sent-hash map is
+  // localStorage-backed and compared against the current profile's hash).
   useEffect(() => {
     if (status !== 'ready' || !threadId || !currentUserProfile || !myAddress) return;
-    if (hasSentContactCard(threadId)) return;
-    markContactCardSent(threadId); // mark before the async send so a fast remount can't double-send
+    const currentHash = hashContactCardProfile(currentUserProfile.username, currentUserProfile.profilePictureUrl);
+    if (lastSentContactCardHash(threadId) === currentHash) return;
+    markContactCardSent(threadId, currentHash); // mark before the async send so a fast remount can't double-send
     thread.postContactCard(buildContactCardPayload({
       walletAddress: myAddress,
       username: currentUserProfile.username,
@@ -180,7 +184,7 @@ export function useXaoDm({ peer, session }: { peer: Address | null; session: Per
     })).catch((err) => console.warn('[xaomsg] failed to send contact card:', err));
     // thread.postContactCard is stable per Task 3's useCallback deps; omitting
     // it (and the rest of `thread`) avoids re-running this effect on every
-    // message received, which is unrelated to "have we sent our card yet".
+    // message received, which is unrelated to "has our profile changed".
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, threadId, currentUserProfile, myAddress]);
 

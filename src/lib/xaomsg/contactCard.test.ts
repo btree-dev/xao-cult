@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { Address, Hex } from 'viem';
 import {
-  buildContactCardPayload, applyContactCard, hasSentContactCard, markContactCardSent,
+  buildContactCardPayload, applyContactCard, hashContactCardProfile,
+  lastSentContactCardHash, markContactCardSent,
 } from './contactCard';
 
 describe('contactCard', () => {
@@ -35,19 +36,29 @@ describe('contactCard', () => {
     expect(applied.cachedAt).toBeGreaterThanOrEqual(before);
   });
 
-  it('hasSentContactCard is false until markContactCardSent is called for that thread', () => {
+  it('lastSentContactCardHash is undefined until markContactCardSent is called for that thread', () => {
     const threadId = '0x' + '11'.repeat(32) as Hex;
-    expect(hasSentContactCard(threadId)).toBe(false);
-    markContactCardSent(threadId);
-    expect(hasSentContactCard(threadId)).toBe(true);
+    const hash = hashContactCardProfile('alice', 'https://x/y.png');
+    expect(lastSentContactCardHash(threadId)).toBeUndefined();
+    markContactCardSent(threadId, hash);
+    expect(lastSentContactCardHash(threadId)).toBe(hash);
   });
 
   it('markContactCardSent is scoped per-thread and case-insensitive', () => {
     const threadA = '0x' + '22'.repeat(32) as Hex;
     const threadB = '0x' + '33'.repeat(32) as Hex;
-    markContactCardSent(threadA);
-    expect(hasSentContactCard(threadA)).toBe(true);
-    expect(hasSentContactCard(threadB)).toBe(false);
-    expect(hasSentContactCard(('0x' + '22'.repeat(32)).toUpperCase().replace('0X', '0x') as Hex)).toBe(true);
+    const hash = hashContactCardProfile('alice', 'https://x/y.png');
+    markContactCardSent(threadA, hash);
+    expect(lastSentContactCardHash(threadA)).toBe(hash);
+    expect(lastSentContactCardHash(threadB)).toBeUndefined();
+    expect(lastSentContactCardHash(('0x' + '22'.repeat(32)).toUpperCase().replace('0X', '0x') as Hex)).toBe(hash);
+  });
+
+  it('hashContactCardProfile changes when username or profilePictureUrl changes', () => {
+    const base = hashContactCardProfile('alice', 'https://x/y.png');
+    expect(hashContactCardProfile('bob', 'https://x/y.png')).not.toBe(base);
+    expect(hashContactCardProfile('alice', 'https://x/z.png')).not.toBe(base);
+    expect(hashContactCardProfile('alice', undefined)).not.toBe(base);
+    expect(hashContactCardProfile('alice', 'https://x/y.png')).toBe(base);
   });
 });

@@ -19,8 +19,25 @@ import {
   type TextPayload,
 } from '../lib/xaomsg/types';
 import type { PersistedSession } from '../lib/xaomsg/session';
+import { XAOMSG_DEBUG_BUILD, isWakuDebugEnabled, wakuDebugLog, wakuDebugWarn } from '../lib/xaomsg/debugBuild';
 
 const ZERO_HASH = ('0x' + '00'.repeat(32)) as Hex;
+
+// Debug-only: dumps a thread's raw AES key as hex so the same key can be
+// eyeballed/diffed across two browsers (sender vs. receiver) while chasing a
+// decrypt mismatch. `importAesKey` (conversationKey.ts) always imports with
+// extractable: true, so this succeeds for every real thread key in this app.
+// Gated on isWakuDebugEnabled() by every call site (not just the eventual
+// console.log) so the crypto.subtle.exportKey call itself is skipped when
+// debug logging is off, not just its output.
+async function debugKeyHex(key: CryptoKey): Promise<string> {
+  try {
+    const raw = await crypto.subtle.exportKey('raw', key);
+    return Array.from(new Uint8Array(raw)).map((b) => b.toString(16).padStart(2, '0')).join('');
+  } catch (err) {
+    return `<key not extractable: ${err instanceof Error ? err.message : String(err)}>`;
+  }
+}
 
 export interface UseXaoThreadOptions {
   threadId: Hex | null;
@@ -84,36 +101,78 @@ export function useXaoThread({ threadId, contentTopic, threadKey, session, onMes
       try {
         // Shared decode → decrypt → verify → merge pipeline for every inbound
         // byte payload, whether it arrives live via filter or as store history.
-        const onBytes = async (bytes: Uint8Array) => {
+        // `source` is tagged through so a decrypt failure can be pinned to
+        // live delivery vs. store backfill (e.g. a message encrypted under a
+        // since-invalidated conversation key surfaces only on the 'history'
+        // path — see conversationKey.ts's v3 cache-bust comment).
+        const onBytes = async (bytes: Uint8Array, source: 'live' | 'history') => {
           try {
+            wakuDebugLog(`[xaomsg] thread#16 [build ${XAOMSG_DEBUG_BUILD}] (${source}): decoding payload bytes on topic ${contentTopic}, thread ${threadId}`);
             const b64 = new TextDecoder().decode(bytes);
-            const plaintext = await decryptBody(b64, threadKey);
+            wakuDebugLog(`[xaomsg] thread#16 (${source}): raw ciphertext (b64, ${b64.length} chars):`, b64);
+
+            if (isWakuDebugEnabled()) {
+              wakuDebugLog(`[xaomsg] thread#17 (${source}): decrypting body with key:`, await debugKeyHex(threadKey));
+            }
+            let plaintext: string;
+            try {
+              plaintext = await decryptBody(b64, threadKey);
+            } catch (err) {
+              console.warn(
+                `[xaomsg] thread#17 (${source}): decrypt failed — thread key doesn't match this ciphertext ` +
+                  '(stale/wrong conversation key), dropping message',
+              );
+              if (isWakuDebugEnabled()) {
+                wakuDebugWarn(
+                  `[xaomsg] thread#17 (${source}): decrypt-fail detail — key used:`,
+                  await debugKeyHex(threadKey),
+                  'ciphertext:', b64,
+                  'error:', err,
+                );
+              }
+              return;
+            }
+            wakuDebugLog(`[xaomsg] thread#17 (${source}): decrypted plaintext:`, plaintext);
+
+            wakuDebugLog(`[xaomsg] thread#18 (${source}): parsing envelope JSON`);
             const envelope = JSON.parse(plaintext) as OnWireEnvelope;
+
+            wakuDebugLog(`[xaomsg] thread#19 (${source}): verifying envelope signature`);
             if (!(await verifyEnvelope(envelope))) {
               console.warn('[xaomsg] envelope verification failed; dropping');
               return;
             }
-            if (envelope.body.threadId !== threadId) return;
+
+            wakuDebugLog(`[xaomsg] thread#20 (${source}): checking threadId match`);
+            if (envelope.body.threadId !== threadId) {
+              wakuDebugWarn(`[xaomsg] thread#20 (${source}): threadId mismatch, dropping`, {
+                expected: threadId,
+                got: envelope.body.threadId,
+              });
+              return;
+            }
+
             const resolved: ResolvedMessage = {
               envelope, bodyHash: computeBodyHash(envelope), receivedAtUnixMs: Date.now(),
             };
             if (cancelled) return;
+            wakuDebugLog(`[xaomsg] thread#21 (${source}): recording message ${envelope.body.messageId}`);
             record(resolved);
           } catch (err) {
-            console.warn('[xaomsg] failed to handle inbound message:', err);
+            console.warn(`[xaomsg] failed to handle inbound message (${source}):`, err);
           }
         };
 
         // Subscribe to live messages BEFORE backfilling history, so nothing
         // published during the store query is missed (mergeResolved dedupes any
         // overlap between the two sources).
-        const unsub = await subscribeToTopic(contentTopic, (bytes) => { void onBytes(bytes); });
+        const unsub = await subscribeToTopic(contentTopic, (bytes) => { void onBytes(bytes, 'live'); });
         if (cancelled) { await unsub(); return; }
         unsubRef.current = unsub;
         // isLoading stays true through history backfill (not just subscribe)
         // so the empty-thread message never flashes before history arrives —
         // messages already merged in via onBytes still render live underneath.
-        await queryHistory(contentTopic, (bytes) => { void onBytes(bytes); });
+        await queryHistory(contentTopic, (bytes) => { void onBytes(bytes, 'history'); });
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : String(err));
@@ -147,8 +206,16 @@ export function useXaoThread({ threadId, contentTopic, threadKey, session, onMes
         senderUsername: senderUsernameRef.current ?? undefined,
       });
       const envelope = await buildEnvelope(body, session.privateKeyHex, session.cert);
-      const ciphertextB64 = await encryptBody(JSON.stringify(envelope), threadKey);
+      const plaintext = JSON.stringify(envelope);
+      wakuDebugLog(`[xaomsg] thread#22 [build ${XAOMSG_DEBUG_BUILD}] (send): encrypting message ${body.messageId} on topic ${contentTopic}, thread ${threadId}`);
+      if (isWakuDebugEnabled()) {
+        wakuDebugLog('[xaomsg] thread#22 (send): encrypting with key:', await debugKeyHex(threadKey));
+      }
+      wakuDebugLog('[xaomsg] thread#22 (send): plaintext envelope:', plaintext);
+      const ciphertextB64 = await encryptBody(plaintext, threadKey);
+      wakuDebugLog(`[xaomsg] thread#23 (send): ciphertext (b64, ${ciphertextB64.length} chars):`, ciphertextB64);
       await publishToTopic(contentTopic, new TextEncoder().encode(ciphertextB64));
+      wakuDebugLog(`[xaomsg] thread#23 (send): published message ${body.messageId}`);
 
       const resolved: ResolvedMessage = {
         envelope, bodyHash: computeBodyHash(envelope), receivedAtUnixMs: Date.now(),

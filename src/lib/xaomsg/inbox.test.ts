@@ -1,5 +1,5 @@
 // src/lib/xaomsg/inbox.test.ts
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as secp from '@noble/secp256k1';
 import { privateKeyToAccount, generatePrivateKey } from 'viem/accounts';
 
@@ -20,7 +20,7 @@ import {
   eventBackfillDedupeKey,
   type ThreadNotice,
 } from './inbox';
-import { deriveSessionKeypair } from './session';
+import { deriveSessionKeypair, sessionCertChallenge } from './session';
 import { queryHistory, subscribeToTopic } from './waku';
 import { wrapBytes } from './ecies';
 import { dmThreadId } from './dmThreadId';
@@ -55,6 +55,20 @@ async function makeGenuineCert(): Promise<SessionCert> {
 // signing, so the signature no longer covers it — verifySessionCert fails.
 function forgeCert(base: SessionCert): SessionCert {
   return { ...base, sessionPublicKeyHex: '0x02' + 'ff'.repeat(32) };
+}
+
+// Simulates a genuine cert for `account` carrying an arbitrary (non-
+// deterministic) session pubkey — i.e. a pre-`8a8891d` cert from before
+// session keys became deterministic. Signs the real challenge for that
+// pubkey directly, bypassing deriveSessionKeypair's now-fixed derivation.
+async function makeCertForPubkey(
+  account: { address: `0x${string}`; signMessage: (args: { message: string }) => Promise<`0x${string}`> },
+  sessionPublicKeyHex: string,
+): Promise<SessionCert> {
+  const walletSignature = await account.signMessage({
+    message: sessionCertChallenge(account.address, sessionPublicKeyHex),
+  });
+  return { v: 1, walletAddress: account.address, sessionPublicKeyHex, walletSignature };
 }
 
 // A single macrotask tick isn't always enough here: tryDecodeThreadNotice's
@@ -170,6 +184,13 @@ function scriptHistory(messages: Uint8Array[]) {
 }
 
 describe('queryPeerKeyBundle', () => {
+  // queryPeerKeyBundle retries (real 1500ms delays) when it finds zero valid
+  // candidates, to ride out a transient Store query failure rather than
+  // reporting "peer never joined." Fake timers let the "returns null" tests
+  // below exercise that retry loop without actually waiting ~3s each.
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
   it('returns the genuine bundle even when a forged bundle (bad signature) is in history', async () => {
     const genuine = await makeGenuineCert();
     const forged = forgeCert(genuine);
@@ -191,22 +212,25 @@ describe('queryPeerKeyBundle', () => {
     const forged = forgeCert(genuine);
     const malformed = { ...genuine, sessionPublicKeyHex: undefined } as unknown as SessionCert;
     scriptHistory([encodeKeyBundle(forged), encodeKeyBundle(malformed)]);
-    const out = await queryPeerKeyBundle(genuine.walletAddress);
-    expect(out).toBeNull();
+    const promise = queryPeerKeyBundle(genuine.walletAddress);
+    await vi.runAllTimersAsync();
+    expect(await promise).toBeNull();
   });
 
   it('returns null on an empty history', async () => {
     scriptHistory([]);
-    const out = await queryPeerKeyBundle('0x1111111111111111111111111111111111111111');
-    expect(out).toBeNull();
+    const promise = queryPeerKeyBundle('0x1111111111111111111111111111111111111111');
+    await vi.runAllTimersAsync();
+    expect(await promise).toBeNull();
   });
 
   it('rejects a validly-signed cert for a different wallet posted on the peer topic', async () => {
     const attacker = await makeGenuineCert();
     const peer = '0x9999999999999999999999999999999999999999' as const;
     scriptHistory([encodeKeyBundle(attacker)]);
-    const out = await queryPeerKeyBundle(peer);
-    expect(out).toBeNull();
+    const promise = queryPeerKeyBundle(peer);
+    await vi.runAllTimersAsync();
+    expect(await promise).toBeNull();
   });
 
   it('still returns the peer bundle when an attacker cert for another wallet sorts first', async () => {
@@ -217,15 +241,40 @@ describe('queryPeerKeyBundle', () => {
     expect(out).toEqual(genuine);
   });
 
-  // Regression-replacement for the 2026-07-29 publish-time-selection bug:
-  // that fix is no longer needed because every genuinely-signed cert for a
-  // wallet now carries the identical, deterministically-derived pubkey —
-  // there is nothing left to disambiguate by order or timestamp.
   it('accepts the peer\'s cert regardless of duplicate entries in its history', async () => {
     const genuine = await makeGenuineCert();
     scriptHistory([encodeKeyBundle(genuine), encodeKeyBundle(genuine), encodeKeyBundle(genuine)]);
     const out = await queryPeerKeyBundle(genuine.walletAddress);
     expect(out).toEqual(genuine);
+  });
+
+  // Regression test: a wallet used before session keys became deterministic
+  // (commit 8a8891d) still has an older, differently-pubkeyed-but-genuinely-
+  // signed cert sitting in its inbox history alongside its current one —
+  // both structurally valid. Picking "first found" (store order, not
+  // guaranteed newest-first) can return the stale pubkey, silently breaking
+  // ECDH for anyone who negotiates against it (observed live as a decrypt
+  // failure on freshly-arrived messages). Assert the newest-published one
+  // wins even when it does not sort first in the callback order.
+  it('prefers the most recently published cert over an older valid cert for the same wallet', async () => {
+    const account = privateKeyToAccount(generatePrivateKey());
+    const { cert: current } = await deriveSessionKeypair(account.address, (message) =>
+      account.signMessage({ message }),
+    );
+    const legacy = await makeCertForPubkey(account, '0x02' + 'aa'.repeat(32));
+
+    // Legacy cert arrives FIRST in the callback stream (it really was
+    // published earlier, before the migration) but has the OLDER timestamp;
+    // current arrives second but is the newer publish (e.g. a later app
+    // load post-migration, per useXaoInbox's every-mount republish). A
+    // "first found" implementation would wrongly return `legacy` here.
+    vi.mocked(queryHistory).mockImplementation(async (_topic, onMessage) => {
+      await onMessage(encodeKeyBundle(legacy), new Date(500));
+      await onMessage(encodeKeyBundle(current), new Date(1_000));
+    });
+
+    const out = await queryPeerKeyBundle(current.walletAddress);
+    expect(out).toEqual(current);
   });
 });
 

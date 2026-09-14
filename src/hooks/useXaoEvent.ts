@@ -5,7 +5,7 @@ import { useAccount } from 'wagmi';
 import { threadIdForDraft } from '../lib/xaomsg/threadId';
 import { contentTopicForThread } from '../lib/xaomsg/topicId';
 import {
-  importAesKey, loadConversationKeyRaw, saveConversationKeyRaw,
+  hexEncode, importAesKey, loadConversationKeyRaw, saveConversationKeyRaw,
 } from '../lib/xaomsg/conversationKey';
 import {
   encodeThreadNotice, publishThreadNotice, queryPeerKeyBundle, type ThreadNotice,
@@ -15,6 +15,7 @@ import { applyDraftMessage, type ProposalHashIndex } from '../lib/xaomsg/draftSy
 import { ContentType, type ContactCardPayload, type ResolvedMessage, type SessionCert } from '../lib/xaomsg/types';
 import { useXaoThread, type UseXaoThreadResult } from './useXaoThread';
 import type { PersistedSession } from '../lib/xaomsg/session';
+import { XAOMSG_DEBUG_BUILD, wakuDebugLog, wakuDebugWarn } from '../lib/xaomsg/debugBuild';
 import {
   applyContactCard, buildContactCardPayload,
 } from '../lib/xaomsg/contactCard';
@@ -62,11 +63,21 @@ async function negotiateKey(
   peer: Address,
   session: PersistedSession,
 ): Promise<NegotiationResult | null> {
+  wakuDebugLog(`[xaomsg] event#1 [build ${XAOMSG_DEBUG_BUILD}]: negotiateKey thread=${threadId} draft=${draftId} peer=${peer}`);
   const cached = loadConversationKeyRaw(threadId);
-  if (cached) return { raw: cached, peerCert: null };
+  if (cached) {
+    wakuDebugLog(`[xaomsg] event#2: using cached conversation key for thread ${threadId}:`, hexEncode(cached));
+    return { raw: cached, peerCert: null };
+  }
+  wakuDebugLog(`[xaomsg] event#3: no cached key, my session pubkey = ${session.cert.sessionPublicKeyHex}; looking up ${peer}'s cert`);
   const peerCert = await queryPeerKeyBundle(peer);
-  if (!peerCert) return null;
+  if (!peerCert) {
+    wakuDebugWarn(`[xaomsg] event#3: no cert found for peer ${peer} — cannot negotiate`);
+    return null;
+  }
+  wakuDebugLog(`[xaomsg] event#4: peer ${peer} cert found, their session pubkey = ${peerCert.sessionPublicKeyHex}`);
   const raw = await deriveEventConversationKeyRaw(session.privateKeyHex, peerCert.sessionPublicKeyHex, draftId);
+  wakuDebugLog(`[xaomsg] event#5: derived conversation key for thread ${threadId}:`, hexEncode(raw));
   saveConversationKeyRaw(threadId, raw);
   return { raw, peerCert };
 }

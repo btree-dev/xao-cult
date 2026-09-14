@@ -5,7 +5,7 @@ import { useAccount } from 'wagmi';
 import { dmThreadId } from '../lib/xaomsg/dmThreadId';
 import { contentTopicForThread } from '../lib/xaomsg/topicId';
 import {
-  importAesKey, loadConversationKeyRaw, saveConversationKeyRaw,
+  hexEncode, importAesKey, loadConversationKeyRaw, saveConversationKeyRaw,
 } from '../lib/xaomsg/conversationKey';
 import {
   encodeThreadNotice, publishThreadNotice, queryPeerKeyBundle, type ThreadNotice,
@@ -22,6 +22,7 @@ import {
 import { useXaoThread, type UseXaoThreadResult } from './useXaoThread';
 import { useProfileCache } from '../contexts/ProfileCacheContext';
 import type { PersistedSession } from '../lib/xaomsg/session';
+import { XAOMSG_DEBUG_BUILD, wakuDebugLog, wakuDebugWarn } from '../lib/xaomsg/debugBuild';
 
 export type DmStatus = 'idle' | 'negotiating' | 'ready' | 'no-peer-key' | 'error';
 export interface UseXaoDmResult extends UseXaoThreadResult { status: DmStatus; }
@@ -38,15 +39,25 @@ async function negotiateKey(
   myAddress: Address,
   session: PersistedSession,
 ): Promise<Uint8Array | null> {
+  wakuDebugLog(`[xaomsg] dm#1 [build ${XAOMSG_DEBUG_BUILD}]: negotiateKey thread=${threadId} me=${myAddress} peer=${peer}`);
   const cached = loadConversationKeyRaw(threadId);
-  if (cached) return cached;
+  if (cached) {
+    wakuDebugLog(`[xaomsg] dm#2: using cached conversation key for thread ${threadId}:`, hexEncode(cached));
+    return cached;
+  }
 
   // ECDH(myPriv, theirPub) is symmetric, so both sides derive the identical
   // key locally the moment they know each other's session pubkey — no
   // transport, no "who generates it first" race, no divergence possible.
+  wakuDebugLog(`[xaomsg] dm#3: no cached key, my session pubkey = ${session.cert.sessionPublicKeyHex}; looking up ${peer}'s cert`);
   const peerCert = await queryPeerKeyBundle(peer);
-  if (!peerCert) return null;
+  if (!peerCert) {
+    wakuDebugWarn(`[xaomsg] dm#3: no cert found for peer ${peer} — cannot negotiate`);
+    return null;
+  }
+  wakuDebugLog(`[xaomsg] dm#4: peer ${peer} cert found, their session pubkey = ${peerCert.sessionPublicKeyHex}`);
   const raw = await deriveDmConversationKeyRaw(session.privateKeyHex, peerCert.sessionPublicKeyHex);
+  wakuDebugLog(`[xaomsg] dm#5: derived conversation key for thread ${threadId}:`, hexEncode(raw));
   saveConversationKeyRaw(threadId, raw);
   upsertConversation(myAddress, { threadId, peer, lastActivityUnixMs: Date.now() });
 

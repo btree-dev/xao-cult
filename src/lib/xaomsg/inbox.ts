@@ -112,28 +112,56 @@ export async function publishThreadNotice(ownerAddress: Address, noticeBytes: Ui
  *  caller blocks the cold DM).
  *
  *  The inbox topic is publicly writable, so any bundle in history is
- *  attacker-controlled until its wallet signature verifies. Because the
- *  session keypair is now a deterministic function of the wallet
- *  (session.ts), every genuinely-signed cert for a given wallet carries the
- *  identical session pubkey — there is no "which one is the current
- *  session" ambiguity left to resolve (see the 2026-07-29 publish-time fix
- *  this replaces, described in docs/architecture/xaomsg-messaging.md), so
- *  this just needs to find ANY structurally-matching, signature-valid cert
- *  for the peer's address. */
+ *  attacker-controlled until its wallet signature verifies. Session keys are
+ *  a deterministic function of the wallet going forward (session.ts), so any
+ *  cert published from 2026-07-30 onward carries the wallet's one true
+ *  pubkey — BUT this store is long-lived and pre-dates that migration:
+ *  wallets that used the app before `8a8891d` still have OLDER,
+ *  differently-pubkeyed certs (from the prior random/30-day-rotating scheme)
+ *  sitting in their inbox history, each just as signature-valid as the
+ *  current one. `queryHistory`'s callback order is not guaranteed to be
+ *  newest-first, so picking the first structurally-valid cert found (as this
+ *  used to, see the 2026-07-29 publish-time fix this replaced) can return a
+ *  stale pubkey — the resulting ECDH conversation key then silently fails to
+ *  match what the peer, using their real current key, actually encrypts
+ *  with (observed live: `useXaoThread`'s `thread#17` decrypt failing on
+ *  freshly-arrived *live* messages, not just history). `useXaoInbox.ts`
+ *  republishes the current session cert on every mount, so the peer's real
+ *  cert is reliably the most-recently-published one — prefer that over
+ *  "first found" rather than reintroducing full ranking logic.
+ *
+ *  Retries a few times on zero valid candidates: `queryHistory` swallows its
+ *  own errors (a transient Store-node failure — observed live as a Postgres
+ *  "out of shared memory" error — looks identical to "peer has no cert yet"
+ *  from here). Without a retry, that transient failure surfaced to the user
+ *  as "This user hasn't joined XaoMsg yet," which is wrong and misleading —
+ *  the peer had published a cert all along. */
 export async function queryPeerKeyBundle(peer: Address): Promise<SessionCert | null> {
   const peerLower = peer.toLowerCase();
-  const candidates: SessionCert[] = [];
-  await queryHistory(inboxTopicForAddress(peer), (bytes) => {
-    const cert = tryDecodeKeyBundle(bytes);
-    if (!cert) return;
-    // A cert can be genuinely self-signed by a wallet that is NOT the peer —
-    // anyone can post their own cert onto the peer's public topic. Only a
-    // cert whose walletAddress matches the queried peer proves ownership.
-    if (cert.walletAddress?.toLowerCase() !== peerLower) return;
-    candidates.push(cert);
-  });
-  for (const cert of candidates) {
-    if (await verifySessionCert(cert)) return cert;
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const candidates: { cert: SessionCert; publishedAtMs: number }[] = [];
+    await queryHistory(inboxTopicForAddress(peer), (bytes, timestamp) => {
+      const cert = tryDecodeKeyBundle(bytes);
+      if (!cert) return;
+      // A cert can be genuinely self-signed by a wallet that is NOT the peer —
+      // anyone can post their own cert onto the peer's public topic. Only a
+      // cert whose walletAddress matches the queried peer proves ownership.
+      if (cert.walletAddress?.toLowerCase() !== peerLower) return;
+      candidates.push({ cert, publishedAtMs: timestamp ? timestamp.getTime() : 0 });
+    });
+    candidates.sort((a, b) => b.publishedAtMs - a.publishedAtMs);
+    for (const { cert } of candidates) {
+      if (await verifySessionCert(cert)) return cert;
+    }
+
+    if (attempt < MAX_ATTEMPTS) {
+      console.warn(
+        `[xaomsg] queryPeerKeyBundle: no valid cert found for ${peer} (attempt ${attempt}/${MAX_ATTEMPTS}), retrying — ` +
+          'could be a transient Store query failure rather than the peer never having published',
+      );
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
   }
   return null;
 }

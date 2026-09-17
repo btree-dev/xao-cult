@@ -65,6 +65,18 @@ describe('deriveNotifications', () => {
     expect(items.find((n) => n.id === 'tx-0xabc')).toBeTruthy();
   });
 
+  it('chat notification id is stable per thread (does not include last-activity time)', () => {
+    const a = deriveNotifications(base({ chat: [{ threadId: 't1', peer: PEER, lastActivityMs: NOW - 2000, preview: 'hi' }] }), ME);
+    const b = deriveNotifications(base({ chat: [{ threadId: 't1', peer: PEER, lastActivityMs: NOW - 1000, preview: 'hi again' }] }), ME);
+    expect(a[0].id).toBe('chat-t1');
+    expect(b[0].id).toBe('chat-t1'); // same id even though last-activity changed → read state sticks
+  });
+
+  it('skips seeded conversations that have no real message (no preview)', () => {
+    const items = deriveNotifications(base({ chat: [{ threadId: 't1', peer: PEER, lastActivityMs: NOW }] }), ME);
+    expect(items).toHaveLength(0);
+  });
+
   it('drops chat/tx older than the recency window', () => {
     const old = NOW - 60 * 86400_000;
     const items = deriveNotifications(base({

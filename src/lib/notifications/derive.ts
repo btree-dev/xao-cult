@@ -133,12 +133,20 @@ export function deriveNotifications(input: DeriveInput, myAddress: string): Noti
   for (const t of input.tickets) items.push(...ticketNotifs(t, nowMs));
 
   for (const ch of input.chat) {
+    // Only real messages become notifications. A thread can be SEEDED into the
+    // conversation store with lastActivityUnixMs = Date.now() and no preview just
+    // so it's discoverable (useXaoDm negotiate) — those empty seeds must not show
+    // as a perpetual "New message · just now".
+    if (!ch.preview) continue;
     if (nowMs - ch.lastActivityMs > CHAT_WINDOW) continue;
     items.push({
-      id: `chat-${ch.threadId}-${ch.lastActivityMs}`,
+      // Stable per-thread id: the last-activity time can be re-bumped by the
+      // messaging layer, so keying the id on it made the notification churn
+      // (always unread, never staying marked-read). Keyed on the thread only.
+      id: `chat-${ch.threadId}`,
       category: 'chat',
       title: 'New message',
-      body: ch.preview || 'You have a new message.',
+      body: ch.preview,
       timestampMs: ch.lastActivityMs,
       href: `/chat-Section/Chat?peer=${ch.peer}`,
       icon: ICONS.mail,

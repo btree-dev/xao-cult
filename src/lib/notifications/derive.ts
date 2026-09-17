@@ -38,10 +38,13 @@ const contractHref = (addr: string) =>
 // ShowContract Status enum: 0 Draft,1 Proposed,2 Counter-Proposed,3 Approved,
 // 4 Active,5 Completed,6 Cancelled,7 Disputed.
 function contractStatusNotif(
-  c: ContractNotifInput, nowMs: number, myAddress: string,
+  c: ContractNotifInput, myAddress: string,
 ): NotificationItem | null {
   const iAmParty2 = c.party2.toLowerCase() === myAddress.toLowerCase();
-  const base = { category: 'contract' as const, timestampMs: nowMs, href: contractHref(c.contractAddress), icon: ICONS.bell };
+  // Status notifications have no intrinsic on-chain time available here, so use a
+  // 0 sentinel — the hook stamps a persisted first-seen time so a long-signed
+  // contract doesn't keep showing "just now" on every refresh.
+  const base = { category: 'contract' as const, timestampMs: 0, href: contractHref(c.contractAddress), icon: ICONS.bell };
   switch (c.status) {
     case 1: // Proposed — the counterparty sent it to me
       return iAmParty2
@@ -123,7 +126,7 @@ export function deriveNotifications(input: DeriveInput, myAddress: string): Noti
   const items: NotificationItem[] = [];
 
   for (const c of input.contracts) {
-    const s = contractStatusNotif(c, nowMs, myAddress);
+    const s = contractStatusNotif(c, myAddress);
     if (s) items.push(s);
     items.push(...contractTimeNotifs(c, nowMs));
   }

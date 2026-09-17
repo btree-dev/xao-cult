@@ -13,7 +13,7 @@ import {
   type ContractNotifInput, type TicketNotifInput, type ChatNotifInput,
   type TxNotifInput, type NotificationItem,
 } from '../lib/notifications/types';
-import { getReadIds, markAllRead as persistMarkAll, markRead as persistMarkRead, pruneReadIds } from '../lib/notifications/readState';
+import { getReadIds, markAllRead as persistMarkAll, markRead as persistMarkRead, pruneReadIds, pruneSeen, resolveTimestamps } from '../lib/notifications/readState';
 
 /**
  * Aggregates every in-app notification source (on-chain contracts + their
@@ -107,10 +107,13 @@ export function useNotifications() {
 
   const items = useMemo<NotificationItem[]>(() => {
     if (!address) return [];
-    return deriveNotifications(
+    const derived = deriveNotifications(
       { nowMs: Date.now(), contracts: contractInputs, tickets: ticketInputs, chat: chatInputs, transactions: txInputs },
       address,
     );
+    // Stamp persisted first-seen times onto status notifications, then re-sort so
+    // ordering reflects the resolved timestamps (not the 0 sentinel).
+    return resolveTimestamps(address, derived).sort((a, b) => b.timestampMs - a.timestampMs);
   }, [address, contractInputs, ticketInputs, chatInputs, txInputs]);
 
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
@@ -118,7 +121,11 @@ export function useNotifications() {
 
   // Keep the persisted read set from growing without bound as events age out.
   useEffect(() => {
-    if (address && items.length) pruneReadIds(address, items.map((i) => i.id));
+    if (address && items.length) {
+      const ids = items.map((i) => i.id);
+      pruneReadIds(address, ids);
+      pruneSeen(address, ids);
+    }
   }, [address, items]);
 
   const unreadCount = useMemo(() => items.reduce((n, i) => n + (readIds.has(i.id) ? 0 : 1), 0), [items, readIds]);

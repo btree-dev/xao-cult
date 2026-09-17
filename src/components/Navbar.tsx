@@ -5,6 +5,7 @@ import styles from './Navbar.module.css';
 import { useWeb3 } from '../hooks/useWeb3';
 import { useReadContract } from 'wagmi';
 import { USDC_ADDRESS_TESTNET, USDC_ADDRESS_MAINNET } from '../lib/web3/chains';
+import NotificationBell from './NotificationBell';
 
 const ERC20_BALANCE_ABI = [
   {
@@ -85,10 +86,6 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
 
   const handleFullscreenClick = () => {
     router.push('/TicketAuthenticate/TicketQR');
-  };
-
-  const handleNotificationClick = () => {
-    router.push('/chat-Section/Notification');
   };
 
   return (
@@ -227,20 +224,7 @@ const Navbar: React.FC<NavbarProps> = ({ userProfile, showBackButton = false, pa
               )}
 
               {showNotificationIcon && (
-                <button
-                  className={styles.navButton}
-                  title="Notifications"
-                  aria-label="Notifications"
-                  onClick={handleNotificationClick}
-                  style={{ position: 'relative' }}
-                >
-                  <Image
-                    src="/Chat-Section-Icons/Bell.svg"
-                    alt="Notifications"
-                    width={24}
-                    height={24}
-                  />
-                </button>
+                <NotificationBell className={styles.navButton} />
               )}
             </div>
           </div>

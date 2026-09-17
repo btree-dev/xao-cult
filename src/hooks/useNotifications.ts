@@ -13,7 +13,7 @@ import {
   type ContractNotifInput, type TicketNotifInput, type ChatNotifInput,
   type TxNotifInput, type NotificationItem,
 } from '../lib/notifications/types';
-import { getReadIds, markAllRead as persistMarkAll, markRead as persistMarkRead, pruneReadIds, pruneSeen, resolveTimestamps } from '../lib/notifications/readState';
+import { getReadIds, markAllRead as persistMarkAll, markRead as persistMarkRead, pruneReadIds, pruneSeen, resolveTimestamps, stampFirstSeen } from '../lib/notifications/readState';
 
 /**
  * Aggregates every in-app notification source (on-chain contracts + their
@@ -111,17 +111,20 @@ export function useNotifications() {
       { nowMs: Date.now(), contracts: contractInputs, tickets: ticketInputs, chat: chatInputs, transactions: txInputs },
       address,
     );
-    // Stamp persisted first-seen times onto status notifications, then re-sort so
-    // ordering reflects the resolved timestamps (not the 0 sentinel).
-    return resolveTimestamps(address, derived).sort((a, b) => b.timestampMs - a.timestampMs);
+    // Overlay persisted first-seen times (read-only), then sort by resolved time
+    // with a stable id tiebreak so equal timestamps don't reorder across renders.
+    return resolveTimestamps(address, derived)
+      .sort((a, b) => b.timestampMs - a.timestampMs || a.id.localeCompare(b.id));
   }, [address, contractInputs, ticketInputs, chatInputs, txInputs]);
 
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   useEffect(() => { setReadIds(getReadIds(address)); }, [address]);
 
   // Keep the persisted read set from growing without bound as events age out.
+  // Persist first-seen times + prune stale state AFTER commit (never in render).
   useEffect(() => {
     if (address && items.length) {
+      stampFirstSeen(address, items);
       const ids = items.map((i) => i.id);
       pruneReadIds(address, ids);
       pruneSeen(address, ids);

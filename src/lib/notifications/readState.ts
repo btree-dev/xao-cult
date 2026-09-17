@@ -22,25 +22,35 @@ function writeSeen(s: SeenStore): void {
 }
 
 /** Give each notification a stable display time. Items that carry an intrinsic
- *  event time (doors, event-day, chat, tx) keep it; items with a 0 sentinel
- *  (contract STATUS notifications, which have no on-chain change time here) get a
- *  first-seen time persisted on first appearance — so a contract signed two
- *  weeks ago doesn't keep showing "just now" every time the page is refreshed. */
+ *  event time (doors, event-day, chat, tx) keep it; items flagged `needsFirstSeen`
+ *  (contract STATUS notifications, which have no on-chain change time here) get
+ *  their persisted first-seen time — so a contract signed two weeks ago doesn't
+ *  keep showing "just now" every refresh. Pure/read-only: it does NOT persist
+ *  (that happens in stampFirstSeen, called from an effect); a not-yet-persisted
+ *  item falls back to `now` for this render. Always returns fresh objects so a
+ *  caller sorting the result never mutates the input. */
 export function resolveTimestamps(wallet: string | null | undefined, items: NotificationItem[]): NotificationItem[] {
-  if (!wallet) return items;
+  const map = wallet ? (readSeen()[wallet.toLowerCase()] || {}) : {};
+  const now = Date.now();
+  return items.map((it) => {
+    if (!it.needsFirstSeen) return { ...it };
+    return { ...it, timestampMs: map[it.id] ?? now };
+  });
+}
+
+/** Persist a first-seen time for any `needsFirstSeen` item not yet recorded.
+ *  Call from an effect (after commit) — never during render. */
+export function stampFirstSeen(wallet: string | null | undefined, items: NotificationItem[]): void {
+  if (!wallet) return;
   const store = readSeen();
   const key = wallet.toLowerCase();
   const map = store[key] || {};
   let changed = false;
   const now = Date.now();
-  const out = items.map((it) => {
-    if (it.timestampMs > 0) return it;
-    let ms = map[it.id];
-    if (!ms) { ms = now; map[it.id] = ms; changed = true; }
-    return { ...it, timestampMs: ms };
-  });
+  for (const it of items) {
+    if (it.needsFirstSeen && map[it.id] == null) { map[it.id] = now; changed = true; }
+  }
   if (changed) { store[key] = map; writeSeen(store); }
-  return out;
 }
 
 /** Drop first-seen entries for ids no longer present, mirroring pruneReadIds. */

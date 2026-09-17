@@ -44,7 +44,7 @@ function contractStatusNotif(
   // Status notifications have no intrinsic on-chain time available here, so use a
   // 0 sentinel — the hook stamps a persisted first-seen time so a long-signed
   // contract doesn't keep showing "just now" on every refresh.
-  const base = { category: 'contract' as const, timestampMs: 0, href: contractHref(c.contractAddress), icon: ICONS.bell };
+  const base = { category: 'contract' as const, timestampMs: 0, needsFirstSeen: true, href: contractHref(c.contractAddress), icon: ICONS.bell };
   switch (c.status) {
     case 1: // Proposed — the counterparty sent it to me
       return iAmParty2

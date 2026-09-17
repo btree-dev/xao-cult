@@ -19,6 +19,10 @@ export interface NotificationItem {
   href: string;
   /** Optional icon path (public/). */
   icon?: string;
+  /** True when this item has no intrinsic event time (contract STATUS notifs):
+   *  the hook assigns a persisted first-seen time. Distinguishes them from items
+   *  that legitimately carry timestampMs 0, so those aren't mislabeled. */
+  needsFirstSeen?: boolean;
 }
 
 /** Normalized per-contract facts the derive step needs. All times are unix

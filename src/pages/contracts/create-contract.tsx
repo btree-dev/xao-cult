@@ -442,6 +442,19 @@ const CreateContract = () => {
         console.warn('[CreateContract] Failed to publish event discovery notice:', err);
       });
 
+      // Persist locally and mark that I sent the latest revision → the sender's
+      // Inbox shows this draft as "Waiting" (green) until a response arrives.
+      saveLocalDraft({
+        draftId,
+        party1: (termsObject.party1 as `0x${string}`) || (address as `0x${string}`),
+        party2: (termsObject.party2 as `0x${string}`) || (peerAddress as `0x${string}`),
+        terms: termsObject,
+        revisionNumber,
+        approvals: loadDraft(draftId)?.approvals || [],
+        lastActivityUnixMs: Date.now(),
+        lastRevisionFrom: address as `0x${string}`,
+      });
+
       // Update revision number for next edit
       setRevisionNumber((prev) => prev + 1);
 
@@ -514,26 +527,11 @@ const CreateContract = () => {
       setDraftSaved(true);
       setTimeout(() => setDraftSaved(false), 4000);
 
-      // Best-effort: also publish the draft to the other party over encrypted
-      // chat, so they see it on their Negotiation page WITHOUT a separate "Send"
-      // click. Only possible when the chat thread is ready (i.e. party2 has
-      // unlocked chat and published their key); if it isn't, the draft is still
-      // saved locally and this simply does nothing (never blocks the save).
-      if (isClientReady && peerAddress && postProposalRef.current) {
-        try {
-          await postProposalRef.current({
-            kind: activeProposal ? 'counter-proposal' : 'proposal',
-            revisionNumber,
-            data: termsObject,
-          });
-          await notifyThreadRef.current().catch((err) => {
-            console.warn('[CreateContract] Auto-send discovery notice failed:', err);
-          });
-          setRevisionNumber((prev) => prev + 1);
-        } catch (err) {
-          console.warn('[CreateContract] Auto-send on save failed (draft still saved locally):', err);
-        }
-      }
+      // Save is LOCAL ONLY — it is never sent to anyone. That is what the Inbox
+      // shows as "Saved" (blue). Reaching the counterparty is the separate Send
+      // action (handleSendProposal), which is what flips it to "Waiting" (green).
+      // (saveLocalDraft above preserves any existing lastRevisionFrom, so editing
+      // a received draft stays "Requires Attention" until you actually send.)
     } catch (err) {
       console.warn('[CreateContract] Save draft failed:', err);
       alert('Could not save the draft to this device.');

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type { Address } from 'viem';
 import {
   listDrafts, loadDraft, upsertDraft, recordApproval, recordMint, isMinted, resolveDraftForContract,
-  dismissDraft, saveLocalDraft, type OffchainContractDraft,
+  dismissDraft, saveLocalDraft, negotiationState, recordRevisionFrom, type OffchainContractDraft,
 } from './offchainContracts';
 
 const ALICE = '0xAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAaAa' as Address;
@@ -111,6 +111,30 @@ describe('offchainContracts', () => {
       dismissDraft('draft-1');
       saveLocalDraft(makeDraft({ revisionNumber: 5 })); // same revision, but a deliberate local Save
       expect(listDrafts()).toHaveLength(1);
+    });
+  });
+
+  describe('negotiationState (Inbox overlay)', () => {
+    it('no lastRevisionFrom → saved (saved locally, never sent)', () => {
+      expect(negotiationState(makeDraft(), ALICE)).toBe('saved');
+    });
+    it('lastRevisionFrom === me → waiting (I sent, awaiting response)', () => {
+      expect(negotiationState(makeDraft({ lastRevisionFrom: ALICE }), ALICE)).toBe('waiting');
+    });
+    it('lastRevisionFrom === counterparty → attention (they sent, I owe a revision)', () => {
+      expect(negotiationState(makeDraft({ lastRevisionFrom: BOB }), ALICE)).toBe('attention');
+    });
+
+    it('a pure local Save preserves lastRevisionFrom (stays waiting/attention until an actual send)', () => {
+      upsertDraft(makeDraft({ lastRevisionFrom: BOB }));           // received from BOB → attention
+      saveLocalDraft(makeDraft({ terms: { promotion: { value: 'edited' } } as any })); // edit + Save, no sender
+      expect(negotiationState(loadDraft('draft-1')!, ALICE)).toBe('attention');
+    });
+
+    it('recordRevisionFrom flips to waiting when I send', () => {
+      upsertDraft(makeDraft({ lastRevisionFrom: BOB }));
+      recordRevisionFrom('draft-1', ALICE);
+      expect(negotiationState(loadDraft('draft-1')!, ALICE)).toBe('waiting');
     });
   });
 

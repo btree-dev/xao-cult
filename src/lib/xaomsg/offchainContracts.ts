@@ -45,6 +45,20 @@ export interface OffchainContractDraft {
   approvals: Address[];
   mintedContractAddress?: Address;
   lastActivityUnixMs: number;
+  /** Who sent the most recent revision of this draft — drives the Inbox state:
+   *  undefined = saved locally, never sent to anyone (Saved/blue);
+   *  my address = I sent it and am awaiting a response (Waiting/green);
+   *  the counterparty = they sent it and I owe a revision (Requires Attention/yellow). */
+  lastRevisionFrom?: Address;
+}
+
+export type NegotiationState = 'saved' | 'waiting' | 'attention';
+
+/** Inbox state for a draft, from this wallet's perspective. See `lastRevisionFrom`. */
+export function negotiationState(draft: OffchainContractDraft, myAddress?: string): NegotiationState {
+  if (!draft.lastRevisionFrom) return 'saved';
+  if (myAddress && draft.lastRevisionFrom.toLowerCase() === myAddress.toLowerCase()) return 'waiting';
+  return 'attention';
 }
 
 type Store = Record<string, OffchainContractDraft>; // draftId -> draft
@@ -138,10 +152,31 @@ export function loadDraft(draftId: string): OffchainContractDraft | null {
  *  sync order), this always writes the latest form state. */
 export function saveLocalDraft(next: OffchainContractDraft): OffchainContractDraft {
   const store = readStore();
-  store[next.draftId] = next;
+  const existing = store[next.draftId];
+  // A pure local Save must NOT clear who last sent a revision — editing a draft
+  // you received (yellow) or sent (green) leaves it in that state until you
+  // actually send. Preserve it unless the caller explicitly sets one.
+  const merged: OffchainContractDraft = {
+    ...next,
+    lastRevisionFrom: next.lastRevisionFrom ?? existing?.lastRevisionFrom,
+  };
+  store[next.draftId] = merged;
   writeStore(store);
   forceUndismiss(next.draftId); // the user's own local Save is fresh intent
-  return next;
+  return merged;
+}
+
+/** Record who sent the most recent revision (Inbox state), without touching the
+ *  revision number. Called on an explicit Send (from = me → Waiting) and on a
+ *  received proposal (from = counterparty → Requires Attention). */
+export function recordRevisionFrom(draftId: string, from: Address): OffchainContractDraft | null {
+  const store = readStore();
+  const existing = store[draftId];
+  if (!existing) return null;
+  const updated: OffchainContractDraft = { ...existing, lastRevisionFrom: from, lastActivityUnixMs: Date.now() };
+  store[draftId] = updated;
+  writeStore(store);
+  return updated;
 }
 
 /** Upsert a draft revision. A strictly-newer `revisionNumber` always wins; a

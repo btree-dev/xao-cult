@@ -1,16 +1,20 @@
 import React, { useEffect } from "react";
 import Head from "next/head";
+import { Inter } from "next/font/google";
 import Layout from "../../components/Layout";
 import ContractsNav from "../../components/ContractsNav";
 import styles from "../../styles/CreateContract.module.css";
-import { useAllContractsWithSummaries, formatContractDate } from "../../hooks/useGetContracts";
+import { useAllContractsWithSummaries } from "../../hooks/useGetContracts";
 import { useWeb3 } from "../../hooks/useWeb3";
 import { useRouter } from "next/router";
 import { useOffchainContracts } from "../../hooks/useOffchainContracts";
 import { useXaoMsgSession } from "../../hooks/useXaoMsgSession";
 import { syncAllKnownThreads } from "../../lib/xaomsg/sync";
-import { dismissDraft, type OffchainContractDraft } from "../../lib/xaomsg/offchainContracts";
+import { dismissDraft, negotiationState, type OffchainContractDraft, type NegotiationState } from "../../lib/xaomsg/offchainContracts";
 import { CONTRACT_MESSAGE_VERSION, type ContractProposalMessage } from "../../types/contractMessage";
+
+// Figma spec for the Inbox state labels: Inter Bold.
+const inter = Inter({ subsets: ["latin"], weight: ["700"] });
 
 const Negotiation: React.FC = () => {
   const router = useRouter();
@@ -55,40 +59,17 @@ const Negotiation: React.FC = () => {
   console.log("Chain ID:", chain?.id);
   console.log("All contracts:", contracts);
 
-  // Only show contracts where the connected user is party1 or party2
   const myAddr = address?.toLowerCase();
-  const myContracts = contracts.filter(
-    (contract) => myAddr && (
-      contract.party1Address.toLowerCase() === myAddr ||
-      contract.party2Address.toLowerCase() === myAddr
-    )
-  );
 
-  // ShowContract statuses: 0=Draft, 1=Proposed, 2=Counter-Proposed, 3=Approved
-  // "Requires Attention" = Proposed or Counter-Proposed (needs action from a party)
-  const attentionContracts = myContracts.filter(
-    (contract) => contract.status === 1 || contract.status === 2
-  );
-  // "Waiting" = Draft (not yet proposed)
-  const waitingContracts = myContracts.filter(
-    (contract) => contract.status === 0
-  );
-  
-  // console.log("Attention contracts (status=1):", attentionContracts);
-  // console.log("Waiting contracts (status=0):", waitingContracts);
-
-  const handleImageClick = (item: any) => {
-    router.push({
-      pathname: "/contracts/contracts-detail",
-      query: {
-        id: item.contractAddress,
-        ticketsold: "0",
-        totalrevenue: "0",
-        source: "negotiation",
-        party1: item.party1Address,
-        party2: item.party2Address,
-      },
-    });
+  // Inbox state → gradient (drives both the card border and the gradient-filled
+  // label) + label text. Minted/on-chain contracts leave the Inbox (they're past
+  // negotiation) — this page shows the off-chain drafts, each tagged by who owes
+  // the next move. Gradients are the Figma values; waiting/attention are
+  // placeholders until the exact Figma gradients are provided.
+  const STATE_STYLE: Record<NegotiationState, { gradient: string; label: string }> = {
+    attention: { gradient: "linear-gradient(90deg, #F6FF00 0%, #F6FF00 100%)", label: "Requires Attention" },
+    waiting: { gradient: "linear-gradient(90deg, #00FFB2 0%, #66FF00 100%)", label: "Waiting" },
+    saved: { gradient: "linear-gradient(90deg, #00FFE5 0%, #001AFF 100%)", label: "Saved" },
   };
 
   // Permanently delete a device-local draft (also blocks a later sync from
@@ -120,12 +101,12 @@ const Negotiation: React.FC = () => {
       <div className={styles.container}>
         <div className={styles.background} />
         <Head>
-          <title>Contract Under Negotiation - XAO Cult</title>
+          <title>Inbox - XAO Cult</title>
         </Head>
         <ContractsNav />
         <main className={styles.contractHomecontainer}>
           <div className={styles.topSection}>
-            <h1 className={styles.heading}>Contract Under Negotiation</h1>
+            <h1 className={styles.heading}>Inbox</h1>
           </div>
 
           {/* Incoming off-chain drafts arrive over encrypted chat. Receiving them
@@ -159,46 +140,24 @@ const Negotiation: React.FC = () => {
               </button>
             </div>
           )}
-          {attentionContracts.map((contract) => (
-            <div
-              key={contract.contractAddress}
-              className={styles.ImageContainer}
-              style={{ cursor: "pointer" }}
-              onClick={() => handleImageClick(contract)}
-            >
-              <div className={styles.attentionTitle}>Requires Attention</div>
-              <img
-                src={
-                  contract.eventImageUri ||
-                  "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80"
-                }
-                alt={contract.eventName}
-                className={styles.AttentionImage}
-              />
-              <div className={styles.AttentionDetailsOverlay}>
-                <h2 className={styles.promotionTitle}>{contract.eventName}</h2>
-                <span className={styles.promotionLocation}>
-                  <img
-                    src="/Map_Pin.svg"
-                    alt="Location"
-                    className={styles.promotionIcon}
-                  />
-                  {contract.venueName}
-                </span>
-                <span className={styles.promotionDate}>
-                  <img
-                    src="/Calendar_Days.svg"
-                    alt="Date"
-                    className={styles.promotionIcon}
-                  />
-                  {formatContractDate(contract.showDate)}
-                </span>
-              </div>
+          {session && drafts.length === 0 && (
+            <div style={{ color: "rgba(255,255,255,0.5)", textAlign: "center", padding: "30px 0" }}>
+              Nothing in your inbox yet. Create a contract to get started.
             </div>
-          ))}
+          )}
           {drafts.map((draft) => {
-            const eventName = (draft.terms as { promotion?: { value?: string } }).promotion?.value || "Untitled draft";
-            const imageUri = (draft.terms as { eventImageUri?: string }).eventImageUri;
+            const terms = draft.terms as {
+              promotion?: { value?: string };
+              eventImageUri?: string;
+              location?: { venueName?: string };
+              datesAndTimes?: { eventStartDate?: string };
+            };
+            const eventName = terms.promotion?.value || "Untitled draft";
+            const imageUri = terms.eventImageUri;
+            const venue = terms.location?.venueName;
+            const dateRaw = terms.datesAndTimes?.eventStartDate;
+            const dateLabel = dateRaw ? new Date(dateRaw).toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "long" }) : "";
+            const st = STATE_STYLE[negotiationState(draft, myAddr)];
             return (
               <div
                 key={draft.draftId}
@@ -221,55 +180,53 @@ const Negotiation: React.FC = () => {
                 >
                   ✕
                 </button>
-                <div className={styles.waitingTitle}>Draft — off-chain</div>
                 <img
                   src={imageUri || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80"}
                   alt={eventName}
                   className={styles.waitingImage}
+                  // Same technique as .waitingImage (transparent border + gradient
+                  // painted in the border-box) but recoloured to the state gradient.
+                  style={{ border: "3px solid transparent", background: `${st.gradient} border-box` }}
                 />
                 <div className={styles.AttentionDetailsOverlay}>
                   <h2 className={styles.promotionTitle}>{eventName}</h2>
+                  {venue && (
+                    <span className={styles.promotionLocation}>
+                      <img src="/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
+                      {venue}
+                    </span>
+                  )}
+                  {dateLabel && (
+                    <span className={styles.promotionDate}>
+                      <img src="/Calendar_Days.svg" alt="Date" className={styles.promotionIcon} />
+                      {dateLabel}
+                    </span>
+                  )}
+                </div>
+                <div
+                  className={`${styles.waitingTitle} ${inter.className}`}
+                  style={{
+                    backgroundImage: st.gradient,
+                    WebkitBackgroundClip: "text",
+                    backgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    color: "transparent",
+                    fontWeight: 700,
+                    fontSize: 28,
+                    lineHeight: "100%",
+                    letterSpacing: "-0.45px",
+                    // Let the long "Requires Attention" wrap/center instead of
+                    // overflowing the card at 38px.
+                    // whiteSpace: "normal",
+                    textAlign: "center",
+                    maxWidth: "92%",
+                  }}
+                >
+                  {st.label}
                 </div>
               </div>
             );
           })}
-          {waitingContracts.map((waiting) => (
-            <div
-              key={waiting.contractAddress}
-              className={styles.ImageContainer}
-              style={{ cursor: "pointer" }}
-              onClick={() => handleImageClick(waiting)}
-            >
-              <div className={styles.waitingTitle}>Waiting</div>
-              <img
-                src={
-                  waiting.eventImageUri ||
-                  "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80"
-                }
-                alt={waiting.eventName}
-                className={styles.waitingImage}
-              />
-              <div className={styles.AttentionDetailsOverlay}>
-                <h2 className={styles.promotionTitle}>{waiting.eventName}</h2>
-                <span className={styles.promotionLocation}>
-                  <img
-                    src="/Map_Pin.svg"
-                    alt="Location"
-                    className={styles.promotionIcon}
-                  />
-                  {waiting.venueName}
-                </span>
-                <span className={styles.promotionDate}>
-                  <img
-                    src="/Calendar_Days.svg"
-                    alt="Date"
-                    className={styles.promotionIcon}
-                  />
-                  {formatContractDate(waiting.showDate)}
-                </span>
-              </div>
-            </div>
-          ))}
         </main>
       </div>
     </Layout>

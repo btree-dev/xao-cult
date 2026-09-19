@@ -50,6 +50,8 @@ export function applyDraftMessage(
       upsertDraft({
         draftId, party1, party2, terms: p.data, revisionNumber: p.revisionNumber,
         approvals: [], lastActivityUnixMs: body.sentAt,
+        // The counterparty sent this revision → Inbox shows "Requires Attention".
+        lastRevisionFrom: body.sender,
       });
       return;
     }

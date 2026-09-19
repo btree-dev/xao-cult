@@ -27,18 +27,15 @@ const nextConfig = {
       'gateway.pinata.cloud'
     ],
   },
-  async headers() {
-    return [
-      {
-        // Only apply cross-origin isolation to chat pages that need Waku's WASM/SharedArrayBuffer
-        source: "/chat-Section/:path*",
-        headers: [
-          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-          { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },
-        ],
-      },
-    ];
-  },
+  // NOTE: The cross-origin isolation headers (COOP: same-origin +
+  // COEP: credentialless) that used to be set on /chat-Section/* were removed —
+  // COEP breaks the cross-origin Dynamic wallet iframe (app.dynamicauth.com),
+  // which needs its own credentials, so the wallet failed to load on
+  // /chat-Section/Chat ("iframe load timeout"). Waku's WASM does not require
+  // cross-origin isolation; SharedArrayBuffer is only used opportunistically by
+  // its libp2p deps and falls back to ArrayBuffer when unavailable. If a Waku
+  // feature is later found to genuinely need SharedArrayBuffer, re-add these
+  // headers on a route that does NOT host the Dynamic iframe.
 };
 
 module.exports = nextConfig;

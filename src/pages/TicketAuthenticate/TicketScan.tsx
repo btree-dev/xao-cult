@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import styles from "../../styles/ticketAuthenticate.module.css";
 import { readContract, writeContract, waitForTransactionReceipt } from "@wagmi/core";
 import { config } from "../../wagmi";
 import { XAO_TICKET_ABI } from "../../lib/web3/eventcontract";
 import { useWeb3 } from "../../hooks/useWeb3";
+import { parseProfileQr } from "../../lib/profileQr";
+import { useProfileCache } from "../../contexts/ProfileCacheContext";
 
 interface TicketScanProps {
   onScanSuccess?: (decodedText: string) => void;
@@ -17,9 +19,13 @@ interface TicketScanProps {
 export default function TicketScan({ onScanSuccess, fillOnly }: TicketScanProps) {
   const router = useRouter();
   const { address, isConnected } = useWeb3();
+  const { setProfile } = useProfileCache();
   const [scannedData, setScannedData] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [scanStatus, setScanStatus] = useState<'idle' | 'detected' | 'error'>('idle');
+  // Guards the single navigation a profile QR triggers — the camera fires the
+  // detect callback ~10x/s, so without this it would push the route repeatedly.
+  const handledRef = useRef(false);
 
   useEffect(() => {
     let html5QrCode: any = null;
@@ -53,6 +59,18 @@ export default function TicketScan({ onScanSuccess, fillOnly }: TicketScanProps)
             // on-chain scan. The parent unmounts this (stops the camera).
             if (fillOnly && onScanSuccess) {
               onScanSuccess(decodedText);
+              return;
+            }
+            // Personal "Me" QR → open a DM chat with that person (and cache their
+            // username so the chat shows their name right away). Ticket QRs don't
+            // match parseProfileQr, so they fall through to the on-chain flow.
+            const profile = parseProfileQr(decodedText);
+            if (profile && !handledRef.current) {
+              handledRef.current = true;
+              if (profile.username) {
+                setProfile({ walletAddress: profile.address, username: profile.username, cachedAt: Date.now() });
+              }
+              router.push(`/chat-Section/Chat?peer=${profile.address}`);
             }
           },
           (errorMessage: string) => {

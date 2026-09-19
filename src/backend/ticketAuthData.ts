@@ -1,3 +1,7 @@
+// NOTE: The "Me" QR page now shows the real Username + Wallet (from the profile
+// cache / connected wallet) and no longer renders this list. The remaining
+// identity fields below (Wallet DID, ActivityPub URL, Xao URL) are kept here,
+// hidden from the UI, to be restored once we have real data to populate them.
 export interface TicketAuthInfo {
   label: string;
   value: string;

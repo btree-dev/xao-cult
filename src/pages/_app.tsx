@@ -9,6 +9,7 @@ import { WagmiProvider } from 'wagmi';
 
 import { config } from '../wagmi';
 import Scrollbar from '../components/Scrollbar';
+import AuthGate from '../components/AuthGate';
 
 const client = new QueryClient();
 
@@ -49,7 +50,9 @@ function MyApp({ Component, pageProps }: AppProps) {
         </Head>
         <DynamicProviders>
           <Scrollbar />
-          <Component {...pageProps} />
+          <AuthGate>
+            <Component {...pageProps} />
+          </AuthGate>
         </DynamicProviders>
       </QueryClientProvider>
     </WagmiProvider>

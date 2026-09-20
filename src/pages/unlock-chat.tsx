@@ -9,6 +9,7 @@ import ccStyles from '../styles/CreateContract.module.css';
 import { useXaoMsgSession } from '../hooks/useXaoMsgSession';
 import { syncAllKnownThreads } from '../lib/xaomsg/sync';
 import { useProfileCache } from '../contexts/ProfileCacheContext';
+import { RETURN_TO_KEY } from '../components/AuthGate';
 
 const SIGN_STEPS = [
   {
@@ -67,7 +68,25 @@ const UnlockChat: NextPage = () => {
     void syncAllKnownThreads(address, session).catch((err) => {
       console.warn('[xaomsg] background sync failed:', err);
     });
-    router.replace(currentUserProfile ? '/dashboard' : '/create-profile');
+    // If the user was sent here by the login gate (e.g. scanned a profile QR
+    // while logged out), return them to the page they were headed for — the
+    // chat — instead of the default landing. Only accept an internal path, and
+    // never loop back to login/unlock.
+    let returnTo: string | null = null;
+    try {
+      returnTo = sessionStorage.getItem(RETURN_TO_KEY);
+      if (returnTo) sessionStorage.removeItem(RETURN_TO_KEY);
+    } catch { /* private mode */ }
+    const safeReturn =
+      returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//') &&
+      returnTo !== '/' && !returnTo.startsWith('/unlock-chat')
+        ? returnTo
+        : null;
+    if (safeReturn) {
+      router.replace(safeReturn);
+    } else {
+      router.replace(currentUserProfile ? '/dashboard' : '/create-profile');
+    }
   }, [address, session, router, isLoadingCurrentUser, currentUserProfile]);
 
   const handleRetry = () => {

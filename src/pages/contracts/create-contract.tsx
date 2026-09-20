@@ -84,17 +84,22 @@ const CreateContract = () => {
   // Cache the usernames carried on a received proposal's data, keyed by the
   // matching party address — so the Party 1/Party 2 labels resolve straight
   // from the contract even if no live message piggyback reached this device.
+  // Never cache the CONNECTED wallet's own address here: a proposal is a
+  // snapshot from whenever it was sent/drafted, so its embedded username can
+  // be stale (e.g. from before a later rename on /public-information) and
+  // would silently clobber the local profile's current, authoritative name.
   const cacheProposalUsernames = useCallback((data?: Partial<IContract> | null) => {
     if (!data) return;
-    if (data.party1 && data.party1.startsWith('0x') && data.party1Username) {
+    const isSelf = (addr?: string) => !!address && !!addr && addr.toLowerCase() === address.toLowerCase();
+    if (data.party1 && data.party1.startsWith('0x') && data.party1Username && !isSelf(data.party1)) {
       const existing = getProfile(data.party1);
       setProfile({ ...existing, walletAddress: data.party1, username: data.party1Username, cachedAt: Date.now() });
     }
-    if (data.party2 && data.party2.startsWith('0x') && data.party2Username) {
+    if (data.party2 && data.party2.startsWith('0x') && data.party2Username && !isSelf(data.party2)) {
       const existing = getProfile(data.party2);
       setProfile({ ...existing, walletAddress: data.party2, username: data.party2Username, cachedAt: Date.now() });
     }
-  }, [getProfile, setProfile]);
+  }, [address, getProfile, setProfile]);
 
   // Once the draft is on-chain, the contract itself holds both usernames
   // (party1's from construction, party2's from setParty2Username on sign) —

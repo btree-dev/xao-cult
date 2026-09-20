@@ -8,12 +8,14 @@ import styles from '../styles/Home.module.css';
 import ccStyles from '../styles/CreateContract.module.css';
 import { useXaoMsgSession } from '../hooks/useXaoMsgSession';
 import { syncAllKnownThreads } from '../lib/xaomsg/sync';
+import { useProfileCache } from '../contexts/ProfileCacheContext';
 
 const UnlockChat: NextPage = () => {
   const router = useRouter();
   const { user: dynamicUser } = useDynamicContext();
   const { address } = useAccount();
   const { session, isUnlocking, error, unlock, isWalletReady } = useXaoMsgSession();
+  const { currentUserProfile, isLoadingCurrentUser } = useProfileCache();
   const attemptedRef = useRef(false);
   const syncStartedRef = useRef(false);
 
@@ -39,15 +41,17 @@ const UnlockChat: NextPage = () => {
   // Once a session is ready — whether it was already valid on mount or was
   // just freshly signed above — kick off the background sync once and move
   // on immediately. Sync results land in the Negotiation tab whenever they
-  // arrive; nothing here waits on it.
+  // arrive; nothing here waits on it. Also gated on isLoadingCurrentUser so a
+  // brand-new wallet (no cached profile yet) lands on /create-profile instead
+  // of /dashboard, rather than racing the profile cache's own load effect.
   useEffect(() => {
-    if (!address || !session || syncStartedRef.current) return;
+    if (!address || !session || syncStartedRef.current || isLoadingCurrentUser) return;
     syncStartedRef.current = true;
     void syncAllKnownThreads(address, session).catch((err) => {
       console.warn('[xaomsg] background sync failed:', err);
     });
-    router.replace('/dashboard');
-  }, [address, session, router]);
+    router.replace(currentUserProfile ? '/dashboard' : '/create-profile');
+  }, [address, session, router, isLoadingCurrentUser, currentUserProfile]);
 
   const handleRetry = () => {
     attemptedRef.current = true;

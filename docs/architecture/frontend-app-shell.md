@@ -30,12 +30,12 @@ Every route under `src/pages/`, one line each:
 
 | Route | Purpose | Detail owned by |
 |---|---|---|
-| `/` (`index.tsx`) | Landing page; embeds `DynamicEmbeddedWidget` for wallet connect, redirects to `/dashboard` once `dynamicUser` is set | this doc |
+| `/` (`index.tsx`) | Landing page; embeds `DynamicEmbeddedWidget` for wallet connect, redirects to `/unlock-chat` once `dynamicUser` is set | this doc |
 | `/dashboard` (`dashboard.tsx`, 435 lines) | Main authenticated home — event/contract browsing, search, calendar filter, ties together `useGetContracts`, `ProfileCache`, chain-aware USDC addresses | events-tickets.md + contracts-nft.md (dashboard is a composite view) |
 | `/wallets` (`wallets.tsx`) | Wallet management screen, embeds `DynamicWidget` | web3-wallet.md |
-| `/create-profile` (`create-profile.tsx`, 428 lines) | Profile creation/edit — username, genres (large hardcoded genre-hierarchy data), avatar; writes to `ProfileCache` | this doc / xaomsg-messaging.md (consumer of ProfileCache) |
+| `/create-profile` (`create-profile.tsx`, 428 lines) | Profile creation/edit — username, genres (large hardcoded genre-hierarchy data), avatar; writes to `ProfileCache`. Also the first-login destination: `/unlock-chat` sends any wallet with no cached `ProfileCache` entry here instead of `/dashboard` | this doc / xaomsg-messaging.md (consumer of ProfileCache) |
 | `/public-information` (`public-information.tsx`) | Public-facing info page, backed by `src/backend/public-information-services` | backend-data.md |
-| `/unlock-chat` (`unlock-chat.tsx`) | Explicit post-login step that unlocks the XaoMsg session (`useXaoMsgSession`) and kicks off `syncAllKnownThreads` | xaomsg-messaging.md |
+| `/unlock-chat` (`unlock-chat.tsx`) | Explicit post-login step that unlocks the XaoMsg session (`useXaoMsgSession`), kicks off `syncAllKnownThreads`, then routes to `/create-profile` (no cached profile for this address) or `/dashboard` (profile exists) | xaomsg-messaging.md |
 | `/chat-Section/*` (`Chat.tsx`, `Filter.tsx`, `Notification.tsx`, `Search.tsx`) | Messaging UI — conversation list, chat panel, filters, notifications | xaomsg-messaging.md |
 | `/contracts/*` (create-contract, current-contract, past-contracts, Negotiation, arbitrate, contracts-detail, + section subcomponents) | Contract creation wizard and lifecycle views | contracts-nft.md |
 | `/event/[id]`, `/event/[id]/confirm`, `/purchase`, `/ticket-confirmation` | Event detail page and purchase/confirmation flow | events-tickets.md |

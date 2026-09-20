@@ -21,6 +21,11 @@ export interface UseXaoMsgSessionResult {
    *  no-op on a not-yet-ready client) should gate on this instead of just
    *  `address`. */
   isWalletReady: boolean;
+  /** 0 = not unlocking; 1/2 = which of the two wallet signatures unlock() is
+   *  currently waiting on, so callers can tell the user which prompt to
+   *  expect ("signature 1 of 2" / "2 of 2") instead of a single opaque
+   *  "signing…" state. */
+  signStep: 0 | 1 | 2;
 }
 
 export function useXaoMsgSession(): UseXaoMsgSessionResult {
@@ -35,6 +40,7 @@ export function useXaoMsgSession(): UseXaoMsgSessionResult {
   const [session, setSession] = useState<PersistedSession | null>(null);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signStep, setSignStep] = useState<0 | 1 | 2>(0);
 
   // Restore from localStorage on mount/wallet change, but only trust it once
   // it re-verifies under the current (deterministic) cert format — a cached
@@ -71,10 +77,13 @@ export function useXaoMsgSession(): UseXaoMsgSessionResult {
     if (!walletClient || !address) return;
     setIsUnlocking(true);
     setError(null);
+    let signaturesRequested = 0;
     try {
-      const { privateKey, cert } = await deriveSessionKeypair(address, (message) =>
-        walletClient.signMessage({ account: address, message }),
-      );
+      const { privateKey, cert } = await deriveSessionKeypair(address, async (message) => {
+        signaturesRequested += 1;
+        setSignStep(signaturesRequested === 1 ? 1 : 2);
+        return walletClient.signMessage({ account: address, message });
+      });
       if (!(await verifySessionCert(cert))) {
         setError(
           "This wallet type isn't compatible with XaoMsg chat (signature couldn't be verified).",
@@ -88,8 +97,9 @@ export function useXaoMsgSession(): UseXaoMsgSessionResult {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsUnlocking(false);
+      setSignStep(0);
     }
   }, [walletClient, address]);
 
-  return { session, isUnlocking, error, unlock, isWalletReady: !!walletClient };
+  return { session, isUnlocking, error, unlock, isWalletReady: !!walletClient, signStep };
 }

@@ -25,7 +25,7 @@ export interface XaoMsgComponentProps {
 const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({
   showContract = null, peer = null, draftId = null, embedded = false, onContractProposalSelect,
 }) => {
-  const { session, isUnlocking, error: sessionError, unlock } = useXaoMsgSession();
+  const { session, isUnlocking, error: sessionError, unlock, signStep } = useXaoMsgSession();
   // draftId takes priority: create-contract.tsx and contracts-detail.tsx
   // (via useResolveEventThread) pass BOTH draftId and peer together for
   // event mode. peer alone (no draftId) means DM mode.
@@ -89,7 +89,7 @@ const XaoMsgComponent: React.FC<XaoMsgComponentProps> = ({
             cursor: isUnlocking ? 'not-allowed' : 'pointer',
           }}
         >
-          {isUnlocking ? 'Signing…' : 'Unlock chat'}
+          {isUnlocking ? `Signing… (${signStep || 1}/2)` : 'Unlock chat'}
         </button>
       </div>,
     );

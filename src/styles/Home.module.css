@@ -2930,3 +2930,82 @@
   max-width: 400px;
   padding: 0 24px;
 }
+
+.signExplainerBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  color: #fff;
+  text-align: center;
+  max-width: 400px;
+  padding: 0 24px;
+}
+
+.signExplainerTitle {
+  font-size: 1.4rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.signExplainerIntro {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.signStepList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+}
+
+.signStepItem {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.signStepNumber {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FF8A00 0%, #FF5F6D 50%, #A557FF 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 13px;
+  color: #fff;
+}
+
+.signStepText strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.signStepText p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.signProgressOverlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.signProgressText {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  text-align: center;
+  max-width: 280px;
+}

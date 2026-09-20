@@ -21,7 +21,7 @@ const Negotiation: React.FC = () => {
   const { address, chain } = useWeb3();
   const { contracts, isLoading } = useAllContractsWithSummaries(chain?.id);
   const { drafts, reload } = useOffchainContracts(contracts);
-  const { session, unlock, isUnlocking, isWalletReady } = useXaoMsgSession();
+  const { session, unlock, isUnlocking, isWalletReady, signStep } = useXaoMsgSession();
   const [syncing, setSyncing] = React.useState(false);
 
   // Manually pull the inbox again — for a party2 whose incoming draft hasn't
@@ -123,7 +123,7 @@ const Negotiation: React.FC = () => {
                   className={styles.confirmButton}
                   style={{ marginTop: 10, maxWidth: 240, opacity: (isUnlocking || !isWalletReady) ? 0.5 : 1 }}
                 >
-                  {isUnlocking ? "Unlocking chat…" : "Unlock Chat"}
+                  {isUnlocking ? `Unlocking chat… (signature ${signStep || 1} of 2)` : "Unlock Chat"}
                 </button>
               </div>
             </div>

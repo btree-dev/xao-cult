@@ -346,7 +346,7 @@ const CreateContract = () => {
 
   // Waku session + event thread (this draft's own thread — never the DM
   // thread) for sending contract proposals and the mint SYSTEM message.
-  const { session, unlock, isUnlocking, error: sessionError, isWalletReady } = useXaoMsgSession();
+  const { session, unlock, isUnlocking, error: sessionError, isWalletReady, signStep } = useXaoMsgSession();
   const eventThread = useXaoEvent({
     draftId,
     peer: peerAddress && peerAddress.startsWith('0x') ? (peerAddress as `0x${string}`) : null,
@@ -1002,7 +1002,7 @@ const CreateContract = () => {
                       opacity: (!isWalletReady || isUnlocking) ? 0.5 : 1,
                     }}
                   >
-                    {isUnlocking ? "Unlocking chat…" : "Unlock Chat to Send"}
+                    {isUnlocking ? `Unlocking chat… (signature ${signStep || 1} of 2)` : "Unlock Chat to Send"}
                   </button>
                 )}
 

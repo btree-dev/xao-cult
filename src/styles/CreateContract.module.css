@@ -892,6 +892,21 @@
   text-decoration: underline;
 }
 
+.messageTime {
+  display: block;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 2px;
+}
+
+.sentMessage .messageTime {
+  text-align: right;
+}
+
+.RecievedMessage .messageTime {
+  text-align: left;
+}
+
 .dropdownInput {
   position: relative; 
   flex: 1;

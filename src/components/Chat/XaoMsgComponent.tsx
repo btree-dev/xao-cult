@@ -162,6 +162,21 @@ function shortWho(addr: string, myAddress: Address | undefined): string {
   return myAddress && addr.toLowerCase() === myAddress.toLowerCase() ? 'You' : `${addr.slice(0, 6)}…`;
 }
 
+// `sentAt` is always Unix epoch milliseconds (see MessageBody in lib/xaomsg/types.ts).
+function formatMessageTime(sentAtMs: number): string {
+  const date = new Date(sentAtMs);
+  if (isNaN(date.getTime())) return '';
+
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const isYesterday = new Date(now.getTime() - 86400000).toDateString() === date.toDateString();
+  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  if (isToday) return timeStr;
+  if (isYesterday) return `Yesterday ${timeStr}`;
+  return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${timeStr}`;
+}
+
 function toContractProposalMessage(m: ResolvedMessage): ContractProposalMessage {
   const p = m.envelope.body.payload as ProposalPayload;
   // A chat thread keeps every past revision's system line around, so the
@@ -204,9 +219,16 @@ function renderMessage(
   const cls = isMine ? styles.sentMessage : styles.RecievedMessage;
   const key = body.messageId;
 
+  const time = formatMessageTime(body.sentAt);
+
   if (body.contentType === ContentType.TEXT) {
     const t = body.payload as TextPayload;
-    return <div key={key} className={cls}>{t.text}</div>;
+    return (
+      <div key={key} className={cls}>
+        {t.text}
+        <span className={styles.messageTime}>{time}</span>
+      </div>
+    );
   }
   if (body.contentType === ContentType.CONTACT_CARD) {
     // Profile-sync only — never rendered. The card is (re)broadcast each time a
@@ -224,18 +246,22 @@ function renderMessage(
         className={clickable ? `${styles.systemLine} ${styles.systemLineClickable}` : styles.systemLine}
         onClick={clickable ? () => onContractProposalSelect!(toContractProposalMessage(m)) : undefined}
       >
-        📋 {shortWho(body.sender, myAddress)} {verb} (rev {p.revisionNumber})
+        📋 {shortWho(body.sender, myAddress)} {verb} (rev {p.revisionNumber}) · {time}
       </div>
     );
   }
   if (body.contentType === ContentType.ACCEPT) {
-    return <div key={key} className={styles.systemLine}>✓ {shortWho(body.sender, myAddress)} approved the contract</div>;
+    return (
+      <div key={key} className={styles.systemLine}>
+        ✓ {shortWho(body.sender, myAddress)} approved the contract · {time}
+      </div>
+    );
   }
   if (body.contentType === ContentType.REJECT) {
     const r = body.payload as RejectPayload;
     return (
       <div key={key} className={styles.systemLine}>
-        ✗ {shortWho(body.sender, myAddress)} rejected the contract{r.reason ? `: ${r.reason}` : ''}
+        ✗ {shortWho(body.sender, myAddress)} rejected the contract{r.reason ? `: ${r.reason}` : ''} · {time}
       </div>
     );
   }
@@ -243,11 +269,16 @@ function renderMessage(
     const s = body.payload as SystemPayload;
     return (
       <div key={key} className={styles.systemLine}>
-        Contract minted on-chain{s.contractAddress ? ` (${s.contractAddress.slice(0, 6)}…)` : ''}
+        Contract minted on-chain{s.contractAddress ? ` (${s.contractAddress.slice(0, 6)}…)` : ''} · {time}
       </div>
     );
   }
-  return <div key={key} className={cls}>(unknown content type)</div>;
+  return (
+    <div key={key} className={cls}>
+      (unknown content type)
+      <span className={styles.messageTime}>{time}</span>
+    </div>
+  );
 }
 
 export default XaoMsgComponent;

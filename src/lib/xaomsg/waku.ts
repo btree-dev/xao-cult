@@ -76,14 +76,16 @@ export async function publishToTopic(contentTopic: string, payload: Uint8Array):
 
   // A light node can momentarily have NO LightPush peer — one dropped, or hasn't
   // reconnected yet — which surfaced to users as "Waku light-push failed: No peer
-  // available". Rather than fail the whole send on a transient gap, wait for a
-  // LightPush peer and retry a few times before giving up.
-  const MAX_ATTEMPTS = 4;
+  // available". This bites hardest on a send fired right after a page loads (the
+  // node hasn't warmed up a peer yet), e.g. the first contract-chat message.
+  // Rather than fail on that transient gap, wait longer for a peer and retry
+  // more times before giving up, giving a cold node time to connect one.
+  const MAX_ATTEMPTS = 6;
   let lastFailures: unknown = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     wakuDebugLog(`[xaomsg] waku#6: publishToTopic: waiting for LightPush peer (attempt ${attempt}/${MAX_ATTEMPTS})`);
     try {
-      await waitForRemotePeer(node, [Protocols.LightPush], 8_000);
+      await waitForRemotePeer(node, [Protocols.LightPush], 12_000);
     } catch {
       // No peer yet within the window — still try the send (and retry below).
       wakuDebugWarn(`[xaomsg] waku#6: no LightPush peer within window (attempt ${attempt}/${MAX_ATTEMPTS}), trying send anyway`);
@@ -125,7 +127,7 @@ export async function publishToTopic(contentTopic: string, payload: Uint8Array):
     }
 
     if (attempt < MAX_ATTEMPTS) {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 2500));
     }
   }
 

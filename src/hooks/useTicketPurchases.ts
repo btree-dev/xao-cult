@@ -10,9 +10,11 @@ const TICKET_SOLD_EVENT = parseAbiItem(
 
 // v1: recent window only (full history would need an indexer). A wider window
 // than swaps since purchases are less frequent. Base Sepolia caps getLogs at
-// 2000 blocks/request, so the range is chunked.
-const HISTORY_BLOCK_WINDOW = BigInt(50_000);
-const MAX_LOGS_RANGE = BigInt(2000);
+// 1,000 blocks/request, so the range is chunked (900 for a safe margin). The
+// window is kept modest so the chunk count (and parallel request count) stays
+// reasonable against the public RPC's rate limits.
+const HISTORY_BLOCK_WINDOW = BigInt(20_000);
+const MAX_LOGS_RANGE = BigInt(900);
 
 export interface TicketPurchaseEntry {
   txHash: Hash;

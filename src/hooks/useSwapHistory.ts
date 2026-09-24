@@ -22,8 +22,9 @@ export interface SwapHistoryEntry {
 
 // v1: scan a recent window only. Full history would need an indexer.
 const HISTORY_BLOCK_WINDOW = BigInt(10000);
-// Base Sepolia public RPC caps eth_getLogs at 2000 blocks per request.
-const MAX_LOGS_RANGE = BigInt(2000);
+// Base Sepolia public RPC caps eth_getLogs at 1,000 blocks per request; use 900
+// for a safe margin (the cap is inclusive of both endpoints).
+const MAX_LOGS_RANGE = BigInt(900);
 
 const SWAP_EVENT = parseAbiItem(
   'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)',

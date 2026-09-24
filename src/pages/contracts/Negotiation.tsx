@@ -93,6 +93,27 @@ const Negotiation: React.FC = () => {
     });
   };
 
+  // Dedupe: once a draft has an on-chain contract shown above (party1 signed →
+  // deployed), don't ALSO show its off-chain draft card — otherwise the same
+  // event appears twice (this happens on party2's device when the mint notice
+  // hasn't arrived, so the local draft was never marked minted). Match by the
+  // contract address the draft carries, or by same parties + event name.
+  const onchainAddrs = new Set(myPendingContracts.map((c) => c.contractAddress.toLowerCase()));
+  const partyKey = (a: string, b: string) => [a.toLowerCase(), b.toLowerCase()].sort().join("|");
+  const onchainByParties = new Map(
+    myPendingContracts.map((c) => [partyKey(c.party1Address, c.party2Address), c.eventName.trim().toLowerCase()]),
+  );
+  const visibleDrafts = drafts.filter((d) => {
+    const linked = (d.mintedContractAddress || (d.terms as { contractAddress?: string }).contractAddress || "").toLowerCase();
+    if (linked && onchainAddrs.has(linked)) return false;
+    const onchainEvent = onchainByParties.get(partyKey(d.party1, d.party2));
+    if (onchainEvent !== undefined) {
+      const draftEvent = ((d.terms as { promotion?: { value?: string } }).promotion?.value || "").trim().toLowerCase();
+      if (!draftEvent || !onchainEvent || draftEvent === onchainEvent) return false;
+    }
+    return true;
+  });
+
   // Permanently delete a device-local draft (also blocks a later sync from
   // restoring it). Used to clear old/stale off-chain drafts.
   const handleDeleteDraft = (e: React.MouseEvent, draftId: string) => {
@@ -161,12 +182,12 @@ const Negotiation: React.FC = () => {
               </button>
             </div>
           )}
-          {session && drafts.length === 0 && myPendingContracts.length === 0 && (
+          {session && visibleDrafts.length === 0 && myPendingContracts.length === 0 && (
             <div style={{ color: "rgba(255,255,255,0.5)", textAlign: "center", padding: "30px 0" }}>
               Nothing in your inbox yet. Create a contract to get started.
             </div>
           )}
-          {drafts.map((draft) => {
+          {visibleDrafts.map((draft) => {
             const terms = draft.terms as {
               promotion?: { value?: string };
               eventImageUri?: string;

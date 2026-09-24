@@ -125,6 +125,23 @@ const PurchaseConfirmation: NextPage = () => {
           return;
         }
 
+        // Use the EXACT USDC token this contract was deployed with (its usdc()
+        // getter), not a hardcoded default — the balance check, the approve, and
+        // the on-chain charge must all target the same token. Falls back to the
+        // chain default only if the read fails.
+        let contractUsdc = usdcAddress as `0x${string}`;
+        try {
+          const onchainUsdc = await readContract(config, {
+            address: contractAddress,
+            abi: SHOW_CONTRACT_ABI as any,
+            functionName: 'usdc',
+            args: [],
+          }) as `0x${string}`;
+          if (onchainUsdc && onchainUsdc.startsWith('0x')) contractUsdc = onchainUsdc;
+        } catch (err) {
+          console.warn('[confirm] could not read contract usdc(), using chain default:', err);
+        }
+
         // Compute total USDC required across all tiers
         const totalUsdcWei = selectedTickets.reduce<bigint>((sum, t) => {
           const priceWei = BigInt(t.priceRaw ?? Math.floor(t.price * 1e6));
@@ -136,7 +153,7 @@ const PurchaseConfirmation: NextPage = () => {
         // rather than letting buyTicket revert with a cryptic error. When the
         // wallet already holds enough, we skip straight to the on-chain buy.
         if (address) {
-          const balance = await readUsdcBalance(address as `0x${string}`, chain?.id);
+          const balance = await readUsdcBalance(address as `0x${string}`, chain?.id, contractUsdc);
           if (balance < totalUsdcWei) {
             const deficitWei = totalUsdcWei - balance;
             const deficitUsd = Number(deficitWei) / 10 ** USDC_DECIMALS;
@@ -193,6 +210,7 @@ const PurchaseConfirmation: NextPage = () => {
                 totalUsdcWei,
                 chain?.id,
                 { signal: fundsAbortRef.current.signal },
+                contractUsdc,
               );
             } catch (err) {
               setWaitingForFunds(false);
@@ -232,7 +250,7 @@ const PurchaseConfirmation: NextPage = () => {
             const txHash = await buyTickets(
               contractAddress,
               ticketCollectionAddr,
-              usdcAddress as `0x${string}`,
+              contractUsdc,
               tierId,
               priceUSDC,
             );

@@ -21,8 +21,12 @@ export function usdcAddressForChain(chainId?: number): `0x${string}` {
 export async function readUsdcBalance(
   account: `0x${string}`,
   chainId?: number,
+  // The exact USDC token the contract uses (from its usdc() getter). Prefer this
+  // over the chain default so the balance is read from the SAME token that will
+  // be approved/charged — the two must never diverge.
+  tokenAddress?: `0x${string}`,
 ): Promise<bigint> {
-  const address = usdcAddressForChain(chainId);
+  const address = tokenAddress || usdcAddressForChain(chainId);
   const balance = await readContract(config, {
     address,
     abi: ERC20_BALANCE_ABI,
@@ -44,6 +48,7 @@ export async function waitForUsdcBalance(
   target: bigint,
   chainId?: number,
   opts: WaitForBalanceOptions = {},
+  tokenAddress?: `0x${string}`,
 ): Promise<bigint> {
   const { intervalMs = 5_000, timeoutMs = 5 * 60_000, signal, onTick } = opts;
   const deadline = Date.now() + timeoutMs;
@@ -52,7 +57,7 @@ export async function waitForUsdcBalance(
     if (signal?.aborted) {
       throw new Error('cancelled');
     }
-    const balance = await readUsdcBalance(account, chainId);
+    const balance = await readUsdcBalance(account, chainId, tokenAddress);
     onTick?.(balance);
     if (balance >= target) {
       return balance;

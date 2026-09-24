@@ -4,7 +4,7 @@ import { Inter } from "next/font/google";
 import Layout from "../../components/Layout";
 import ContractsNav from "../../components/ContractsNav";
 import styles from "../../styles/CreateContract.module.css";
-import { useAllContractsWithSummaries } from "../../hooks/useGetContracts";
+import { useAllContractsWithSummaries, formatContractDate } from "../../hooks/useGetContracts";
 import { useWeb3 } from "../../hooks/useWeb3";
 import { useRouter } from "next/router";
 import { useOffchainContracts } from "../../hooks/useOffchainContracts";
@@ -62,14 +62,35 @@ const Negotiation: React.FC = () => {
   const myAddr = address?.toLowerCase();
 
   // Inbox state → gradient (drives both the card border and the gradient-filled
-  // label) + label text. Minted/on-chain contracts leave the Inbox (they're past
-  // negotiation) — this page shows the off-chain drafts, each tagged by who owes
-  // the next move. Gradients are the Figma values; waiting/attention are
-  // placeholders until the exact Figma gradients are provided.
+  // label) + label text. The Inbox shows the whole negotiation: off-chain drafts
+  // AND on-chain contracts that aren't finalized yet (deployed but still awaiting
+  // both signatures). Only a FULLY finalized contract leaves the Inbox. Gradients
+  // are the Figma values.
   const STATE_STYLE: Record<NegotiationState, { gradient: string; label: string }> = {
     attention: { gradient: "linear-gradient(90deg, #F6FF00 0%, #F6FF00 100%)", label: "Requires Attention" },
     waiting: { gradient: "linear-gradient(90deg, #00FFB2 0%, #66FF00 100%)", label: "Waiting" },
     saved: { gradient: "linear-gradient(90deg, #00FFE5 0%, #001AFF 100%)", label: "Saved" },
+  };
+
+  // On-chain contracts still in negotiation: I'm a party, it's NOT finalized
+  // (both parties haven't signed), and it isn't cancelled/disputed. These would
+  // otherwise vanish from the Inbox once party1 signs (the off-chain draft gets
+  // marked minted and filtered out) even though party2 still has to sign.
+  // party1Signed mirrors isFinalized in the summary (no per-party sign flag), so
+  // state is by role: party1 (deployed + signed) is Waiting; party2 owes a
+  // signature → Requires Attention.
+  const myPendingContracts = contracts.filter((c) => {
+    const mine = !!myAddr && (c.party1Address.toLowerCase() === myAddr || c.party2Address.toLowerCase() === myAddr);
+    const finalized = c.party1Signed; // == isFinalized (see useGetContracts)
+    const terminal = c.status === 6 || c.status === 7; // CANCELLED / DISPUTED
+    return mine && !finalized && !terminal;
+  });
+
+  const handleImageClick = (c: (typeof contracts)[number]) => {
+    router.push({
+      pathname: "/contracts/contracts-detail",
+      query: { id: c.contractAddress, party1: c.party1Address, party2: c.party2Address, source: "negotiation" },
+    });
   };
 
   // Permanently delete a device-local draft (also blocks a later sync from
@@ -140,7 +161,7 @@ const Negotiation: React.FC = () => {
               </button>
             </div>
           )}
-          {session && drafts.length === 0 && (
+          {session && drafts.length === 0 && myPendingContracts.length === 0 && (
             <div style={{ color: "rgba(255,255,255,0.5)", textAlign: "center", padding: "30px 0" }}>
               Nothing in your inbox yet. Create a contract to get started.
             </div>
@@ -180,6 +201,16 @@ const Negotiation: React.FC = () => {
                 >
                   ✕
                 </button>
+                <span
+                  style={{
+                    position: "absolute", top: "8px", left: "8px", zIndex: 3,
+                    padding: "3px 10px", borderRadius: "12px", background: "rgba(0,0,0,0.65)",
+                    color: "#fff", fontSize: "11px", fontWeight: 600, letterSpacing: "0.3px",
+                    border: "1px solid rgba(255,255,255,0.25)",
+                  }}
+                >
+                  Off-chain
+                </span>
                 <img
                   src={imageUri || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80"}
                   alt={eventName}
@@ -218,6 +249,71 @@ const Negotiation: React.FC = () => {
                     // Let the long "Requires Attention" wrap/center instead of
                     // overflowing the card at 38px.
                     // whiteSpace: "normal",
+                    textAlign: "center",
+                    maxWidth: "92%",
+                  }}
+                >
+                  {st.label}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* On-chain contracts still in negotiation (deployed, not finalized). */}
+          {myPendingContracts.map((c) => {
+            const state: NegotiationState = c.party1Address.toLowerCase() === myAddr ? "waiting" : "attention";
+            const st = STATE_STYLE[state];
+            const dateLabel = c.showDate && c.showDate > BigInt(0) ? formatContractDate(c.showDate) : "";
+            return (
+              <div
+                key={c.contractAddress}
+                className={styles.ImageContainer}
+                style={{ cursor: "pointer", position: "relative" }}
+                onClick={() => handleImageClick(c)}
+              >
+                <span
+                  style={{
+                    position: "absolute", top: "8px", left: "8px", zIndex: 3,
+                    padding: "3px 10px", borderRadius: "12px", background: "rgba(0,0,0,0.65)",
+                    color: "#fff", fontSize: "11px", fontWeight: 600, letterSpacing: "0.3px",
+                    border: "1px solid rgba(0,255,178,0.6)",
+                  }}
+                >
+                  On-chain
+                </span>
+                <img
+                  src={c.eventImageUri || "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1740&q=80"}
+                  alt={c.eventName}
+                  className={styles.waitingImage}
+                  style={{ border: "3px solid transparent", background: `${st.gradient} border-box` }}
+                />
+                <div className={styles.AttentionDetailsOverlay}>
+                  <h2 className={styles.promotionTitle}>{c.eventName}</h2>
+                  {c.venueName && (
+                    <span className={styles.promotionLocation}>
+                      <img src="/Map_Pin.svg" alt="Location" className={styles.promotionIcon} />
+                      {c.venueName}
+                    </span>
+                  )}
+                  {dateLabel && (
+                    <span className={styles.promotionDate}>
+                      <img src="/Calendar_Days.svg" alt="Date" className={styles.promotionIcon} />
+                      {dateLabel}
+                    </span>
+                  )}
+                </div>
+                <div
+                  className={`${styles.waitingTitle} ${inter.className}`}
+                  style={{
+                    backgroundImage: st.gradient,
+                    WebkitBackgroundClip: "text",
+                    backgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    color: "transparent",
+                    fontWeight: 700,
+                    fontSize: 28,
+                    lineHeight: "100%",
+                    letterSpacing: "-0.45px",
                     textAlign: "center",
                     maxWidth: "92%",
                   }}

@@ -4,6 +4,7 @@ import Image from "next/image";
 import styles from "../styles/publicInfo.module.css";
 import { useRouter } from "next/router";
 import { useAccount } from "wagmi";
+import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 import Navbar from "../components/Navbar";
 
 import { publicDocs, Genres } from "../backend/public-information-services/publicinfodata";
@@ -13,11 +14,9 @@ import {
   handleWalletSelection,
   updateIdentityField,
   toggleGenre,
-  handleNext,
-  handlePrev,
   handleCopy,
-  handleDeleteIdentity,
   handleSignOut,
+  handleDeleteProfile,
 
 } from "../backend/public-information-services/publicInfoServices";
 import BlankNavbar from "../components/BackNav";
@@ -30,14 +29,27 @@ export default function PublicInfoPage() {
   const router = useRouter();
 
   const [identities, setIdentities] = useState(publicDocs);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Multi-account switching is hidden until phase two, so the index is fixed at
+  // the single active identity. Restore useState + the arrows to re-enable it.
+  const currentIndex = 0;
   const currentIdentity = identities[currentIndex];
 
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { address, isConnected } = useAccount();
+  const { handleLogOut } = useDynamicContext();
   const { currentUserProfile, setProfile } = useProfileCache();
+
+  // Two-step confirmation before permanently deleting the profile.
+  const [showDeleteStep1, setShowDeleteStep1] = useState(false);
+  const [showDeleteStep2, setShowDeleteStep2] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const confirmDeleteProfile = async () => {
+    setDeleting(true);
+    await handleDeleteProfile(router, handleLogOut);
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -78,26 +90,31 @@ export default function PublicInfoPage() {
   const handleLogoutClick = () => setShowLogoutConfirm(true);
   const handleLogoutCancel = () => setShowLogoutConfirm(false);
 
-  // Load saved profile into the first identity slot
+  // Populate the first identity slot from the *connected* wallet, plus any saved
+  // profile. Multi-account is a phase-two feature, so the only real wallet is the
+  // connected one — we never carry over the placeholder addresses from publicDocs.
   useEffect(() => {
-    if (currentUserProfile && address) {
-      setIdentities((prev) => {
-        const updated = [...prev];
-        updated[0] = {
-          ...updated[0],
-          username: currentUserProfile.username || updated[0].username,
-          location: currentUserProfile.location || updated[0].location,
-          radius: currentUserProfile.radius ? `${currentUserProfile.radius} Miles` : updated[0].radius,
-          selectedGenres: currentUserProfile.genres || updated[0].selectedGenres,
-          selectedWalletAddress: address,
-          walletAddresses: [address, ...updated[0].walletAddresses.filter((a: string) => a !== address)],
-          didEth: `did:eth:${address.slice(0, 8)}...${address.slice(-4)}`,
-        };
-        return updated;
-      });
-      if (currentUserProfile.profilePictureUrl) {
-        setProfilePic(currentUserProfile.profilePictureUrl);
-      }
+    if (!address) return;
+    setIdentities((prev) => {
+      const updated = [...prev];
+      updated[0] = {
+        ...updated[0],
+        ...(currentUserProfile
+          ? {
+              username: currentUserProfile.username || updated[0].username,
+              location: currentUserProfile.location || updated[0].location,
+              radius: currentUserProfile.radius ? `${currentUserProfile.radius} Miles` : updated[0].radius,
+              selectedGenres: currentUserProfile.genres || updated[0].selectedGenres,
+            }
+          : {}),
+        selectedWalletAddress: address,
+        walletAddresses: [address],
+        didEth: `did:eth:${address.slice(0, 8)}...${address.slice(-4)}`,
+      };
+      return updated;
+    });
+    if (currentUserProfile?.profilePictureUrl) {
+      setProfilePic(currentUserProfile.profilePictureUrl);
     }
   }, [currentUserProfile, address]);
 
@@ -150,20 +167,21 @@ export default function PublicInfoPage() {
                 width={24}
                 height={24}
                 className={styles.actionIconButton}
-                title="Delete Identity"
-                onClick={() =>
-                  identities.length > 1 &&
-                  handleDeleteIdentity(identities, currentIndex, setIdentities, setCurrentIndex)
-                }
+                title="Delete Profile"
+                onClick={() => setShowDeleteStep1(true)}
               />
             </div>
 
             <div className={styles.profileImageSection}>
+              {/* Multi-account switching (prev/next arrows + "Identity X of Y" below)
+                  is hidden until phase two — it's dummy for now and real multi-wallet
+                  support (a distinct address per account) comes later. Kept for then.
               <button type="button" className={styles.arrowButton} onClick={() => handlePrev(setCurrentIndex, identities)}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M10 4L6 8L10 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
+              */}
 
               <div className={styles.profileImageWrapper}>
                 <div className={styles.profileImageUpload} onClick={() => fileInputRef.current?.click()}>
@@ -195,16 +213,20 @@ export default function PublicInfoPage() {
                 </button>
               </div>
 
+              {/* next arrow — hidden until phase two (see note above)
               <button type="button" className={styles.arrowButton} onClick={() => handleNext(setCurrentIndex, identities)}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M6 4L10 8L6 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
+              */}
             </div>
           </div>
+          {/* Account counter — hidden until multi-account (phase two).
           <p className={styles.identityLabel}>
             Identity {currentIndex + 1} of {identities.length}
           </p>
+          */}
 
           <div className={styles.inputGroup}>
             <label className={styles.label}>Username</label>
@@ -255,6 +277,8 @@ export default function PublicInfoPage() {
   
 </div>
 
+          {/* DID:eth and DID:web are hidden for now — decentralized-identifier
+              integration is deferred (client request). Kept here to restore later.
           <div className={styles.inputGroup}>
             <label className={styles.label}>DID:eth</label>
             <div className={styles.inputRow}>
@@ -277,7 +301,8 @@ export default function PublicInfoPage() {
               readOnly
             />
             </div>
-          </div>     
+          </div>
+          */}
           <div className={styles.formRow}>
           <div className={styles.inputGroup} >
             <label className={styles.label}>Location</label>
@@ -464,7 +489,11 @@ export default function PublicInfoPage() {
             className={styles.toggleSwitch}
           />
         </div>
-        <p className={styles.lastUpdated}>  Profile last Updated on 5 May 2025</p>
+        <p className={styles.lastUpdated}>
+          {currentUserProfile?.cachedAt
+            ? `Profile last updated on ${new Date(currentUserProfile.cachedAt).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })} at ${new Date(currentUserProfile.cachedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`
+            : "Profile not saved yet"}
+        </p>
 
           <div className={styles.formGroup}>
             <button type="button" onClick={handleSave}   className={styles.confirmButton}>
@@ -486,8 +515,57 @@ export default function PublicInfoPage() {
               <button onClick={handleSignOut} className={styles.logoutconfirmButton}>Sign Out</button>
             </div>
           </div>
-        </div> 
+        </div>
       )}
+
+          {/* Delete profile — step 1 warning */}
+          {showDeleteStep1 && (
+            <div className={styles.logoutConfirmOverlay}>
+              <div className={styles.logoutConfirmBox}>
+                <h3>Delete profile</h3>
+                <p>
+                  This will permanently remove all information and access to this account.
+                  You will be unable to recover this account or any data from it. Are you
+                  sure you want to delete it?
+                </p>
+                <div className={styles.logoutButtons}>
+                  <button onClick={() => setShowDeleteStep1(false)} className={styles.logoutcancelButton}>Cancel</button>
+                  <button
+                    onClick={() => { setShowDeleteStep1(false); setShowDeleteStep2(true); }}
+                    className={styles.logoutconfirmButton}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Delete profile — step 2 final confirmation */}
+          {showDeleteStep2 && (
+            <div className={styles.logoutConfirmOverlay}>
+              <div className={styles.logoutConfirmBox}>
+                <h3>Confirm deletion</h3>
+                <p>Please confirm you want to delete this profile.</p>
+                <div className={styles.logoutButtons}>
+                  <button
+                    onClick={() => setShowDeleteStep2(false)}
+                    className={styles.logoutcancelButton}
+                    disabled={deleting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDeleteProfile}
+                    className={styles.logoutconfirmButton}
+                    disabled={deleting}
+                  >
+                    {deleting ? "Deleting…" : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </form>
       </main>
     </div>

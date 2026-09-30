@@ -84,3 +84,23 @@ export const handleSignOut = async (router: any) => {
   sessionStorage.clear();
   router.push("/");
 };
+
+// Permanently delete the profile: wipe EVERYTHING for this app on this device —
+// profile cache, chat keys/session, drafts, notifications — plus the wallet
+// (Dynamic) session, then send the user back to login. Unlike handleSignOut this
+// does NOT preserve the profile cache. On-chain data (contracts, tickets, the
+// on-chain username) cannot be deleted and is untouched.
+export const handleDeleteProfile = async (router: any, logOut?: () => Promise<void>) => {
+  try {
+    if (logOut) await logOut();
+  } catch (e) {
+    console.warn('[delete-profile] wallet logout failed (continuing to wipe local data):', e);
+  }
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+  } catch (e) {
+    console.warn('[delete-profile] storage clear failed:', e);
+  }
+  router.replace('/');
+};

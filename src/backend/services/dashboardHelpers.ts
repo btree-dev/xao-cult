@@ -375,8 +375,31 @@ export const applyContractFilters = async (
     });
   }
 
-  // Step 4: Apply genre filter if set (contracts use genres array from on-chain data)
-  // Genre is not stored on-chain in contract summaries, so skip genre filtering for now
+  // Step 4: Apply genre preference as a SOFT filter.
+  // Preference source: the explicit genres chosen in the calendar filter take
+  // priority; otherwise fall back to the genres saved on the user's profile.
+  // Each contract carries its on-chain genres (getGenres) on summary.genres.
+  // "Soft" = not hard-and-fast: if applying the preference would leave nothing
+  // to show, we widen (skip genre) so the dashboard is never empty.
+  const preferredGenres: string[] =
+    dateFilters?.selectedGenres && dateFilters.selectedGenres.length > 0
+      ? dateFilters.selectedGenres
+      : Array.isArray(profile?.genres)
+        ? profile.genres
+        : [];
+
+  if (preferredGenres.length > 0) {
+    const wanted = preferredGenres.map((g) => g.toLowerCase());
+    const matched = filtered.filter(
+      (c) =>
+        Array.isArray(c.genres) &&
+        c.genres.some((g: string) => wanted.includes((g || '').toLowerCase()))
+    );
+    // Only narrow when at least one event matches; otherwise widen (keep all).
+    if (matched.length > 0) {
+      filtered = matched;
+    }
+  }
 
   // Step 5: Apply location filter if coordinates are set (using venueName)
   if (filterLocation.coordinates) {

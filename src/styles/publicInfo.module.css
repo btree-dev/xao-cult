@@ -680,3 +680,45 @@
   background: var(--main-gradient);
   color: white;
 }
+
+/* ── Government ID upload (front/back) — device-only ── */
+.idUploadRow {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+.idUploadTile {
+  flex: 1;
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 18px;
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(#000000, #000000),
+    var(--main-gradient);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  transition: all 0.2s ease;
+}
+.idUploadTile:hover {
+  opacity: 0.9;
+}
+.idThumb {
+  width: 100%;
+  max-height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.idTileLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

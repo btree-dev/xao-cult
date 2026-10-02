@@ -23,6 +23,41 @@ import BlankNavbar from "../components/BackNav";
 import Scrollbar from "../components/Scrollbar";
 import Layout from "../components/Layout";
 
+// Downscale an uploaded image to a base64 JPEG so two ID photos plus the
+// profile picture stay comfortably under the localStorage quota. Falls back to
+// the raw data URL if the browser can't decode/redraw the file.
+const MAX_ID_DIMENSION = 1400;
+async function downscaleImage(file: File): Promise<string> {
+  const rawDataUrl: string = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new window.Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("decode failed"));
+      image.src = rawDataUrl;
+    });
+
+    const scale = Math.min(1, MAX_ID_DIMENSION / Math.max(img.width, img.height));
+    const w = Math.round(img.width * scale);
+    const h = Math.round(img.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return rawDataUrl;
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL("image/jpeg", 0.8);
+  } catch {
+    return rawDataUrl;
+  }
+}
+
 export default function PublicInfoPage() {
   const [loading, setLoading] = useState(true);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -36,6 +71,13 @@ export default function PublicInfoPage() {
 
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Government ID photos (front/back of a license). Device-only: stored as
+  // downscaled base64 in the profile cache, never uploaded anywhere.
+  const [idFront, setIdFront] = useState<string | null>(null);
+  const [idBack, setIdBack] = useState<string | null>(null);
+  const idFrontInputRef = useRef<HTMLInputElement>(null);
+  const idBackInputRef = useRef<HTMLInputElement>(null);
 
   const { address, isConnected } = useAccount();
   const { handleLogOut } = useDynamicContext();
@@ -51,6 +93,26 @@ export default function PublicInfoPage() {
     await handleDeleteProfile(router, handleLogOut);
   };
 
+  // Single source of truth for writing the profile cache. Every save path goes
+  // through here so uploading (say) a new profile picture never wipes the ID
+  // photos, and vice versa — we always persist the full current state, applying
+  // only the given overrides on top.
+  const persistProfile = (overrides: Partial<Parameters<typeof setProfile>[0]> = {}) => {
+    if (!address) return;
+    setProfile({
+      walletAddress: address,
+      username: currentIdentity.username,
+      profilePictureUrl: profilePic || undefined,
+      location: currentIdentity.location,
+      radius: currentIdentity.radius.replace(' Miles', ''),
+      genres: currentIdentity.selectedGenres,
+      idFrontUrl: idFront || undefined,
+      idBackUrl: idBack || undefined,
+      cachedAt: Date.now(),
+      ...overrides,
+    });
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !address) return;
@@ -59,31 +121,39 @@ export default function PublicInfoPage() {
     reader.onload = () => {
       const dataUrl = reader.result as string;
       setProfilePic(dataUrl);
-      setProfile({
-        walletAddress: address,
-        username: currentIdentity.username,
-        profilePictureUrl: dataUrl,
-        location: currentIdentity.location,
-        radius: currentIdentity.radius.replace(' Miles', ''),
-        genres: currentIdentity.selectedGenres,
-        cachedAt: Date.now(),
-      });
+      persistProfile({ profilePictureUrl: dataUrl });
     };
     reader.readAsDataURL(file);
   };
 
-  const handleSave = () => {
-    if (address) {
-      setProfile({
-        walletAddress: address,
-        username: currentIdentity.username,
-        profilePictureUrl: profilePic || undefined,
-        location: currentIdentity.location,
-        radius: currentIdentity.radius.replace(' Miles', ''),
-        genres: currentIdentity.selectedGenres,
-        cachedAt: Date.now(),
-      });
+  // Front/back ID photo upload. Images are downscaled, previewed, and persisted
+  // to the device-only profile cache; they are never uploaded off-device.
+  const handleIdUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    side: "front" | "back"
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file || !address) return;
+    try {
+      const dataUrl = await downscaleImage(file);
+      if (side === "front") {
+        setIdFront(dataUrl);
+        persistProfile({ idFrontUrl: dataUrl });
+      } else {
+        setIdBack(dataUrl);
+        persistProfile({ idBackUrl: dataUrl });
+      }
+    } catch (err) {
+      console.error("[id-upload] failed to process ID image:", err);
+      alert("Could not read that image. Please try another photo.");
+    } finally {
+      // Allow re-selecting the same file again later.
+      e.target.value = "";
     }
+  };
+
+  const handleSave = () => {
+    persistProfile();
     router.push("/dashboard");
   };
 
@@ -116,6 +186,8 @@ export default function PublicInfoPage() {
     if (currentUserProfile?.profilePictureUrl) {
       setProfilePic(currentUserProfile.profilePictureUrl);
     }
+    if (currentUserProfile?.idFrontUrl) setIdFront(currentUserProfile.idFrontUrl);
+    if (currentUserProfile?.idBackUrl) setIdBack(currentUserProfile.idBackUrl);
   }, [currentUserProfile, address]);
 
   useEffect(() => {
@@ -361,27 +433,83 @@ export default function PublicInfoPage() {
           <div className={styles.gradientLine}></div>
         </div>
             <div className={styles.formGroup}>
-            <button type="button" className={styles.documentButton}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={styles.icon}
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+            <label className={styles.formLabel}>ID (front &amp; back of license)</label>
+            <div className={styles.idUploadRow}>
+              {/* Front */}
+              <div
+                className={styles.idUploadTile}
+                onClick={() => idFrontInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
               >
-                <rect x="3" y="4" width="18" height="16" rx="2" ry="2"></rect>
-                <line x1="7" y1="8" x2="13" y2="8"></line>
-                <line x1="7" y1="12" x2="13" y2="12"></line>
-                <line x1="7" y1="16" x2="10" y2="16"></line>
-                <circle cx="17" cy="12" r="2"></circle>
-              </svg>
-              ID
-            </button>
+                {idFront ? (
+                  <Image src={idFront} alt="ID front" width={160} height={72} className={styles.idThumb} unoptimized />
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="4" width="18" height="16" rx="2" ry="2"></rect>
+                    <line x1="7" y1="8" x2="13" y2="8"></line>
+                    <line x1="7" y1="12" x2="13" y2="12"></line>
+                    <line x1="7" y1="16" x2="10" y2="16"></line>
+                    <circle cx="17" cy="12" r="2"></circle>
+                  </svg>
+                )}
+                <span className={styles.idTileLabel}>{idFront ? "Front ✓ — Replace" : "Upload Front"}</span>
+                <input
+                  type="file"
+                  ref={idFrontInputRef}
+                  onChange={(e) => handleIdUpload(e, "front")}
+                  accept="image/*"
+                  style={{ display: "none" }}
+                />
+              </div>
+
+              {/* Back */}
+              <div
+                className={styles.idUploadTile}
+                onClick={() => idBackInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+              >
+                {idBack ? (
+                  <Image src={idBack} alt="ID back" width={160} height={72} className={styles.idThumb} unoptimized />
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="3" y="4" width="18" height="16" rx="2" ry="2"></rect>
+                    <line x1="7" y1="8" x2="17" y2="8"></line>
+                    <line x1="7" y1="12" x2="17" y2="12"></line>
+                    <line x1="7" y1="16" x2="13" y2="16"></line>
+                  </svg>
+                )}
+                <span className={styles.idTileLabel}>{idBack ? "Back ✓ — Replace" : "Upload Back"}</span>
+                <input
+                  type="file"
+                  ref={idBackInputRef}
+                  onChange={(e) => handleIdUpload(e, "back")}
+                  accept="image/*"
+                  style={{ display: "none" }}
+                />
+              </div>
+            </div>
           </div>
           <div className={styles.formGroup}>
                 <button 

@@ -17,6 +17,10 @@ export interface CachedProfile {
   location?: string;
   radius?: string;
   genres?: string[];
+  // Government ID photos (front/back of a license), stored device-only as
+  // downscaled base64. Never uploaded off-device; wiped by delete-profile.
+  idFrontUrl?: string;
+  idBackUrl?: string;
   cachedAt: number;
 }
 

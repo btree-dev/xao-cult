@@ -14,6 +14,7 @@ export interface ContractSummary {
   party1Signed: boolean;
   party2Signed: boolean;
   eventImageUri?: string;
+  genres?: string[];
 }
 
 // ShowContract status enum: DRAFT, PROPOSED, COUNTER_PROPOSED, APPROVED, ACTIVE, COMPLETED, CANCELLED, DISPUTED
@@ -102,8 +103,8 @@ export const useGetContractSummary = (contractAddress?: `0x${string}`) => {
 
 export const useGetContractSummaries = (contractAddresses?: `0x${string}`[]) => {
   // ShowContract exposes individual public fields, not struct getters
-  // Fields per contract: party1, party2, eventName, venueName, eventStartDate, eventEndDate, flyerDNSLink, status, isFinalized
-  const FIELDS_PER_CONTRACT = 9;
+  // Fields per contract: party1, party2, eventName, venueName, eventStartDate, eventEndDate, flyerDNSLink, status, isFinalized, getGenres
+  const FIELDS_PER_CONTRACT = 10;
 
   const contracts = contractAddresses?.flatMap((address) => [
     { address, abi: EVENT_CONTRACT_ABI as any, functionName: 'party1' },       // 0: Party struct {wallet, role, xaoUsername}
@@ -115,6 +116,7 @@ export const useGetContractSummaries = (contractAddresses?: `0x${string}`[]) => 
     { address, abi: EVENT_CONTRACT_ABI as any, functionName: 'flyerDNSLink' },   // 6: string (image URI)
     { address, abi: EVENT_CONTRACT_ABI as any, functionName: 'status' },         // 7: uint8 enum
     { address, abi: EVENT_CONTRACT_ABI as any, functionName: 'isFinalized' },    // 8: bool
+    { address, abi: EVENT_CONTRACT_ABI as any, functionName: 'getGenres' },      // 9: string[]
   ]) || [];
 
   const { data, isLoading, error, refetch } = useReadContracts({
@@ -136,6 +138,7 @@ export const useGetContractSummaries = (contractAddresses?: `0x${string}`[]) => 
     const imageResult = data?.[base + 6];
     const statusResult = data?.[base + 7];
     const finalizedResult = data?.[base + 8];
+    const genresResult = data?.[base + 9];
 
     if (party1Result?.status === 'success' && party2Result?.status === 'success') {
       const party1 = party1Result.result as any;
@@ -155,6 +158,7 @@ export const useGetContractSummaries = (contractAddresses?: `0x${string}`[]) => 
         party1Signed: isFinalized,
         party2Signed: isFinalized,
         eventImageUri: imageResult?.status === 'success' ? (imageResult.result as string) : undefined,
+        genres: genresResult?.status === 'success' ? (genresResult.result as string[]) : [],
       };
       return summary;
     }

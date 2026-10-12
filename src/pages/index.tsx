@@ -2,7 +2,7 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import Image from 'next/image'
 import styles from '../styles/Home.module.css';
-import { DynamicEmbeddedWidget } from '@dynamic-labs/sdk-react-core';
+import { DynamicEmbeddedAuthFlow } from '@dynamic-labs/sdk-react-core';
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
 import { useWalletReadiness } from '../hooks/useWalletReadiness';
@@ -34,9 +34,17 @@ const Home: NextPage = () => {
       </Head>
 
       <main className={styles.main}>
-        <WalletNotReady readiness={readiness} walletLabel={walletLabel} compact />
+        {/* Login flow only: DynamicEmbeddedAuthFlow renders nothing once signed in,
+            so the user never sees Dynamic's wallet/balance view. While their wallet
+            connects we show a spinner; if it never does, an explanation with
+            Reload / Log out (the auth flow is gone, so this is the only way out). */}
+        {readiness === 'connecting' || readiness === 'ready' ? (
+          <div className={styles.navSpinner} />
+        ) : (
+          <WalletNotReady readiness={readiness} walletLabel={walletLabel} />
+        )}
         <div className={styles.walletWidgetContainer}>
-          <DynamicEmbeddedWidget />
+          <DynamicEmbeddedAuthFlow />
         </div>
         <div className={styles.rowContainer}>
           <div className={styles.gradientLine} />

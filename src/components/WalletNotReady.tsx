@@ -7,7 +7,7 @@ import type { WalletReadiness } from '../hooks/useWalletReadiness';
 const MESSAGES: Partial<Record<WalletReadiness, { title: string; body: string }>> = {
   'no-wallet': {
     title: 'No wallet connected',
-    body: "You're signed in, but there's no wallet linked to this account in this browser. Connect or link an Ethereum wallet to continue, or log out and sign in with a different account.",
+    body: "You're signed in, but there's no wallet linked to this account in this browser. Log out and sign in with a wallet, or with a different account.",
   },
   'non-evm': {
     title: 'Unsupported wallet',
@@ -21,17 +21,14 @@ const MESSAGES: Partial<Record<WalletReadiness, { title: string; body: string }>
 
 /**
  * Explains why a signed-in user can't get past login (see useWalletReadiness)
- * instead of leaving them on a blank screen. `compact` drops the reload/log-out
- * buttons for the login page, where Dynamic's own widget already offers them.
+ * instead of leaving them on a blank screen.
  */
 export default function WalletNotReady({
   readiness,
   walletLabel,
-  compact = false,
 }: {
   readiness: WalletReadiness;
   walletLabel: string | null;
-  compact?: boolean;
 }) {
   const { handleLogOut } = useDynamicContext();
   const msg = MESSAGES[readiness];
@@ -42,16 +39,12 @@ export default function WalletNotReady({
       <h1 className={styles.signExplainerTitle}>{msg.title}</h1>
       <p className={styles.signExplainerIntro}>{msg.body}</p>
       {walletLabel && <p className={styles.signExplainerIntro}>Wallet: {walletLabel}</p>}
-      {!compact && (
-        <>
-          <button className={ccStyles.confirmButton} onClick={() => window.location.reload()}>
-            Reload
-          </button>
-          <button className={ccStyles.confirmButton} onClick={() => void handleLogOut()}>
-            Log out
-          </button>
-        </>
-      )}
+      <button className={ccStyles.confirmButton} onClick={() => window.location.reload()}>
+        Reload
+      </button>
+      <button className={ccStyles.confirmButton} onClick={() => void handleLogOut()}>
+        Log out
+      </button>
     </div>
   );
 }

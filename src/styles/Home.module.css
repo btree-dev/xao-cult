@@ -384,6 +384,26 @@
   margin-right: 40px; /* To balance the back button */
 }
 
+/* Header with an icon button on the right as well as the back button on the
+   left — the two balance each other, so drop .pageTitle's spacer margin. */
+.pageTitleWithAction {
+  margin-right: 0;
+}
+
+/* Icon button pinned to the top-right on screens with no header row
+   (e.g. the vertically centred unlock-chat explainer). */
+.cornerIconButton {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top));
+  right: 12px;
+  z-index: 10;
+}
+
+.headerIconButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .pageDescription {
   font-size: 16px;
   color: #ffffff;

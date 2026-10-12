@@ -10,6 +10,7 @@ import { useXaoMsgSession } from '../hooks/useXaoMsgSession';
 import { syncAllKnownThreads } from '../lib/xaomsg/sync';
 import { useProfileCache } from '../contexts/ProfileCacheContext';
 import { RETURN_TO_KEY } from '../components/AuthGate';
+import LogoutIconButton from '../components/LogoutIconButton';
 
 const SIGN_STEPS = [
   {
@@ -104,9 +105,11 @@ const UnlockChat: NextPage = () => {
   };
 
   const logoutButton = (
-    <button className={styles.logoutcancelButton} onClick={handleLogout} disabled={isLoggingOut || isUnlocking}>
-      {isLoggingOut ? 'Logging out…' : 'Log out'}
-    </button>
+    <LogoutIconButton
+      onClick={handleLogout}
+      disabled={isLoggingOut || isUnlocking}
+      className={styles.cornerIconButton}
+    />
   );
 
   const handleRetry = () => {

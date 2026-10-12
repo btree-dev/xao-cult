@@ -6,6 +6,9 @@ import Image from 'next/image';
 import styles from '../styles/Home.module.css';
 import { useAccount } from 'wagmi';
 import { useProfileCache } from '../contexts/ProfileCacheContext';
+import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { handleSignOut } from '../backend/public-information-services/publicInfoServices';
+import LogoutIconButton from '../components/LogoutIconButton';
 
 // Genre hierarchy data structure
 const genreHierarchy = {
@@ -89,6 +92,15 @@ const CreateProfile: NextPage = () => {
   const router = useRouter();
   const { address, isConnected } = useAccount();
   const { currentUserProfile, setProfile } = useProfileCache();
+  const { handleLogOut } = useDynamicContext();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // First-time users land here straight after login; let them back out
+  // without creating a profile.
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    await handleSignOut(router, handleLogOut);
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -237,7 +249,8 @@ const CreateProfile: NextPage = () => {
               <path d="M15 18L9 12L15 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
-          <h1 className={styles.pageTitle}>{isEditingProfile ? 'Edit Profile' : 'Create Profile'}</h1>
+          <h1 className={`${styles.pageTitle} ${styles.pageTitleWithAction}`}>{isEditingProfile ? 'Edit Profile' : 'Create Profile'}</h1>
+          <LogoutIconButton onClick={handleLogout} disabled={isLoggingOut || loading} />
         </div>
         
         {!isConnected && (

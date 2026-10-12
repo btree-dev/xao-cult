@@ -24,7 +24,7 @@ const SIGN_STEPS = [
 
 const UnlockChat: NextPage = () => {
   const router = useRouter();
-  const { user: dynamicUser } = useDynamicContext();
+  const { user: dynamicUser, sdkHasLoaded, handleLogOut } = useDynamicContext();
   const { address } = useAccount();
   const { session, isUnlocking, error, unlock, isWalletReady, signStep } = useXaoMsgSession();
   const { currentUserProfile, isLoadingCurrentUser } = useProfileCache();
@@ -38,8 +38,8 @@ const UnlockChat: NextPage = () => {
 
   // No wallet connected (direct nav, stale bookmark) — nothing to unlock.
   useEffect(() => {
-    if (!dynamicUser) router.replace('/');
-  }, [dynamicUser, router]);
+    if (sdkHasLoaded && !dynamicUser) router.replace('/');
+  }, [sdkHasLoaded, dynamicUser, router]);
 
   // Auto-fire the unlock signature exactly once, for any wallet type, as
   // soon as we know there's no already-valid session to reuse and the user
@@ -89,6 +89,26 @@ const UnlockChat: NextPage = () => {
     }
   }, [address, session, router, isLoadingCurrentUser, currentUserProfile]);
 
+  // Let the user back out instead of signing. Logging out of Dynamic clears
+  // `dynamicUser`, and the effect above then sends them to the login page.
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try { sessionStorage.removeItem(RETURN_TO_KEY); } catch { /* private mode */ }
+    try {
+      await handleLogOut();
+    } catch (err) {
+      console.warn('[unlock-chat] logout failed:', err);
+      setIsLoggingOut(false);
+    }
+  };
+
+  const logoutButton = (
+    <button className={styles.logoutcancelButton} onClick={handleLogout} disabled={isLoggingOut || isUnlocking}>
+      {isLoggingOut ? 'Logging out…' : 'Log out'}
+    </button>
+  );
+
   const handleRetry = () => {
     attemptedRef.current = true;
     void unlock();
@@ -109,6 +129,7 @@ const UnlockChat: NextPage = () => {
             <button className={ccStyles.confirmButton} onClick={handleRetry} disabled={isUnlocking}>
               {isUnlocking ? 'Signing…' : 'Try again'}
             </button>
+            {logoutButton}
           </div>
         ) : !session && !explainerAcknowledged ? (
           <div className={styles.signExplainerBox}>
@@ -134,6 +155,7 @@ const UnlockChat: NextPage = () => {
             >
               Continue
             </button>
+            {logoutButton}
           </div>
         ) : (
           <div className={styles.navOverlay}>

@@ -640,7 +640,7 @@ export default function PublicInfoPage() {
             <p>Are you sure you want to sign out?</p>
             <div className={styles.logoutButtons}>
               <button onClick={handleLogoutCancel} className={styles.logoutcancelButton}>Cancel</button>
-              <button onClick={handleSignOut} className={styles.logoutconfirmButton}>Sign Out</button>
+              <button onClick={() => handleSignOut(router, handleLogOut)} className={styles.logoutconfirmButton}>Sign Out</button>
             </div>
           </div>
         </div>

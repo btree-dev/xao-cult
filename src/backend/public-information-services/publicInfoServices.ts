@@ -74,15 +74,28 @@ export const handleDeleteIdentity = (
 };
 
 
-export const handleSignOut = async (router: any) => {
-  // Preserve profile cache across sign-outs
-  const profileCache = localStorage.getItem('xao-cult-profile-cache');
-  localStorage.clear();
-  if (profileCache) {
-    localStorage.setItem('xao-cult-profile-cache', profileCache);
+// Sign out: end the wallet (Dynamic) session, then wipe this app's local data
+// except the profile cache, and go back to login. The Dynamic logout must happen
+// — clearing storage alone leaves Dynamic's in-memory user set, so the login
+// page would immediately send the user back into the app.
+export const handleSignOut = async (router: any, logOut?: () => Promise<void>) => {
+  try {
+    if (logOut) await logOut();
+  } catch (e) {
+    console.warn('[sign-out] wallet logout failed (continuing to clear local data):', e);
   }
-  sessionStorage.clear();
-  router.push("/");
+  try {
+    // Preserve profile cache across sign-outs
+    const profileCache = localStorage.getItem('xao-cult-profile-cache');
+    localStorage.clear();
+    if (profileCache) {
+      localStorage.setItem('xao-cult-profile-cache', profileCache);
+    }
+    sessionStorage.clear();
+  } catch (e) {
+    console.warn('[sign-out] storage clear failed:', e);
+  }
+  router.replace('/');
 };
 
 // Permanently delete the profile: wipe EVERYTHING for this app on this device —

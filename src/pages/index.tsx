@@ -2,20 +2,24 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import Image from 'next/image'
 import styles from '../styles/Home.module.css';
-import { DynamicEmbeddedWidget, useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { DynamicEmbeddedWidget } from '@dynamic-labs/sdk-react-core';
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
+import { useWalletReadiness } from '../hooks/useWalletReadiness';
+import WalletNotReady from '../components/WalletNotReady';
 
 const Home: NextPage = () => {
   const router = useRouter();
-  const { user: dynamicUser } = useDynamicContext();
+  const { readiness, walletLabel } = useWalletReadiness();
 
-  // Redirect when Dynamic user is authenticated
+  // Move on once Dynamic has authenticated the user AND wagmi has the wallet
+  // connected — /unlock-chat (behind AuthGate) needs both. replace, not push,
+  // so Back doesn't land on the login page and immediately bounce forward.
   useEffect(() => {
-    if (dynamicUser) {
-      router.push('/unlock-chat');
+    if (readiness === 'ready') {
+      router.replace('/unlock-chat');
     }
-  }, [dynamicUser, router]);
+  }, [readiness, router]);
 
   return (
     <div className={styles.container}>
@@ -30,6 +34,7 @@ const Home: NextPage = () => {
       </Head>
 
       <main className={styles.main}>
+        <WalletNotReady readiness={readiness} walletLabel={walletLabel} compact />
         <div className={styles.walletWidgetContainer}>
           <DynamicEmbeddedWidget />
         </div>

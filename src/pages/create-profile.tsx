@@ -9,6 +9,7 @@ import { useProfileCache } from '../contexts/ProfileCacheContext';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
 import { handleSignOut } from '../backend/public-information-services/publicInfoServices';
 import LogoutIconButton from '../components/LogoutIconButton';
+import { Genres } from '../backend/public-information-services/publicinfodata';
 
 // Genre hierarchy data structure
 const genreHierarchy = {
@@ -68,10 +69,9 @@ const genreHierarchy = {
   }
 };
 
-// Main genre list for the pill buttons
-const mainGenres = [
-  'Punk', 'Metal', 'Classical', 'Hip Hop', 'Electronic', 'Jazz', 'Rock', 'Pop'
-];
+// The pill buttons use the app-wide canonical genre list (shared with the
+// profile-edit page and the dashboard genre filter) so selections here match
+// the genres events are tagged with.
 
 const CreateProfile: NextPage = () => {
   const [username, setUsername] = useState('');
@@ -359,7 +359,7 @@ const CreateProfile: NextPage = () => {
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Genre</label>
                 <div className={styles.genrePillsContainer}>
-                  {mainGenres.map((genre) => (
+                  {Genres.map((genre) => (
                     <button
                       key={genre}
                       type="button"
@@ -372,40 +372,6 @@ const CreateProfile: NextPage = () => {
                 </div>
               </div>
               
-              <div className={styles.formGroup}>
-                <div 
-                  className={`${styles.customDropdown} ${isGenreDropdownOpen ? styles.open : ''}`}
-                  ref={genreDropdownRef}
-                >
-                  <div 
-                    className={styles.customDropdownSelected}
-                    onClick={toggleGenreDropdown}
-                  >
-                    <span>{selectedGenre || 'Select Subgenre'}</span>
-                    <svg className={`${styles.selectArrow} ${isGenreDropdownOpen ? styles.rotated : ''}`} width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 6L8 10L12 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <div className={styles.customDropdownOptions}>
-                    {availableSubgenres.length > 0 ? (
-                      availableSubgenres.map((subgenre) => (
-                        <div 
-                          key={subgenre} 
-                          className={`${styles.customDropdownOption} ${selectedGenres.includes(subgenre) ? styles.selected : ''}`}
-                          onClick={() => selectSubgenre(subgenre)}
-                        >
-                          {subgenre}
-                        </div>
-                      ))
-                    ) : (
-                      <div className={styles.customDropdownOption}>
-                        {selectedGenres.length > 0 ? 'No additional subgenres available' : 'Select a genre first'}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
               <div className={styles.formGroup}>
                 <button 
                   type="button" 
